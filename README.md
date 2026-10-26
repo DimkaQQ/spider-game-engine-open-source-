@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./spider_engine_icon_transparent.png" alt="Spider Engine" width="180" />
+  <img src="./Futuristic Spider Engine Logo.png" alt="Spider Engine" width="220" />
 </p>
 
 # spider-game-engine-open-source-
