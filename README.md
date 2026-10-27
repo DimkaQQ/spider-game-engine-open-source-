@@ -22,7 +22,7 @@ npm run dist       # Windows installer + portable exe
 - **Playable demo game** (`src/game/`) — hero (WASD + Space), 3 spinning coins, score + win state, BlockAll collision, falling physics props
 - **Import** — `.glb/.gltf/.fbx/.obj` models, images as textures, audio preview, whole-folder parse, or open a folder as a project
 - **Projects** — multiple saved scenes (Unreal-style New Project wizard: Normal, TPP/FPP Shooting, Racing, Custom, Blank), autosaved locally
-- **Ask AI panel** — Gemini-style assistant: natural-language scene commands, recent chats, thinking levels, per-message actions, MCP tool bridge (`window.spiderEngine`), Meta Model API chat with encrypted key storage
+- **Ask AI panel** — slide-over assistant: natural-language scene commands, recent chats, thinking levels, per-message actions, MCP tool bridge (`window.spiderEngine`), Meta Model API chat with encrypted key storage
 - **Build** — validates + exports portable `GameWorld.scene.json` (assets embedded)
 
 ## Demo game files

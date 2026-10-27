@@ -485,7 +485,7 @@ export default function App() {
   const consoleInputRef = useRef(null);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiAnswer, setAiAnswer] = useState("");
-  // Recent chats — Gemini-style sessions, pinned first, persisted locally
+  // Recent chats — sessions with pins, persisted locally
   const [sessions, setSessions] = useState(() => {
     try {
       const raw = localStorage.getItem("spider-ai-sessions");
@@ -2277,7 +2277,7 @@ export default function App() {
                 )}
               </div>
             ))}
-            {/* Ask AI — Gemini-style slide-over assistant panel */}
+            {/* Ask AI — slide-over assistant panel */}
             <div>
               <button
                 onClick={() => setOpenMenu(openMenu === "AskAI" ? null : "AskAI")}
