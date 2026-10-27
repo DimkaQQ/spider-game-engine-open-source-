@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Round checkboxes — curved instead of square boxes */
+.round-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+}
+.round-check:checked {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+.round-check:checked::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 7px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+@keyframes ai-shimmer-sweep {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.ai-shimmer-bubble {
+  background: transparent;
+  border: none;
+  padding-left: 2px;
+}
+.ai-shimmer-text {
+  background: linear-gradient(110deg, #0f172a 30%, #64748b 50%, #0f172a 70%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ai-shimmer-sweep 1.4s linear infinite;
+  font-size: 11px;
+  font-weight: 600;
+}

@@ -1,0 +1,64 @@
+{
+  "name": "spider-engine",
+  "version": "0.9.0",
+  "description": "Spider Engine - React based game engine",
+  "author": "",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "game:export": "node scripts/export-level.cjs",
+    "electron:dev": "electron .",
+    "electron:built": "electron . --built",
+    "start": "vite",
+    "dist": "vite build && electron-builder --win",
+    "dist:portable": "vite build && electron-builder --win portable"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "autoprefixer": "^10.6.1",
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "png-to-ico": "^3.0.2",
+    "postcss": "^8.5.31",
+    "sharp": "^0.35.5",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "electron-context-menu": "^5.1.0",
+    "lucide-react": "^1.61.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.186.1"
+  },
+  "build": {
+    "appId": "com.m4spider.engine",
+    "productName": "Spider Engine",
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    },
+    "directories": {
+      "output": "C:/Users/vvvr8/AppData/Local/Temp/opencode/spider-release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ]
+  }
+}
