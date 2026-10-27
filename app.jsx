@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import GameViewport, { viewportApi } from "./src/engine/GameViewport";
+import { runAgent, systemPrompt } from "./src/engine/agentHarness.js";
 import { GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed } from "./src/game/index.js";
-import { MATERIAL_PRESETS, matColor } from "./src/game/materials.js";
+import { MATERIAL_PRESETS, matColor, TUTORIALS } from "./src/game/index.js";
 import {
   Play,
   Square,
@@ -114,6 +115,30 @@ function AudioCard({ entry }) {
   );
 }
 
+// Shared Meta response parser: OpenAI chat, Responses API, legacy text
+function pickModelText(d) {
+  if (!d || typeof d !== "object") return typeof d === "string" && d.trim() ? d.trim() : null;
+  const ch = d.choices?.[0];
+  if (ch) {
+    const m = ch.message?.content;
+    if (typeof m === "string" && m.trim()) return m.trim();
+    if (Array.isArray(m)) {
+      const t = m.map((p) => (typeof p === "string" ? p : p?.text || "")).join("").trim();
+      if (t) return t;
+    }
+    if (typeof ch.text === "string" && ch.text.trim()) return ch.text.trim();
+  }
+  const out = d.output;
+  if (Array.isArray(out)) {
+    const t = out.flatMap((o) => o?.content || []).map((c) => (typeof c === "string" ? c : c?.text || "")).join("").trim();
+    if (t) return t;
+  }
+  for (const k of ["output_text", "text", "response", "answer"]) {
+    if (typeof d[k] === "string" && d[k].trim()) return d[k].trim();
+  }
+  return null;
+}
+
 export default function App() {
   // Navigation & Tabs State
   const [activeLeftRail, setActiveLeftRail] = useState("Scene");
@@ -144,7 +169,7 @@ export default function App() {
     };
     if (/\.(glb|gltf|fbx|obj)$/i.test(file.name) || /\.(png|jpe?g|webp)$/i.test(file.name)) {
       handleImportAssetFile(file);
-      push(true, `Accepted ${/model|glb|gltf|fbx|obj/i.test(file.name) ? "3D model" : "image"} — spawned into GameWorld.`);
+      push(true, `Accepted ${/model|glb|gltf|fbx|obj/i.test(file.name) ? "3D model" : "image"} — spawned into ${sceneLabel}.`);
       return;
     }
     if (/\.(mp3|wav|ogg|m4a)$/i.test(file.name)) {
@@ -170,7 +195,18 @@ export default function App() {
     const allNodes = sceneGroups.flatMap((g) => g.children);
     const byName = (n) => allNodes.find((c) => c.name.toLowerCase().includes(n) || c.id === n);
 
-    // Auto router: read-only questions answer, actions execute, destructive asks first (no manual mode)
+    // Full harness rule #1: a filesystem path in the message IS the intent — folder first, never an asset name
+    const pathHit = raw.match(/([A-Za-z]:[\\/][^\n"'`]+?)(?=\s*$|\s*\n|\s+(?:can|please|here|there|now)\b)/i) || raw.match(/([A-Za-z]:[\\/][^\n"'`]+)/);
+    if (pathHit) {
+      const dir = pathHit[1].replace(/[\s.\\/:]+$/, "").trim();
+      if (/^[A-Za-z]:[\\/]/.test(dir) && dir.length > 3) {
+        setProjects((prev) => prev.map((p) => (p.id === currentProjectId ? { ...p, root: dir } : p)));
+        say(`Project folder set to:\n${dir}\nNext save, build, or file lands there. Say "create project <name>" to start one inside it, or keep editing — autosave follows.`);
+        appendLog("Success", `Ask AI: project root → ${dir}`);
+        setAiPrompt("");
+        return;
+      }
+    }
 
     // Destructive actions ask first — Claude-Code-style permission prompt
     let m = q.match(/(?:delete|remove)\s+(.+)/);
@@ -179,7 +215,7 @@ export default function App() {
       if (!n) { say(`Couldn't find "${m[1]}" in the scene.`, false); setAiPrompt(""); return; }
       if (["player", "camera", "terrain"].includes(n.id)) { say(`${n.name} is a protected core actor — can't delete.`, false); setAiPrompt(""); return; }
       setPendingConfirm({
-        label: `Delete ${n.name} from GameWorld?`,
+        label: `Delete ${n.name} from ${sceneLabel}?`,
         run: () => {
           setSceneGroups((prev) => prev.map((g) => ({ ...g, children: g.children.filter((c) => c.id !== n.id) })));
           if (selectedNodeId === n.id) setSelectedNodeId("player");
@@ -193,11 +229,14 @@ export default function App() {
     let m2 = q.match(/(?:spawn|add|create|place)\s+(.+)/);
     if (m2) {
       const want = m2[1].trim();
+      // "create here/there" with no asset = location intent, not a spawn — handled above or falls through
       const pool = ENVIRONMENT_ASSETS.filter((a) => a.name.toLowerCase().includes(want) || a.mesh.toLowerCase().includes(want));
-      if (pool.length > 0) { handleSpawnAsset(pool[0]); say(`Spawned ${pool[0].name} into GameWorld.`); }
+      if (pool.length > 0) { handleSpawnAsset(pool[0]); say(`Spawned ${pool[0].name} into ${sceneLabel}.`); }
+      else if (/^(here|there|this|it|that|one)$/i.test(want)) { say(`Create what, and where? Try "create castle", or paste a folder path to set the project location.`); }
+      else if (metaKeyRef.current) { /* no asset match — let free chat / agent interpret it */ }
       else say(`No asset matches "${want}" — try castle, trees, bridge, waterfall.`, false);
-      setAiPrompt("");
-      return;
+      if (pool.length > 0 || !metaKeyRef.current || /^(here|there|this|it|that|one)$/i.test(want)) { setAiPrompt(""); return; }
+      // fall through to Llama free chat below
     }
     m = q.match(/(hide|show)\s+(.+)/);
     if (m) {
@@ -231,13 +270,85 @@ export default function App() {
       setAiPrompt("");
       return;
     }
-    if (/help|what can you/.test(q)) { say("Try: spawn castle · hide fog · night · time 15 · play · wireframe · screenshot · score. I remember this chat (older turns auto-compact)."); setAiPrompt(""); return; }
-    // Free chat — with a Meta key stored, Llama answers; otherwise the local router explains itself
+    if (/help|what can you/.test(q)) { say("Try: spawn castle · agent build a night camp · undo · hide fog · night · play · save. I remember this chat (older turns auto-compact)."); setAiPrompt(""); return; }
+    m = q.match(/^undo$/);
+    if (m) {
+      if (!agentUndoRef.current) { say("Nothing to undo yet — run an `agent` task first.", false); setAiPrompt(""); return; }
+      try {
+        setSceneGroups(JSON.parse(agentUndoRef.current));
+        say("Undone — scene restored to before the last agent run.");
+        appendLog("Success", "Agent action undone — scene rolled back");
+      } catch { say("Undo failed — snapshot corrupted.", false); }
+      setAiPrompt("");
+      return;
+    }
+    m = q.match(/^agent\s+([\s\S]+)/);
+    if (m) {
+      const goal = m[1].trim();
+      if (!goal) { say("Give me a goal — e.g. `agent build a night camp with two tents`.", false); setAiPrompt(""); return; }
+      setAiPrompt("");
+      runAgentGoal(goal);
+      return;
+    }
+    m = q.match(/^(save|export)(?:\s+scene)?$/);
+    if (m) {
+      say("Saving scene to the project folder…");
+      setAiPrompt("");
+      handleSaveScene();
+      return;
+    }
+    m = q.match(/^(?:create|new|write)(?:\s+file)?(?:\s+(\S+))?(?:\s+([\s\S]+))?$/);
+    if (m && (/file|txt|md|json|notes?|readme|there|here/i.test(q) || m[1])) {
+      let want = (m[1] || "").trim();
+      let rest = (m[2] || "").trim();
+      if (/^(a|an|the)$/i.test(want)) {
+        const p = rest.split(/\s+/);
+        want = p.shift() || "";
+        rest = p.join(" ");
+      }
+      let fname;
+      if (!want || /^(txt|text|md|markdown|json|notes?|files?|there|here)$/i.test(want)) {
+        let ext = "txt";
+        const em = want.match(/^(txt|text|md|markdown|json)$/i);
+        if (em) ext = em[1].toLowerCase().replace("text", "txt").replace("markdown", "md");
+        fname = `notes.${ext}`;
+        rest = rest.replace(/^(there|here)\b[,\s]*/i, "");
+      } else {
+        fname = want.includes(".") ? want : `${want}.txt`;
+      }
+      fname = fname.replace(/[\\/:*?"<>|]/g, "_");
+      const content = rest.trim() || `Spider Engine note — ${new Date().toLocaleString()}\nProject: ${currentProject?.name || "GameWorld"}\n`;
+      say(`Creating ${fname}…`);
+      setAiPrompt("");
+      (async () => {
+        const dir = await ensureProjectRoot();
+        if (!dir) { say("No folder chosen — file not created.", false); return; }
+        try {
+          const r = await window.spiderShell.writeProjectFile(dir, fname, content);
+          if (r?.ok) say(`Created:\n${r.path}\n${r.bytes} bytes — open it, it's really there.`);
+          else say(`Could not write ${fname}: ${r?.error || "unknown"}`, false);
+        } catch (err) { say(`Could not write ${fname}: ${err}`, false); }
+      })();
+      return;
+    }
+    // Free chat — with a Meta key stored, Llama answers with LIVE streaming; otherwise the local router explains itself
     if (metaKeyRef.current) {
       setAiThinking(true);
-      callLlama(raw)
-        .then((text) => { say(text || "The model returned nothing — try again."); })
-        .catch((err) => { say(`Meta API error: ${err.message} — check key/model in Settings > AI & Keys.`, false); })
+      setStreaming({ q: raw, text: "" });
+      callLlama(raw, (tok) => {
+        setAiThinking(false);
+        setStreaming((s) => (s ? { ...s, text: s.text + tok } : s));
+      })
+        .then((text) => {
+          const full = (text || "").trim();
+          setStreaming(null);
+          if (full) say(full);
+          else say("The model returned nothing — try again.", false);
+        })
+        .catch((err) => {
+          setStreaming(null);
+          say(`Meta API error: ${err.message} — check key/model in Settings > AI & Keys.`, false);
+        })
         .finally(() => { setAiThinking(false); });
       setAiPrompt("");
       return;
@@ -295,7 +406,7 @@ export default function App() {
           appendLog("Success", `Loaded scene from ${sceneFile.name} (${groups.flatMap((g) => g.children).length} actors)`);
         }
       } catch {
-        appendLog("Warning", `${sceneFile.name} is not a valid scene — starting from GameWorld`);
+        appendLog("Warning", `${sceneFile.name} is not a valid scene — starting ${sceneLabel} from the default scene`);
       }
     }
     const assets = list.filter((f) => /\.(glb|gltf|fbx|obj|png|jpe?g|webp)$/i.test(f.name)).slice(0, 25);
@@ -327,7 +438,7 @@ export default function App() {
     if (nodes.length > 0) {
       groups = groups.map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...g.children, ...nodes] } : g));
     }
-    const p = { id: `project-${Date.now()}`, name: folderName, groups, updatedAt: Date.now() };
+    const p = { id: `project-${Date.now()}`, name: folderName, groups, updatedAt: Date.now(), ui: { hierarchyOpen: false, inspectorOpen: false, bottomLeftOpen: false, consoleOpen: false, viewportTab: "Viewport", bottomTab: "Content Browser", rightTab: "Inspector" } };
     setProjects((prev) => [...prev, p]);
     setCurrentProjectId(p.id);
     setSceneGroups(groups);
@@ -341,6 +452,16 @@ export default function App() {
     setBottomTab("Content Browser");
     appendLog("Success", `Project "${folderName}" open — scene + ${nodes.length} models/images + ${audios.length} audio`);
     setOpenMenu(null);
+    setShowStartup(false);
+    // Clean viewport only on arrival
+    setHierarchyOpen(false);
+    setInspectorOpen(false);
+    setBottomLeftOpen(false);
+    setConsoleOpen(false);
+    tutorialStats.current = { moved: false, jumped: false, shots: 0, spawned: 0, maxY: 0 };
+    setTutorial({ template: "folder", idx: 0 });
+    appendLog("Info", "Tutorial started: follow the card, it reacts to what you do");
+    expandEditor();
   };
   const handleImportFolder = (files) => {
     if (folderModeRef.current === "project") {
@@ -359,7 +480,7 @@ export default function App() {
     const batch = ok.slice(0, 25);
     appendLog("Info", `Folder parsed: ${batch.length} asset${batch.length > 1 ? "s" : ""} importing${skipped > 0 ? `, ${skipped} skipped` : ""}${ok.length > 25 ? " (first 25)" : ""}…`);
     batch.forEach((f) => handleImportAssetFile(f));
-    appendLog("Success", `Folder import done — ${batch.length} spawned into GameWorld`);
+    appendLog("Success", `Folder import done — ${batch.length} spawned into ${sceneLabel}`);
   };
   const consoleInputRef = useRef(null);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -381,6 +502,12 @@ export default function App() {
   });
   const [showRecents, setShowRecents] = useState(false);
   const [panelWide, setPanelWide] = useState(false);
+  const [deletingId, setDeletingId] = useState(null); // Cloudflare-style typed delete confirm
+  const [deleteText, setDeleteText] = useState("");
+  // Tutorial — per-template steps, auto-advances on real game events
+  const [tutorial, setTutorial] = useState(null); // { template, idx }
+  const templateLabel = (t) => ({ normal: "Normal", tpp: "TPP Shooting", fpp: "FPP Shooting", racing: "Racing", custom: "Custom", blank: "Blank", folder: "Folder" }[t] || t);
+  const tutorialStats = useRef({ moved: false, jumped: false, shots: 0, spawned: 0, startX: 0, startZ: 0, maxY: 0 });
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const aiHistory = sessions.find((s) => s.id === currentId)?.messages || [];
   const pushMsg = (q, a, ok = true) => {
@@ -407,6 +534,8 @@ export default function App() {
     setPendingConfirm(null);
   };
   const [aiThinking, setAiThinking] = useState(false);
+  // Streaming chat — tokens render live instead of waiting for the full reply
+  const [streaming, setStreaming] = useState(null); // { q, text }
   const [thinkLevel, setThinkLevel] = useState("auto"); // auto | low | medium | high
   const THINK_MS = { low: 150, medium: 650, auto: 650, high: 1400 };
   const aiEndRef = useRef(null);
@@ -562,18 +691,98 @@ export default function App() {
     return { historyBlock, live };
   };
   // Free chat via Meta Model API — only when a key is stored; commands always stay local
-  const callLlama = async (prompt) => {
+  // Streams tokens live via SSE; falls back to a single request if streaming is unavailable
+  const callLlama = async (prompt, onToken, opts = {}) => {
     const key = sanitizeKey(metaKeyRef.current);
     if (!key) return null;
     const model = metaModel || modelChoices[0] || "";
     if (!model) throw new Error("no model available — paste key, wait for the model list, pick one");
-    const sys = "You are Spider AI inside the Spider Engine game editor (React + Three.js). The scene GameWorld has a hero, castle, trees, coins. Keep replies under 60 words, plain text, no headers.";
+    const sys = opts.system || `You are Spider AI inside the Spider Engine game editor (React + Three.js). The current project is "${sceneLabel}"${currentProject?.root ? ` located at ${currentProject.root}` : " (no disk folder set yet)"} — the scene, the game, and the folder are ONE thing called ${sceneLabel}; never call it GameWorld unless that is literally the project name. It has a hero, castle, trees, coins. Keep replies under 60 words, plain text, no headers. CAPABILITIES YOU MUST KNOW: the user acts through typed commands — spawn <asset>, agent <multi-step goal>, create file <name> <content>, edit file <name> append|replace|write, read file <name>, save, time <0-24>, play/stop. NEVER claim you cannot create files, spawn, or edit — instead give the exact command, always naming the real project (${sceneLabel}) and its real folder.`;
     const { historyBlock, live } = buildLlamaContext();
-    const contextNote = (historyBlock ? historyBlock + "\n" : "") + live;
+    const messages = opts.messages || [{ role: "system", content: `${sys}\n\n${(historyBlock ? historyBlock + "\n" : "") + live}` }, { role: "user", content: prompt }];
+    if (opts.stream !== false) {
+    try {
+      const res = await fetch("https://api.meta.ai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({ model, messages, max_tokens: 1024, stream: true })
+      });
+      if (!res.ok) throw { http: res.status, res };
+      if (!res.body || !res.body.getReader) throw new Error("no-stream");
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      let full = "";
+      let lastEvt = null;
+      const feed = (chunk) => {
+        buf += chunk;
+        const parts = buf.split("\n\n");
+        buf = parts.pop();
+        for (const part of parts) {
+          for (const line of part.split("\n")) {
+            const t = line.trim();
+            if (!t.startsWith("data:")) continue;
+            const payload = t.slice(5).trim();
+            if (!payload || payload === "[DONE]") continue;
+            try {
+              const d = JSON.parse(payload);
+              lastEvt = d;
+              const s =
+                d.choices?.[0]?.delta?.content ||
+                (typeof d.choices?.[0]?.message?.content === "string" ? d.choices[0].message.content : "") ||
+                d.choices?.[0]?.text ||
+                d.output_text ||
+                (typeof d.delta === "string" ? d.delta : "") ||
+                "";
+              if (s) {
+                full += s;
+                if (onToken) onToken(s);
+              }
+            } catch {}
+          }
+        }
+      };
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (value) feed(dec.decode(value, { stream: true }));
+        if (done) break;
+      }
+      feed("\n\n");
+      if (full.trim()) return full.trim();
+      if (lastEvt) {
+        const text = pick(lastEvt);
+        if (text) return text;
+      }
+      throw new Error("empty reply after stream");
+    } catch (e) {
+      if (e && e.http) {
+        let detail = `Meta API ${e.http}`;
+        try {
+          const err = await e.res.json();
+          detail += ` — ${err?.error?.message || err?.message || JSON.stringify(err).slice(0, 160)}`;
+        } catch {}
+        throw new Error(detail);
+      }
+      if (e && e.message === "no-stream") {
+        // fall through to classic single request below
+      } else {
+        throw e;
+      }
+    }
+    }
+    if (opts.raw) {
+      const res = await fetch("https://api.meta.ai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${sanitizeKey(metaKeyRef.current)}` },
+        body: JSON.stringify({ model: metaModel || modelChoices[0] || "", messages: opts.messages, max_tokens: 1024 })
+      });
+      if (!res.ok) throw new Error(`Meta API ${res.status}`);
+      return res.json();
+    }
     const res = await fetch("https://api.meta.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ model, messages: [{ role: "system", content: `${sys}\n\n${contextNote}` }, { role: "user", content: prompt }], max_tokens: 1024 })
+      body: JSON.stringify({ model, messages, max_tokens: 1024 })
     });
     if (!res.ok) {
       let detail = `Meta API ${res.status}`;
@@ -585,28 +794,7 @@ export default function App() {
     }
     const data = await res.json();
     // Parse every plausible shape: OpenAI chat, Responses API, legacy text
-    const pick = (d) => {
-      if (!d || typeof d !== "object") return typeof d === "string" && d.trim() ? d.trim() : null;
-      const ch = d.choices?.[0];
-      if (ch) {
-        const m = ch.message?.content;
-        if (typeof m === "string" && m.trim()) return m.trim();
-        if (Array.isArray(m)) {
-          const t = m.map((p) => (typeof p === "string" ? p : p?.text || "")).join("").trim();
-          if (t) return t;
-        }
-        if (typeof ch.text === "string" && ch.text.trim()) return ch.text.trim();
-      }
-      const out = d.output;
-      if (Array.isArray(out)) {
-        const t = out.flatMap((o) => o?.content || []).map((c) => (typeof c === "string" ? c : c?.text || "")).join("").trim();
-        if (t) return t;
-      }
-      for (const k of ["output_text", "text", "response", "answer"]) {
-        if (typeof d[k] === "string" && d[k].trim()) return d[k].trim();
-      }
-      return null;
-    };
+    const pick = (d) => pickModelText(d);
     const text = pick(data);
     if (!text) {
       let raw = "";
@@ -615,6 +803,162 @@ export default function App() {
       throw new Error(`empty reply — raw: ${raw || "no body"}`);
     }
     return text;
+  };
+
+  // Agent undo — snapshot before each run; "undo" restores the scene exactly
+  const agentUndoRef = useRef(null);
+  // Live scene ref so the agent loop always sees fresh state (no stale closures)
+  const sceneRef = useRef(null);
+  useEffect(() => {
+    sceneRef.current = { sceneGroups, selectedNodeId, score, coins, timeOfDay, isPlaying, currentProject };
+  });
+  // Agent tool execution — every tool runs for real against the live editor + disk
+  const runAgentTool = async (tool, args) => {
+    const snap = () => sceneRef.current;
+    const findByName = (idOrName) => {
+      const all = snap().sceneGroups.flatMap((g) => g.children);
+      return all.find((c) => c.id === idOrName || c.name === idOrName || c.name.toLowerCase().includes(String(idOrName || "").toLowerCase()));
+    };
+    switch (tool) {
+      case "listScene": {
+        const actors = snap().sceneGroups.flatMap((g) => g.children).map((c) => ({ id: c.id, name: c.name, pos: c.pos, mesh: c.mesh, visible: c.visible }));
+        return JSON.stringify({ count: actors.length, actors: actors.slice(0, 60) });
+      }
+      case "spawnObject": {
+        const q = String(args?.name || "");
+        const pool = ENVIRONMENT_ASSETS.filter((a) => a.name.toLowerCase().includes(q.toLowerCase()) || a.mesh.toLowerCase().includes(q.toLowerCase()));
+        if (!pool.length) throw new Error(`no asset matches "${args?.name}"`);
+        handleSpawnAsset(pool[0]);
+        return `spawned ${pool[0].name}`;
+      }
+      case "moveObject": {
+        const n = findByName(args?.id);
+        if (!n) throw new Error(`actor not found: ${args?.id}`);
+        const nx = args?.x !== undefined ? Number(args.x) : n.pos.x;
+        const ny = args?.y !== undefined ? Number(args.y) : n.pos.y;
+        const nz = args?.z !== undefined ? Number(args.z) : n.pos.z;
+        if (![nx, ny, nz].every(Number.isFinite)) throw new Error("x/y/z must be numbers");
+        setSceneGroups((prev) => prev.map((g) => ({ ...g, children: g.children.map((c) => (c.id === n.id ? { ...c, pos: { x: nx, y: ny, z: nz } } : c)) })));
+        return `moved ${n.name} to (${nx}, ${ny}, ${nz})`;
+      }
+      case "setVisibility": {
+        const n = findByName(args?.id);
+        if (!n) throw new Error(`actor not found: ${args?.id}`);
+        setNodeVisibility(n.id, !!args?.visible);
+        return `${n.name} is now ${args?.visible ? "visible" : "hidden"}`;
+      }
+      case "setTime": {
+        const t = Math.max(4, Math.min(22, Number(args?.t)));
+        if (!Number.isFinite(t)) throw new Error("t must be 4-22");
+        setTimeOfDay(t);
+        setTimelineT(t);
+        return `solar time set to ${t.toFixed(1)}h`;
+      }
+      case "play": {
+        const want = !!args?.on;
+        if (want !== snap().isPlaying) handleTogglePlay();
+        return want ? "Play mode started" : "Play mode stopped";
+      }
+      case "saveScene": {
+        await handleSaveScene();
+        return "scene saved (see Console for where)";
+      }
+      case "createFile":
+      case "readFile":
+      case "editFile": {
+        const dir = snap().currentProject?.root || (await ensureProjectRoot());
+        if (!dir) throw new Error("no project folder — user cancelled the picker");
+        const fname = String(args?.name || "").replace(/[\\/:*?"<>|]/g, "_");
+        if (!fname) throw new Error("missing filename");
+        if (tool === "createFile") {
+          const r = await window.spiderShell.writeProjectFile(dir, fname, String(args?.content ?? ""));
+          if (!r?.ok) throw new Error(r?.error || "write failed");
+          return `created ${r.path} (${r.bytes} bytes)`;
+        }
+        if (tool === "readFile") {
+          const r = await window.spiderShell.readProjectFile(dir, fname);
+          if (!r?.ok) throw new Error(r?.error || "read failed");
+          return `--- ${r.path} (${r.bytes} bytes) ---\n${r.contents}${r.truncated ? "\n…[truncated]" : ""}`;
+        }
+        const op = String(args?.op || "append");
+        const text = String(args?.text ?? "");
+        if (op === "append") {
+          const cur = await window.spiderShell.readProjectFile(dir, fname);
+          const base = cur?.ok ? cur.contents : "";
+          const r = await window.spiderShell.writeProjectFile(dir, fname, base + (base && !base.endsWith("\n") ? "\n" : "") + text);
+          if (!r?.ok) throw new Error(r?.error || "write failed");
+          return `appended to ${r.path}`;
+        }
+        if (op === "write") {
+          const r = await window.spiderShell.writeProjectFile(dir, fname, text);
+          if (!r?.ok) throw new Error(r?.error || "write failed");
+          return `rewrote ${r.path} (${r.bytes} bytes)`;
+        }
+        if (op === "replace") {
+          const cur = await window.spiderShell.readProjectFile(dir, fname);
+          if (!cur?.ok) throw new Error(cur?.error || "read failed");
+          const old = String(args?.old ?? "");
+          if (!old || !cur.contents.includes(old)) throw new Error(`"${old}" not found in ${fname}`);
+          const next = cur.contents.split(old).join(text);
+          const r = await window.spiderShell.writeProjectFile(dir, fname, next);
+          if (!r?.ok) throw new Error(r?.error || "write failed");
+          return `replaced in ${r.path}`;
+        }
+        throw new Error(`unknown edit op: ${op} (use append|replace|write)`);
+      }
+      default:
+        throw new Error(`unknown tool: ${tool}`);
+    }
+  };
+  // Agent run — ReAct loop with the harness; steps stream to chat + Console
+  const runAgentGoal = async (goal) => {
+    if (!metaKeyRef.current) {
+      say("Agent needs a Meta API key — paste one in Settings > AI & Keys first.", false);
+      setAiPrompt("");
+      return;
+    }
+    setAiThinking(true);
+    appendLog("Info", `Agent started: "${goal}" (max 8 steps)`);
+    agentUndoRef.current = JSON.stringify(sceneRef.current.sceneGroups);
+    const snapshot = () => {
+      const s = sceneRef.current;
+      const actors = s.sceneGroups.flatMap((g) => g.children).map((c) => `${c.id} "${c.name}" @(${c.pos.x},${c.pos.y},${c.pos.z})${c.visible === false ? " [hidden]" : ""}`);
+      const sel = s.sceneGroups.flatMap((g) => g.children).find((c) => c.id === s.selectedNodeId);
+      const recentErrors = consoleLogs.filter((l) => l.type === "Warning").slice(-3).map((l) => l.text);
+      return [
+        `Actors (${actors.length}):`,
+        ...actors.slice(0, 60),
+        `Selected actor full state: ${sel ? JSON.stringify(sel) : "none"}`,
+        `Score: ${s.score} | Coins left: ${s.coins.filter((c) => !c.taken).length} | Time: ${s.timeOfDay.toFixed(1)}h | Playing: ${s.isPlaying}`,
+        recentErrors.length ? `Recent warnings:\n${recentErrors.join("\n")}` : "No recent warnings."
+      ].join("\n");
+    };
+    try {
+      const callModel = async (task, history) => {
+        const sys = systemPrompt(snapshot());
+        const messages = [{ role: "system", content: sys }, ...history.flatMap((h) => [{ role: h.role === "user" ? "user" : "assistant", content: h.text }]), { role: "user", content: `GOAL: ${task}\nReply with exactly one JSON object.` }];
+        const data = await callLlama("__agent__", null, { stream: false, raw: true, messages, system: sys });
+        const text = pickModelText(data);
+        if (!text) throw new Error("empty model reply");
+        return { raw: text };
+      };
+      const final = await runAgent(goal, {
+        ctx: { runTool: runAgentTool },
+        callModel,
+        onEvent: (ev) => {
+          if (ev.type === "thought" && ev.thought) appendLog("Info", `Agent thinks: ${ev.thought}`);
+          else if (ev.type === "action") appendLog("Info", `Agent acts: ${ev.tool} ${JSON.stringify(ev.args)}`);
+          else if (ev.type === "observation") appendLog("Info", `Observed: ${String(ev.observation).slice(0, 160)}`);
+          else if (ev.type === "error") appendLog("Warning", `Agent retry: ${ev.message}`);
+        }
+      });
+      say(final);
+    } catch (err) {
+      say(`Agent failed: ${err.message}`, false);
+    } finally {
+      setAiThinking(false);
+      setAiPrompt("");
+    }
   };
 
   // Scene & Selection State
@@ -636,6 +980,9 @@ export default function App() {
     return "project-gameworld";
   });
   const currentProject = projects.find((p) => p.id === currentProjectId) || projects[0];
+  // The scene IS the project — its name and file follow the project, never hardcoded
+  const sceneLabel = currentProject?.name || "GameWorld";
+  const sceneFileName = `${(sceneLabel.replace(/[\\/:*?"<>|]/g, "").trim() || "GameWorld")}.scene.json`;
   const [sceneGroups, setSceneGroups] = useState(() => currentProject?.groups || GAME_WORLD);
   const [selectedNodeId, setSelectedNodeId] = useState("player");
   const [hierarchySearch, setHierarchySearch] = useState("");
@@ -748,7 +1095,7 @@ export default function App() {
     } catch {
       boot.push({ type: "Warning", text: "Rendering: WebGL probe unavailable" });
     }
-    boot.push({ type: "Info", text: `Scene: GameWorld — ${actors.length} actors loaded` });
+    boot.push({ type: "Info", text: `Scene: ${sceneLabel} — ${actors.length} actors loaded${currentProject?.root ? ` from ${currentProject.root}` : ""}` });
     boot.push({ type: "Success", text: "3D viewport mounted — WASD/QE flies camera, Play drives hero (Space jumps)" });
     setConsoleLogs(boot.map((b, i) => ({ id: i + 1, ...b })));
     // Dead session links: previous run's blob: URLs can't reload — strip to procedural, ask for re-import
@@ -804,8 +1151,8 @@ export default function App() {
         const q = String(name || "").toLowerCase();
         const pool = ENVIRONMENT_ASSETS.filter((a) => a.name.toLowerCase().includes(q) || a.mesh.toLowerCase().includes(q));
         if (!pool.length) return { ok: false, error: `no asset matches "${name}"` };
-        handleSpawnAsset(pool[0]);
-        return { ok: true, spawned: pool[0].name };
+        const id = handleSpawnAsset(pool[0]);
+        return { ok: true, spawned: pool[0].name, id };
       },
       moveObject: (id, x, y, z) => {
         let found = false;
@@ -844,15 +1191,57 @@ export default function App() {
   }, [projects, currentProjectId]);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [showStartup, setShowStartup] = useState(true); // Unreal-style project picker on launch
+  // (Native splash window now handles launch — see electron/splash.html)
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectTemplate, setNewProjectTemplate] = useState("normal");
+  const [newProjectRoot, setNewProjectRoot] = useState(""); // real disk folder, empty = browser Downloads
+  // Tell the native shell to expand from picker-size to the full editor window
+  const expandEditor = () => {
+    try { window.spiderShell?.projectOpened?.(); } catch {}
+  };
+  // Write a file into the project's own folder when it has one, else fall back to download
+  // Project folder on demand — Ask AI can create files in it, picking it if unset
+  const ensureProjectRoot = async () => {
+    if (currentProject?.root) return currentProject.root;
+    try {
+      const r = await window.spiderShell?.pickFolder?.();
+      if (r?.ok && r.dir) {
+        setProjects((prev) => prev.map((p) => (p.id === currentProjectId ? { ...p, root: r.dir } : p)));
+        appendLog("Success", `Project folder set: ${r.dir}`);
+        return r.dir;
+      }
+    } catch {}
+    return "";
+  };
+  const writeProjectFileOrDownload = async (filename, json, kbHint) => {
+    const dir = currentProject?.root;
+    if (dir && window.spiderShell?.writeProjectFile) {
+      try {
+        const r = await window.spiderShell.writeProjectFile(dir, filename, json);
+        if (r?.ok) {
+          appendLog("Success", `Saved to project folder: ${r.path} (${kbHint} KB)`);
+          return true;
+        }
+        appendLog("Warning", `Folder write failed (${r?.error || "unknown"}) — downloaded instead`);
+      } catch (e) {
+        appendLog("Warning", `Folder write failed (${e}) — downloaded instead`);
+      }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    appendLog("Success", `Scene downloaded: ${filename} (${kbHint} KB) — set a project folder to save in place`);
+    return false;
+  };
   // Unreal-style templates: real starting scenes per genre, deep-copied per project
   const buildTemplateGroups = (tpl) => {
     const full = JSON.parse(JSON.stringify(GAME_WORLD));
     if (tpl === "blank") {
-      // Blank level: terrain + sky + light only
-      const keep = new Set(["terrain", "sky", "lighting"]);
-      return { groups: full.map((g) => ({ ...g, children: g.children.filter((c) => keep.has(c.id)) })), select: "terrain" };
+      // Blank level: pure black viewport — no actors, no tutorial, nothing
+      return { groups: full.map((g) => ({ ...g, expanded: false, children: [] })), select: null };
     }
     if (tpl === "custom") {
       // Custom: duplicate of whatever is open right now
@@ -887,20 +1276,41 @@ export default function App() {
     }
     return { groups: full, select: "player" }; // normal third person
   };
-  const handleSelectProject = (id) => {    const p = projects.find((x) => x.id === id);
+  // Per-project UI memory — each project keeps its own panel layout (own index in storage)
+  const DEFAULT_UI = { hierarchyOpen: true, inspectorOpen: true, bottomLeftOpen: true, consoleOpen: true, viewportTab: "Viewport", bottomTab: "Content Browser", rightTab: "Inspector" };
+  const applyUi = (ui) => {
+    const u = { ...DEFAULT_UI, ...(ui || {}) };
+    setHierarchyOpen(u.hierarchyOpen);
+    setInspectorOpen(u.inspectorOpen);
+    setBottomLeftOpen(u.bottomLeftOpen);
+    setConsoleOpen(u.consoleOpen);
+    setViewportTab(u.viewportTab);
+    setBottomTab(u.bottomTab);
+    setRightTab(u.rightTab);
+  };
+  // Persist the live layout into the current project only (others untouched)
+  useEffect(() => {
+    setProjects((prev) => prev.map((p) => (p.id === currentProjectId ? { ...p, ui: { hierarchyOpen, inspectorOpen, bottomLeftOpen, consoleOpen, viewportTab, bottomTab, rightTab } } : p)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hierarchyOpen, inspectorOpen, bottomLeftOpen, consoleOpen, viewportTab, bottomTab, rightTab]);
+  const handleSelectProject = (id) => {
+    const p = projects.find((x) => x.id === id);
     if (!p) return;
     setCurrentProjectId(id);
     setSceneGroups(p.groups);
     setSelectedNodeId("player");
     setScore(0);
     setCoins(COINS.map((c) => ({ ...c, taken: false })));
+    applyUi(p.ui);
+    tutorialStats.current = { moved: false, jumped: false, shots: 0, spawned: 0, maxY: 0 };
+    setTutorial(null);
     appendLog("Success", `Project opened: "${p.name}" (${p.groups.flatMap((g) => g.children).length} actors)`);
     setOpenMenu(null);
   };
-  const handleNewProject = (name, template) => {
+  const handleNewProject = (name, template, root) => {
     const tpl = template || "normal";
     const { groups, select } = buildTemplateGroups(tpl);
-    const p = { id: `project-${Date.now()}`, name: name?.trim() || `Untitled Project ${projects.length + 1}`, groups, updatedAt: Date.now() };
+    const p = { id: `project-${Date.now()}`, name: name?.trim() || `Untitled Project ${projects.length + 1}`, groups, updatedAt: Date.now(), root: root || "", ui: { hierarchyOpen: false, inspectorOpen: false, bottomLeftOpen: false, consoleOpen: false, viewportTab: "Viewport", bottomTab: "Content Browser", rightTab: "Inspector" } };
     setProjects((prev) => [...prev, p]);
     setCurrentProjectId(p.id);
     setSceneGroups(groups);
@@ -909,15 +1319,31 @@ export default function App() {
     setCoins(COINS.map((c) => ({ ...c, taken: false })));
     if (tpl === "fpp") setViewportTab("Game View");
     const label = { blank: "Blank Level", normal: "Normal", tpp: "TPP Shooting", fpp: "FPP Shooting", racing: "Racing", custom: "Custom" }[tpl] || tpl;
-    appendLog("Success", `Created "${p.name}" from ${label} template`);
+    appendLog("Success", `Created "${p.name}" from ${label} template${p.root ? ` at ${p.root}` : ""}`);
+    tutorialStats.current = { moved: false, jumped: false, shots: 0, spawned: 0, maxY: 0 };
+    if (tpl === "blank") {
+      setTutorial(null);
+      appendLog("Info", "Blank level — black viewport. Spawn something to begin (Content Browser → click any asset).");
+    } else {
+      setTutorial({ template: tpl, idx: 0 });
+      appendLog("Info", `Tutorial started: ${label} — follow the card, it reacts to what you do`);
+    }
     setNewProjectOpen(false);
+    setShowStartup(false);
+    // Fresh game = clean viewport only; panels open on demand (H / I / B / Window menu)
+    setHierarchyOpen(false);
+    setInspectorOpen(false);
+    setBottomLeftOpen(false);
+    setConsoleOpen(false);
+    expandEditor();
     setNewProjectName("");
+    setNewProjectRoot("");
     setOpenMenu(null);
   };
   const handleCloseProject = () => {
     if (projects.length <= 1) {
       setSceneGroups(JSON.parse(JSON.stringify(GAME_WORLD)));
-      appendLog("Info", "Last project reset to a fresh GameWorld (projects list keeps one slot)");
+      appendLog("Info", `Last project reset to a fresh ${sceneLabel} (projects list keeps one slot)`);
       setOpenMenu(null);
       return;
     }
@@ -938,7 +1364,7 @@ export default function App() {
   };
   const sceneToJson = (groupsOverride) =>
     JSON.stringify(
-      { engine: "Spider Engine 0.9.0", scene: "GameWorld", exported: new Date().toISOString(), groups: groupsOverride || sceneGroups },
+      { engine: "Spider Engine 0.9.0", scene: sceneLabel, project: currentProject?.id, exported: new Date().toISOString(), groups: groupsOverride || sceneGroups },
       null,
       2
     );
@@ -1002,7 +1428,7 @@ export default function App() {
     setSelectedNodeId("player");
     setScore(0);
     setCoins((prev) => prev.map((c) => ({ ...c, taken: false })));
-    appendLog("Success", "New scene created — GameWorld reset to defaults");
+    appendLog("Success", `New scene created — ${sceneLabel} reset to defaults`);
     setOpenMenu(null);
   };
   const handleSaveScene = async () => {
@@ -1011,8 +1437,9 @@ export default function App() {
       setSceneGroups(groups);
       appendLog("Success", `Embedded ${embedded} session asset${embedded > 1 ? "s" : ""} — scene.json is now portable`);
     }
-    const kb = downloadScene("GameWorld.scene.json", groups);
-    appendLog("Success", `Scene saved: GameWorld.scene.json (${kb} KB, portable)`);
+    const json = sceneToJson(groups);
+    const kb = (new Blob([json]).size / 1024).toFixed(1);
+    await writeProjectFileOrDownload(sceneFileName, json, kb);
     setOpenMenu(null);
   };
   const handleOpenSceneFile = (file) => {
@@ -1026,7 +1453,7 @@ export default function App() {
         setSelectedNodeId(data.groups[1]?.children[0]?.id || "player");
         appendLog("Success", `Scene opened: ${file.name} (${data.groups.flatMap((g) => g.children).length} actors)`);
       } catch {
-        appendLog("Warning", `Could not open ${file.name} — not a GameWorld.scene.json file`);
+        appendLog("Warning", `Could not open ${file.name} — not a ${sceneFileName} file`);
       }
     };
     reader.readAsText(file);
@@ -1175,24 +1602,21 @@ export default function App() {
     const actors = groups.flatMap((g) => g.children);
     const bodies = actors.filter((a) => a.physics).length;
     const stamp = new Date().toLocaleTimeString();
-    appendLog("Info", `Starting Build: GameWorld (${actors.length} actors, ${bodies} physics bodies)...`);
+    appendLog("Info", `Starting Build: ${sceneLabel} (${actors.length} actors, ${bodies} physics bodies)...`);
     setBuildLogs((p) => [...p, `[${stamp}] Build started — ${actors.length} actors, ${bodies} physics bodies`]);
-    setTimeout(() => {
+    setTimeout(async () => {
       const payload = {
         engine: "Spider Engine 0.9.0",
-        scene: "GameWorld",
+        scene: sceneLabel,
+        project: currentProjectId,
         exported: new Date().toISOString(),
         actors
       };
       const json = JSON.stringify(payload, null, 2);
       const kb = (new Blob([json]).size / 1024).toFixed(1);
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-      a.download = "GameWorld.scene.json";
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      appendLog("Success", `Build succeeded: GameWorld.scene.json (${kb} KB) exported, 0 errors`);
-      setBuildLogs((p) => [...p, `[${new Date().toLocaleTimeString()}] Build succeeded — GameWorld.scene.json (${kb} KB), 0 errors, 0 warnings`]);
+      await writeProjectFileOrDownload(sceneFileName, json, kb);
+      appendLog("Success", `Build succeeded: ${sceneFileName} (${kb} KB) exported, 0 errors`);
+      setBuildLogs((p) => [...p, `[${new Date().toLocaleTimeString()}] Build succeeded — ${sceneFileName} (${kb} KB), 0 errors, 0 warnings`]);
       setBottomTab("Build Log");
       setIsBuilding(false);
     }, 900);
@@ -1200,6 +1624,7 @@ export default function App() {
 
   // Spawn an asset from Content Browser into the Scene Hierarchy
   const handleSpawnAsset = (asset) => {
+    tutorialStats.current.spawned++;
     const newId = `spawn-${Date.now()}`;
     const randomX = Number(((Math.random() - 0.5) * 30).toFixed(1));
     const randomZ = Number((Math.random() * 40 + 10).toFixed(1));
@@ -1235,6 +1660,7 @@ export default function App() {
     appendLog("Info", `Spawned Actor '${newNode.name}' at (${randomX}, 0.0, ${randomZ})`);
     if (newNode.modelUrl) appendLog("Success", `Model loaded: ${asset.mesh} — real geometry in viewport (drag with move gizmo)`);
     else if (newNode.textureUrl) appendLog("Success", `Texture applied: ${asset.mesh} mapped onto prop material`);
+    return newId;
   };
 
   // Keyboard Controls — hero moves in Editor AND Play (coins/physics need Play)
@@ -1271,7 +1697,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!isPlaying) return;
     const interval = setInterval(() => {
       // Circle colliders for BlockAll actors — computed from the LATEST scene each tick
       let blockers = [];
@@ -1283,8 +1708,8 @@ export default function App() {
         return prevGroups.map((group) => ({
           ...group,
           children: group.children.map((node) => {
-            // Hero: WASD + jump gravity (Play drives the hero; Editor WASD flies the camera)
-            if (node.id === PLAYER.id) {
+            // Play: WASD drives the hero (+jump gravity, +BlockAll collision)
+            if (isPlaying && node.id === PLAYER.id) {
               const step = PLAYER.moveStep;
               let dx = 0;
               let dz = 0;
@@ -1304,6 +1729,8 @@ export default function App() {
               velY.current = nv;
 
               if (dx === 0 && dz === 0 && ny === node.pos.y) return node;
+              if (dx !== 0 || dz !== 0) tutorialStats.current.moved = true;
+              tutorialStats.current.maxY = Math.max(tutorialStats.current.maxY, ny);
               let nx = Number(Math.max(PLAYER.bounds.minX, Math.min(PLAYER.bounds.maxX, node.pos.x + dx)).toFixed(1));
               let nz = Number(Math.max(PLAYER.bounds.minZ, Math.min(PLAYER.bounds.maxZ, node.pos.z + dz)).toFixed(1));
               // Real BlockAll collision — slide out of every blocker circle
@@ -1323,6 +1750,25 @@ export default function App() {
                 pos: { ...node.pos, x: nx, z: nz, y: ny }
               };
             }
+            // Editor transform gizmo: WASD nudges ONLY the selected object (no camera, no hero)
+            if (!isPlaying && activeGizmo !== "select" && node.id === selectedNodeId && viewportTab === "Viewport") {
+              const step = 0.3;
+              let dx = 0;
+              let dz = 0;
+              if (keysPressed["w"] || keysPressed["arrowup"]) dz += step;
+              if (keysPressed["s"] || keysPressed["arrowdown"]) dz -= step;
+              if (keysPressed["a"] || keysPressed["arrowleft"]) dx -= step;
+              if (keysPressed["d"] || keysPressed["arrowright"]) dx += step;
+              if (dx === 0 && dz === 0) return node;
+              return {
+                ...node,
+                pos: {
+                  ...node.pos,
+                  x: Number(Math.max(-60, Math.min(60, node.pos.x + dx)).toFixed(1)),
+                  z: Number(Math.max(-60, Math.min(60, node.pos.z + dz)).toFixed(1))
+                }
+              };
+            }
             // Physics props: real falling in Play mode only — heavier mass falls faster
             if (isPlaying && node.physics && node.pos.y > 0 && node.collision !== "NoCollision" && ![PLAYER.id, "camera", "weapon", "terrain", "water", "sky", "lighting", "fog", "postprocess", "dir-light", "sky-light", "point-lights"].includes(node.id)) {
               const fall = physicsFallSpeed(node.mass);
@@ -1336,9 +1782,48 @@ export default function App() {
       });
     }, 60);
     return () => clearInterval(interval);
-  }, [isPlaying, keysPressed]);
+  }, [isPlaying, keysPressed, activeGizmo, selectedNodeId, viewportTab]);
 
-  // Coin pickup — real gameplay: hero within range collects, score updates, win at COIN_RULES.winAt
+  // Shooting — click fires in Play; targets die, score pays (real TPP/FPP mechanic)
+  const handleShoot = useCallback((hitId) => {
+    tutorialStats.current.shots++;
+    if (hitId && String(hitId).startsWith("spawn-target-")) {
+      setSceneGroups((prev) => prev.map((g) => ({ ...g, children: g.children.map((c) => (c.id === hitId ? { ...c, visible: false } : c)) })));
+      setScore((s) => {
+        const ns = s + 50;
+        appendLog("Success", `Target destroyed +50 — score ${ns}`);
+        return ns;
+      });
+    }
+  }, []);
+
+  // Tutorial auto-advance — watches real game events per template
+  useEffect(() => {
+    if (!tutorial) return;
+    const steps = TUTORIALS[tutorial.template] || [];
+    const step = steps[tutorial.idx];
+    if (!step) {
+      setTutorial(null);
+      appendLog("Success", "Tutorial complete — you know the drill. Have fun.");
+      return;
+    }
+    if (!step.check) return;
+    const st = tutorialStats.current;
+    const targets = sceneGroups.flatMap((g) => g.children).filter((c) => String(c.id).startsWith("spawn-target-"));
+    const done =
+      step.check === "moved" ? st.moved :
+      step.check === "jumped" ? st.maxY > 0.5 :
+      step.check === "shot" ? st.shots > 0 :
+      step.check === "targets" ? targets.length > 0 && targets.every((t) => !t.visible) :
+      step.check === "coins" ? coins.length > 0 && coins.every((c) => c.taken) :
+      step.check === "play" ? isPlaying :
+      step.check === "spawned" ? st.spawned > 0 : false;
+    if (done) {
+      setTutorial({ template: tutorial.template, idx: tutorial.idx + 1 });
+      appendLog("Success", `Tutorial: "${step.title}" done`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneGroups, score, coins, isPlaying, tutorial]);
   useEffect(() => {
     if (!isPlaying) return;
     const p = sceneGroups.flatMap((g) => g.children).find((c) => c.id === PLAYER.id);
@@ -1451,7 +1936,7 @@ export default function App() {
       appendLog("Info", `Current project: "${currentProject?.name}" — ${n} actors, autosaved locally`);
       return close();
     }
-    if (label === "New Project") { setNewProjectName(""); setNewProjectTemplate("normal"); setNewProjectOpen(true); return close(); }
+    if (label === "New Project") { setNewProjectName(""); setNewProjectTemplate("normal"); setNewProjectRoot(""); setNewProjectOpen(true); return close(); }
     if (label === "Open Folder as Project…") { folderModeRef.current = "project"; folderInputRef.current?.click(); return; }
     if (label.startsWith("Open Project: ")) {
       const name = label.slice("Open Project: ".length);
@@ -1628,6 +2113,96 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#f0f2f8] text-slate-800 select-none font-sans overflow-hidden antialiased">
+      {/* Startup — small Unreal-style project picker dialog */}
+      {showStartup && !newProjectOpen && (
+        <div className="absolute inset-0 z-50 bg-white flex items-stretch justify-stretch">
+          <div className="w-full h-full bg-white overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between pl-4 pr-2 pt-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-extrabold text-[11px]">S</div>
+                <span className="font-extrabold text-[12px] text-slate-900">Project Browser</span>
+                <span className="text-[10px] text-slate-400">Which project are we opening?</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => { setNewProjectName(""); setNewProjectTemplate("normal"); setNewProjectRoot(""); setNewProjectOpen(true); expandEditor(); }} className="px-2 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer">+ New</button>
+                <button onClick={() => { setShowStartup(false); expandEditor(); setTimeout(() => { folderModeRef.current = "project"; folderInputRef.current?.click(); }, 250); }} className="px-2 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer">Open Folder…</button>
+              </div>
+            </div>
+            <div className="px-4 py-2 space-y-2 overflow-y-auto flex-1">
+              {[...projects].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 3).map((p) => (
+                deletingId === p.id ? (
+                  <div key={p.id} className="p-3 rounded-xl border-2 border-rose-300 bg-rose-50/60">
+                    <div className="text-[12px] font-bold text-rose-800">Delete “{p.name}”?</div>
+                    <div className="text-[11px] text-rose-600 mt-0.5">Type <span className="font-mono font-bold">delete</span> to confirm — this cannot be undone.</div>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={deleteText}
+                        onChange={(e) => setDeleteText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && deleteText.trim().toLowerCase() === "delete") {
+                            handleDeleteProject(p.id);
+                            setDeletingId(null);
+                            setDeleteText("");
+                          }
+                          e.stopPropagation();
+                        }}
+                        placeholder='Type "delete"'
+                        className="flex-1 text-[12px] px-2.5 py-1.5 bg-white border border-rose-200 rounded-lg focus:outline-none focus:border-rose-400 font-mono"
+                      />
+                      <button
+                        disabled={deleteText.trim().toLowerCase() !== "delete"}
+                        onClick={() => { handleDeleteProject(p.id); setDeletingId(null); setDeleteText(""); }}
+                        className="px-3 py-1.5 text-[11px] font-bold text-white bg-rose-600 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-rose-500 cursor-pointer"
+                      >
+                        Delete
+                      </button>
+                      <button onClick={() => { setDeletingId(null); setDeleteText(""); }} className="px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 rounded-lg cursor-pointer">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                <div
+                  key={p.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => { handleSelectProject(p.id); setShowStartup(false); expandEditor(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { handleSelectProject(p.id); setShowStartup(false); expandEditor(); } }}
+                  title={p.root ? `Opens from ${p.root}` : "Opens from browser storage"}
+                  className={`group w-full text-left p-3 rounded-xl border-2 transition cursor-pointer bg-white ${p.id === currentProjectId ? "border-indigo-500 shadow-md shadow-indigo-100" : "border-slate-200 hover:border-slate-300"}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-[13px] font-bold text-slate-800 truncate">{p.name}</div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      {p.id === currentProjectId && <span className="text-[10px] font-bold text-indigo-600">LAST OPEN</span>}
+                      {projects.length > 1 && (
+                        <button
+                          title={`Delete ${p.name}`}
+                          onClick={(e) => { e.stopPropagation(); setDeletingId(p.id); setDeleteText(""); }}
+                          className="p-1 rounded text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5 truncate">
+                    {p.groups.flatMap((g) => g.children).length} actors
+                    {p.root ? ` · ${p.root}` : " · browser storage"}
+                    {p.updatedAt ? ` · ${new Date(p.updatedAt).toLocaleDateString()}` : ""}
+                  </div>
+                </div>
+                )
+              ))}
+            </div>
+            <div className="px-4 pb-3 pt-1 shrink-0">
+              <button onClick={() => { setShowStartup(false); expandEditor(); }} className="w-full py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl cursor-pointer">
+                Continue{currentProject ? ` — ${currentProject.name}` : ""}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* ==================== TOP HEADER BAR ==================== */}
       <header className="h-11 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 flex items-center justify-between shrink-0 z-30 shadow-2xs">
         {/* Left: Brand Logo & Menu Bar */}
@@ -1828,7 +2403,7 @@ export default function App() {
                 <div className="flex items-center gap-1.5 px-1 py-1 font-bold text-slate-800">
                   <ChevronDown className="w-3 h-3 text-slate-400" />
                   <Box className="w-3.5 h-3.5 text-blue-600 fill-blue-100" />
-                  <span>GameWorld</span>
+                  <span>{sceneLabel}</span>
                 </div>
 
                 {/* Groups */}
@@ -1959,7 +2534,7 @@ export default function App() {
                 {isPlaying ? (
                   <div className="flex items-center gap-2 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                    <span>WASD move • Space jump • Score {score} • {coins.filter((c) => !c.taken).length} coins left</span>
+                    <span>WASD move • Click to shoot • Space jump • Score {score} • {coins.filter((c) => !c.taken).length} coins left</span>
                   </div>
                 ) : (
                   <div className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
@@ -1967,6 +2542,43 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              {/* Tutorial card — per-template steps, auto-advances on real events */}
+              {tutorial && (() => {
+                const steps = TUTORIALS[tutorial.template] || [];
+                const step = steps[tutorial.idx];
+                if (!step) return null;
+                return (
+                  <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 w-80 bg-white/95 backdrop-blur-md rounded-xl border border-indigo-200 shadow-lg px-3.5 py-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-bold text-indigo-600 tracking-wide">TUTORIAL {tutorial.idx + 1}/{steps.length} · {templateLabel(tutorial.template)}</div>
+                      <button onClick={() => { setTutorial(null); appendLog("Info", "Tutorial skipped"); }} title="Skip tutorial" className="text-slate-400 hover:text-slate-700 text-xs px-1 rounded hover:bg-slate-100 cursor-pointer">Skip</button>
+                    </div>
+                    <div className="text-[12px] font-bold text-slate-800 mt-0.5">{step.title}</div>
+                    <div className="text-[11px] text-slate-600 leading-snug">{step.text}</div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex items-center gap-1">
+                        {steps.map((_, i) => (
+                          <span key={i} className={`w-1.5 h-1.5 rounded-full ${i < tutorial.idx ? "bg-indigo-400" : i === tutorial.idx ? "bg-indigo-600" : "bg-slate-200"}`} />
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (tutorial.idx + 1 >= steps.length) {
+                            setTutorial(null);
+                            appendLog("Success", "Tutorial complete — you know the drill. Have fun.");
+                          } else {
+                            setTutorial({ template: tutorial.template, idx: tutorial.idx + 1 });
+                          }
+                        }}
+                        className="ml-auto px-2.5 py-1 text-[11px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* 3D Interactive World Canvas */}
               <div className="flex-1 relative overflow-hidden bg-slate-900">
@@ -1988,6 +2600,7 @@ export default function App() {
                   cameraMode={viewportTab}
                   coins={coins}
                   onFps={handleFps}
+                  onShoot={handleShoot}
                 />
                 {/* Timeline scrub — drives solar time live, plays back when armed */}
                 <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-xl shadow-md border border-white/50 z-20 text-[11px] font-semibold text-slate-700">
@@ -2247,7 +2860,7 @@ export default function App() {
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handleSpawnAsset(ENVIRONMENT_ASSETS[Math.floor(Math.random() * ENVIRONMENT_ASSETS.length)])}
-                    title="Spawn a random environment prop into GameWorld"
+                    title={() => `Spawn a random environment prop into ${sceneLabel}`}
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-md border border-slate-200 shadow-2xs cursor-pointer"
                   >
                     <Plus className="w-3 h-3 text-indigo-600" />
@@ -2272,7 +2885,7 @@ export default function App() {
                   <input ref={folderInputRef} type="file" className="hidden" onChange={(e) => { handleImportFolder(e.target.files); e.target.value = ""; }} />
                   <button
                     onClick={handleSaveScene}
-                    title="Save GameWorld.scene.json to disk"
+                    title={`Save ${sceneFileName} to disk`}
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-md border border-slate-200 shadow-2xs cursor-pointer"
                   >
                     <Save className="w-3 h-3 text-slate-500" />
@@ -2287,7 +2900,7 @@ export default function App() {
                   </div>
                 </div>
                 <span className="text-[10px] text-slate-400">
-                  Click any asset to spawn into GameWorld
+                  Click any asset to spawn into {sceneLabel}
                 </span>
               </div>
 
@@ -2337,7 +2950,7 @@ export default function App() {
                   {bottomTab === "Build Log" ? (
                     <div className="font-mono text-[11px] space-y-1">
                       {buildLogs.length === 0 ? (
-                        <div className="text-slate-400">No builds yet — press Build (top bar) to validate + export GameWorld.scene.json.</div>
+                        <div className="text-slate-400">No builds yet — press Build (top bar) to validate + export {sceneFileName}.</div>
                       ) : (
                         buildLogs.map((b, i) => <div key={i} className="text-slate-700 leading-tight">{b}</div>)
                       )}
@@ -2350,7 +2963,7 @@ export default function App() {
                         <div
                           key={asset.id}
                           onClick={() => handleSpawnAsset(asset)}
-                          title={`Spawn ${asset.name} (${asset.mesh}) into GameWorld`}
+                          title={`Spawn ${asset.name} (${asset.mesh}) into ${sceneLabel}`}
                           className="group flex flex-col items-center p-1 rounded-lg hover:bg-indigo-50/70 border border-transparent hover:border-indigo-200 cursor-pointer transition"
                         >
                           {renderAssetThumbnail(asset)}
@@ -2533,7 +3146,12 @@ export default function App() {
           </div>
 
           {rightTab === "Inspector" && selectedNode ? (
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 text-xs">
+            <fieldset disabled={isPlaying} className="flex-1 overflow-y-auto p-3 space-y-3 text-xs min-w-0">
+              {isPlaying && (
+                <div className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+                  Locked in Play — Stop to edit. Click objects to inspect.
+                </div>
+              )}
               {/* Actor Header Card */}
               <div className="space-y-2 pb-2.5 border-b border-slate-100">
                 <div className="flex items-center justify-between">
@@ -2809,6 +3427,15 @@ export default function App() {
                       title="Live tint color in viewport"
                     />
                     <span className="truncate font-mono">{selectedNode.tint || selectedNode.color || "#6366f1"}</span>
+                    {(selectedNode.tint || selectedNode.tint2) && (
+                      <button
+                        onClick={() => { updateSelectedNode({ tint: undefined, tint2: undefined }); appendLog("Info", `${selectedNode.name} colors reset to authored`); }}
+                        title="Reset to authored colors"
+                        className="ml-auto text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer shrink-0"
+                      >
+                        Reset
+                      </button>
+                    )}
                   </label>
                 </div>
 
@@ -2961,12 +3588,13 @@ export default function App() {
                 onClick={() =>
                   appendLog("Info", `Added new custom component to ${selectedNode.name}`)
                 }
-                className="w-full py-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 text-slate-700 font-semibold rounded-lg border border-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                className="w-full py-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 text-slate-700 font-semibold rounded-lg border border-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed"
+                disabled={isPlaying}
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Add Component</span>
               </button>
-            </div>
+            </fieldset>
           ) : (
             /* WORLD SETTINGS TAB */
             <div className="flex-1 overflow-y-auto p-3 space-y-4 text-xs">
@@ -3167,7 +3795,18 @@ export default function App() {
                     </div>
                   ))}
                   <div ref={aiEndRef} />
-                  {aiThinking && (
+                  {streaming && (
+                    <div className="space-y-1">
+                      <div className="flex justify-end">
+                        <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-br-md bg-indigo-600 text-white">{streaming.q}</div>
+                      </div>
+                      <div className="px-2.5 py-1.5 rounded-2xl rounded-bl-md bg-slate-100 text-slate-700 min-h-[1.5rem]">
+                        {streaming.text}
+                        <span className="inline-block w-1.5 h-3.5 bg-indigo-500 ml-0.5 animate-pulse align-text-bottom" />
+                      </div>
+                    </div>
+                  )}
+                  {aiThinking && !streaming && (
                     <div className="ai-shimmer-bubble px-2.5 py-1.5 rounded-2xl rounded-bl-md">
                       <span className="ai-shimmer-text">Thinking…</span>
                     </div>
@@ -3278,7 +3917,7 @@ export default function App() {
                   { id: "fpp", name: "FPP Shooting", desc: "You are the camera", icon: Camera },
                   { id: "racing", name: "Racing", desc: "Hero on the boat, coins as checkpoints", icon: Flag },
                   { id: "custom", name: "Custom", desc: "Duplicate of the scene you have open", icon: Copy },
-                  { id: "blank", name: "Blank Level", desc: "Terrain + sky + light", icon: Box }
+                  { id: "blank", name: "Blank Level", desc: "Black void, spawn freely", icon: Box }
                 ].map((t) => {
                   const Icon = t.icon;
                   const active = newProjectTemplate === t.id;
@@ -3304,12 +3943,33 @@ export default function App() {
                     type="text"
                     value={newProjectName}
                     onChange={(e) => setNewProjectName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleNewProject(newProjectName, newProjectTemplate); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleNewProject(newProjectName, newProjectTemplate, newProjectRoot); }}
                     placeholder={`Untitled Project ${projects.length + 1}`}
                     className="w-full text-[14px] px-4 py-2.5 bg-white rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-300"
                   />
                 </label>
-                <button onClick={() => handleNewProject(newProjectName, newProjectTemplate)} className="w-full py-2.5 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl cursor-pointer">Create Project</button>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-slate-600">Location — where this game lives on disk</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 text-[11px] font-mono px-3 py-2.5 bg-white rounded-xl border border-slate-200 text-slate-600 truncate" title={newProjectRoot || "Browser Downloads (no folder picked)"}>
+                      {newProjectRoot || "Browser Downloads (no folder picked)"}
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const r = await window.spiderShell?.pickFolder?.();
+                          if (r?.ok) setNewProjectRoot(r.dir);
+                          else if (!r?.cancelled) appendLog("Warning", `Folder picker failed: ${r?.error || "unavailable"}`);
+                        } catch (e) { appendLog("Warning", `Folder picker failed: ${e}`); }
+                      }}
+                      className="px-4 py-2.5 text-[12px] font-bold bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:text-indigo-700 cursor-pointer shrink-0"
+                    >
+                      Browse…
+                    </button>
+                  </div>
+                  <div className="text-[10px] text-slate-400">Save + Build write {sceneFileName} straight into this folder. Empty = browser download.</div>
+                </div>
+                <button onClick={() => handleNewProject(newProjectName, newProjectTemplate, newProjectRoot)} className="w-full py-2.5 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl cursor-pointer">Create Project</button>
               </div>
             </div>
           </div>
@@ -3505,7 +4165,7 @@ export default function App() {
                   <div className="max-w-md space-y-2 text-slate-600">
                     <div className="font-bold text-slate-800 text-[13px]">Spider Engine 0.9.0</div>
                     <div className="font-mono text-[11px]">React + Three.js WebGL · {window.spiderShell?.platform || navigator.platform}</div>
-                    <div>100% JSX demo game included: GameWorld scene, hero, coins, Ask AI, MCP tool bridge.</div>
+                    <div>100% JSX demo game included: hero, coins, Ask AI, MCP tool bridge.</div>
                   </div>
                 )}
               </div>

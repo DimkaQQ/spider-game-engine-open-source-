@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useMemo, useRef } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { OrbitControls, Sky, Stars, Grid, TransformControls, GizmoHelper, GizmoViewport, useGLTF, useTexture } from "@react-three/drei";
 import * as THREE from "three";
@@ -49,7 +49,7 @@ function FovSync({ zoom }) {
 
 // Follows the hero in Play/Game modes; slow auto-orbit in Cinematic;
 // Unreal-style WASD/QE camera fly in the free Viewport when not playing.
-function CameraRig({ isPlaying, followRef, mode, keysPressed }) {
+function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo }) {
   const controls = useThree((s) => s.controls);
   const camera = useThree((s) => s.camera);
   const target = useMemo(() => new THREE.Vector3(), []);
@@ -80,8 +80,9 @@ function CameraRig({ isPlaying, followRef, mode, keysPressed }) {
       controls.update();
       return;
     }
-    // Free Viewport + not playing: WASD/arrows fly, Q/E (or Space) rise/sink — camera-relative
-    if (!isPlaying && mode === "Viewport" && controls) {
+    // Free Viewport + select tool + not playing: WASD/arrows fly, Q/E (or Space) rise/sink — camera-relative.
+    // In move/rotate/scale gizmo modes WASD belongs to the selected object, so the camera stays put.
+    if (!isPlaying && mode === "Viewport" && activeGizmo === "select" && controls) {
       const k = keysPressed || {};
       const f = (k["w"] || k["arrowup"] ? 1 : 0) - (k["s"] || k["arrowdown"] ? 1 : 0);
       const s = (k["d"] || k["arrowright"] ? 1 : 0) - (k["a"] || k["arrowleft"] ? 1 : 0);
@@ -441,6 +442,110 @@ function Guards({ node, wire, selected }) {
   );
 }
 
+// Click-to-shoot in Play — raycast from screen center, targets die on hit.
+function ShootHandler({ registry, isPlaying, onShoot }) {
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const ray = useMemo(() => new THREE.Raycaster(), []);
+  const mouse = useRef({ x: 0, y: 0, inside: false });
+  const [flash, setFlash] = useState(null);
+  const [aim, setAim] = useState(null); // live aim point under the cursor
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 120);
+    return () => clearTimeout(t);
+  }, [flash]);
+  const pick = () => {
+    ray.setFromCamera(mouse.current, camera);
+    const roots = [...registry.current.values()];
+    const hits = ray.intersectObjects(roots, true);
+    for (const h of hits) {
+      let o = h.object;
+      while (o) {
+        for (const [rid, root] of registry.current) {
+          if (root === o) return { id: rid, point: h.point.clone() };
+        }
+        o = o.parent;
+      }
+    }
+    return { id: null, point: ray.ray.at(24, new THREE.Vector3()).clone() };
+  };
+  // Live aim marker — raycast from the cursor every frame while playing
+  useFrame(() => {
+    if (!isPlaying || !mouse.current.inside) {
+      if (aim) setAim(null);
+      return;
+    }
+    const { point } = pick();
+    setAim((prev) => {
+      if (prev && prev.distanceToSquared(point) < 0.0025) return prev;
+      return point.clone();
+    });
+  });
+  useEffect(() => {
+    if (!isPlaying) {
+      setAim(null);
+      return;
+    }
+    const el = gl.domElement;
+    let down = null;
+    const toNDC = (e) => {
+      const r = el.getBoundingClientRect();
+      mouse.current.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+      mouse.current.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+      mouse.current.inside = true;
+    };
+    const onMove = (e) => toNDC(e);
+    const onLeave = () => { mouse.current.inside = false; };
+    const onDown = (e) => { down = [e.clientX, e.clientY]; toNDC(e); };
+    const onUp = (e) => {
+      if (!down) return;
+      const moved = Math.hypot(e.clientX - down[0], e.clientY - down[1]);
+      down = null;
+      if (moved > 6) return; // was an orbit drag, not a shot
+      toNDC(e);
+      const { id, point } = pick();
+      setFlash({ pos: point, at: Date.now() });
+      if (onShoot) onShoot(id);
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("pointerup", onUp);
+    return () => {
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("pointerup", onUp);
+    };
+  }, [gl, isPlaying, ray, camera, registry, onShoot, aim]);
+  return (
+    <>
+      {aim && isPlaying && (
+        <group position={[aim.x, aim.y, aim.z]}>
+          <mesh>
+            <torusGeometry args={[0.35, 0.045, 10, 24]} />
+            <meshBasicMaterial color="#f43f5e" depthTest={false} transparent opacity={0.95} />
+          </mesh>
+          <mesh>
+            <sphereGeometry args={[0.06, 10, 10]} />
+            <meshBasicMaterial color="#f43f5e" depthTest={false} transparent opacity={0.95} />
+          </mesh>
+        </group>
+      )}
+      {flash && (
+        <group position={[flash.pos.x, flash.pos.y, flash.pos.z]}>
+          <mesh>
+            <sphereGeometry args={[0.22, 12, 12]} />
+            <meshBasicMaterial color="#fde047" />
+          </mesh>
+          <pointLight color="#fbbf24" intensity={8} distance={9} decay={2} />
+        </group>
+      )}
+    </>
+  );
+}
+
 // Spinning collectible coins — the playable game objective.
 function Coins({ coins, wire }) {
   const refs = useRef(new Map());
@@ -568,7 +673,8 @@ export default function GameViewport({
   cameraMode,
   coins,
   tint,
-  onFps
+  onFps,
+  onShoot
 }) {
   const registry = useRef(new Map());
   const register = (id, obj) => {
@@ -576,6 +682,8 @@ export default function GameViewport({
     else registry.current.delete(id);
   };
   const [selectedObj, setSelectedObj] = useStateSelected(selectedNodeId, registry, sceneGroups);
+  // Editor selection glow only — in Play the game shows true authored colors
+  const selId = isPlaying ? "__playing__" : selectedNodeId;
 
   const terrain = findNode(sceneGroups, "terrain");
   const water = findNode(sceneGroups, "water");
@@ -603,11 +711,11 @@ export default function GameViewport({
 
   const gizmoMode =
     activeGizmo === "rotate" ? "rotate" : activeGizmo === "scale" ? "scale" : "translate";
-  const showTransform = activeGizmo !== "select" && selectedObj;
+  const showTransform = activeGizmo !== "select" && selectedObj && !isPlaying;
   const heroMoving = isPlaying && keysPressed && Object.values(keysPressed).some(Boolean);
 
   return (
-    <div className="absolute inset-0">
+    <div className="absolute inset-0" style={{ cursor: isPlaying ? "crosshair" : undefined }}>
       <Canvas
         key={projection}
         shadows={rtxEnabled}
@@ -621,15 +729,15 @@ export default function GameViewport({
         gl={{ preserveDrawingBuffer: true, antialias: true }}
         onPointerMissed={() => onSelectNode("player")}
       >
-        {!night && sky?.visible !== false ? (
+        {!night && sky && sky.visible !== false ? (
           <Sky distance={450000} sunPosition={sunPos} inclination={0.52} />
         ) : (
           <color attach="background" args={["#0f172a"]} />
         )}
         {night && <Stars radius={200} depth={40} count={2500} factor={4} fade />}
-        {fog?.visible !== false && <fog attach="fog" args={["#cbd5e1", 70, 240]} />}
+        {fog && fog.visible !== false && <fog attach="fog" args={["#cbd5e1", 70, 240]} />}
         <ambientLight intensity={night ? 0.25 : 0.55} />
-        {lighting?.visible !== false && (
+        {lighting && lighting.visible !== false && (
           <directionalLight
             position={sunPos}
             intensity={night ? 0.4 : 1.6}
@@ -643,7 +751,7 @@ export default function GameViewport({
         )}
 
         {/* Terrain + distant peaks */}
-        {terrain?.visible !== false && (
+        {terrain && terrain.visible !== false && (
           <group>
             <mesh rotation-x={-Math.PI / 2} receiveShadow>
               <planeGeometry args={[260, 260]} />
@@ -670,7 +778,7 @@ export default function GameViewport({
         )}
 
         {/* Water */}
-        {water?.visible !== false && (
+        {water && water.visible !== false && (
           <mesh
             rotation-x={-Math.PI / 2}
             position={[water.pos.x * WORLD, -0.5, water.pos.z * WORLD]}
@@ -688,15 +796,15 @@ export default function GameViewport({
         )}
 
         {/* Trees */}
-        {trees?.visible !== false && (
-          <LiveGroup node={trees} selected={selectedNodeId === "trees"} onSelect={onSelectNode} register={register}>
-            <SwayingTrees node={trees} wire={wire} selected={selectedNodeId === "trees"} />
+        {trees && trees.visible !== false && (
+          <LiveGroup node={trees} selected={selId === "trees"} onSelect={onSelectNode} register={register}>
+            <SwayingTrees node={trees} wire={wire} selected={selId === "trees"} />
           </LiveGroup>
         )}
 
         {/* Rocks */}
-        {rocks?.visible !== false && (
-          <LiveGroup node={rocks} selected={selectedNodeId === "rocks"} onSelect={onSelectNode} register={register}>
+        {rocks && rocks.visible !== false && (
+          <LiveGroup node={rocks} selected={selId === "rocks"} onSelect={onSelectNode} register={register}>
             {[
               [0, 0, 1],
               [1.8, 0.8, 0.7],
@@ -704,37 +812,37 @@ export default function GameViewport({
             ].map(([dx, dz, s], i) => (
               <mesh key={i} position={[dx, 0.4 * s, dz]} scale={s} castShadow>
                 <dodecahedronGeometry args={[1, 0]} />
-                <Std color={rocks.tint || "#78716c"} wire={wire} flatShading emissive={selectedNodeId === "rocks" ? "#6366f1" : undefined} />
+                <Std color={rocks.tint || "#78716c"} wire={wire} flatShading emissive={selId === "rocks" ? "#6366f1" : undefined} />
               </mesh>
             ))}
           </LiveGroup>
         )}
 
         {/* Castle */}
-        {buildings?.visible !== false && (
-          <LiveGroup node={buildings} selected={selectedNodeId === "buildings"} onSelect={onSelectNode} register={register}>
-            <Castle node={buildings} wire={wire} selected={selectedNodeId === "buildings"} />
+        {buildings && buildings.visible !== false && (
+          <LiveGroup node={buildings} selected={selId === "buildings"} onSelect={onSelectNode} register={register}>
+            <Castle node={buildings} wire={wire} selected={selId === "buildings"} />
           </LiveGroup>
         )}
 
         {/* Boat */}
-        {vehicles?.visible !== false && (
-          <LiveGroup node={vehicles} selected={selectedNodeId === "vehicles"} onSelect={onSelectNode} register={register}>
-            <Boat node={vehicles} wire={wire} selected={selectedNodeId === "vehicles"} />
+        {vehicles && vehicles.visible !== false && (
+          <LiveGroup node={vehicles} selected={selId === "vehicles"} onSelect={onSelectNode} register={register}>
+            <Boat node={vehicles} wire={wire} selected={selId === "vehicles"} />
           </LiveGroup>
         )}
 
         {/* Guards on patrol */}
-        {npcs?.visible !== false && (
-          <LiveGroup node={npcs} selected={selectedNodeId === "npcs"} onSelect={onSelectNode} register={register}>
-            <Guards node={npcs} wire={wire} selected={selectedNodeId === "npcs"} />
+        {npcs && npcs.visible !== false && (
+          <LiveGroup node={npcs} selected={selId === "npcs"} onSelect={onSelectNode} register={register}>
+            <Guards node={npcs} wire={wire} selected={selId === "npcs"} />
           </LiveGroup>
         )}
 
         {/* Hero */}
-        {player?.visible !== false && (
-          <LiveGroup node={player} selected={selectedNodeId === "player"} onSelect={onSelectNode} register={register}>
-            <Hero node={player} wire={wire} selected={selectedNodeId === "player"} moving={heroMoving} />
+        {player && player.visible !== false && (
+          <LiveGroup node={player} selected={selId === "player"} onSelect={onSelectNode} register={register}>
+            <Hero node={player} wire={wire} selected={selId === "player"} moving={heroMoving} />
           </LiveGroup>
         )}
 
@@ -742,16 +850,16 @@ export default function GameViewport({
         <Coins coins={coins || []} wire={wire} />
 
         {/* Weapon follows hero */}
-        {weapon?.visible !== false && player && (
-          <WeaponFollow player={player} weapon={weapon} wire={wire} selected={selectedNodeId === "weapon"} onSelect={onSelectNode} />
+        {weapon && weapon.visible !== false && player && (
+          <WeaponFollow player={player} weapon={weapon} wire={wire} selected={selId === "weapon"} onSelect={onSelectNode} />
         )}
 
         {/* Camera helper */}
-        {cameraNode?.visible !== false && (
-          <LiveGroup node={cameraNode} selected={selectedNodeId === "camera"} onSelect={onSelectNode} register={register}>
+        {cameraNode && cameraNode.visible !== false && (
+          <LiveGroup node={cameraNode} selected={selId === "camera"} onSelect={onSelectNode} register={register}>
             <mesh position={[0, 1.2, 0]} onClick={(e) => { e.stopPropagation(); onSelectNode("camera"); }}>
               <boxGeometry args={[0.5, 0.35, 0.7]} />
-              <Std color="#3b82f6" wire={wire} emissive={selectedNodeId === "camera" ? "#6366f1" : undefined} />
+              <Std color="#3b82f6" wire={wire} emissive={selId === "camera" ? "#6366f1" : undefined} />
             </mesh>
           </LiveGroup>
         )}
@@ -790,10 +898,11 @@ export default function GameViewport({
         <GizmoHelper alignment="bottom-right" margin={[70, 70]}>
           <GizmoViewport axisColors={["#ef4444", "#22c55e", "#2563eb"]} labelColor="white" />
         </GizmoHelper>
-        <CameraRig mode={cameraMode || "Viewport"} isPlaying={isPlaying} keysPressed={keysPressed} followRef={{ current: registry.current.get("player") || null }} />
+        <CameraRig mode={cameraMode || "Viewport"} isPlaying={isPlaying} keysPressed={keysPressed} activeGizmo={activeGizmo} followRef={{ current: registry.current.get("player") || null }} />
         <FpsMeter onFps={onFps} />
         <FovSync zoom={cameraZoom} />
         <CaptureApi />
+        <ShootHandler registry={registry} isPlaying={isPlaying} onShoot={onShoot} />
       </Canvas>
     </div>
   );

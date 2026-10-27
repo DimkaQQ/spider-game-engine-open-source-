@@ -1,0 +1,13 @@
+{
+  "name": "spider-engine-mcp",
+  "version": "0.9.0",
+  "description": "MCP server for Spider Engine — drives the live game engine or its scene files",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "spider-engine-mcp": "./server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}

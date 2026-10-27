@@ -42,6 +42,15 @@ html, body, #root {
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
+/* Splash loading bar */
+@keyframes spider-load {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.spider-load-bar {
+  animation: spider-load 1.2s ease-in-out infinite;
+}
+
 @keyframes ai-shimmer-sweep {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
