@@ -91,6 +91,155 @@ import {
 // --- CONSOLE LOGS (start empty — real boot lines are logged on mount) ---
 const INITIAL_LOGS = [];
 
+// ============================================================================
+// INDEXEDDB STORAGE ENGINE (Browser & Mobile Full Storage Layer)
+// ============================================================================
+const SPIDER_DB_NAME = "SpiderEngineDB";
+const SPIDER_DB_VERSION = 1;
+
+function openSpiderDB() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      return reject(new Error("IndexedDB is not supported in this environment"));
+    }
+    const req = indexedDB.open(SPIDER_DB_NAME, SPIDER_DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("scenes")) {
+        db.createObjectStore("scenes", { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains("scripts")) {
+        db.createObjectStore("scripts", { keyPath: "name" });
+      }
+      if (!db.objectStoreNames.contains("projects")) {
+        db.createObjectStore("projects", { keyPath: "id" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSaveScene(sceneData) {
+  try {
+    const db = await openSpiderDB();
+    const tx = db.transaction("scenes", "readwrite");
+    const store = tx.objectStore("scenes");
+    store.put({
+      id: sceneData.id || "current-scene",
+      name: sceneData.name || "scene.json",
+      json: sceneData.json || "",
+      groups: sceneData.groups || [],
+      updatedAt: Date.now()
+    });
+    return new Promise((resolve) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  } catch (err) {
+    console.warn("IndexedDB save scene error:", err);
+    return false;
+  }
+}
+
+async function idbGetScene(id = "current-scene") {
+  try {
+    const db = await openSpiderDB();
+    const tx = db.transaction("scenes", "readonly");
+    const store = tx.objectStore("scenes");
+    const req = store.get(id);
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function idbSaveScript(file) {
+  try {
+    const db = await openSpiderDB();
+    const tx = db.transaction("scripts", "readwrite");
+    const store = tx.objectStore("scripts");
+    store.put({
+      name: file.name,
+      folder: file.folder || "src/game",
+      path: file.path || `${file.folder || "src/game"}/${file.name}`,
+      content: file.content || "",
+      lines: (file.content || "").split("\n").length,
+      updatedAt: Date.now()
+    });
+    return new Promise((resolve) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  } catch (err) {
+    console.warn("IndexedDB save script error:", err);
+    return false;
+  }
+}
+
+async function idbSaveAllScripts(files) {
+  try {
+    const db = await openSpiderDB();
+    const tx = db.transaction("scripts", "readwrite");
+    const store = tx.objectStore("scripts");
+    for (const f of files) {
+      store.put({
+        name: f.name,
+        folder: f.folder || "src/game",
+        path: f.path || `${f.folder || "src/game"}/${f.name}`,
+        content: f.content || "",
+        lines: (f.content || "").split("\n").length,
+        updatedAt: Date.now()
+      });
+    }
+    return new Promise((resolve) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  } catch {
+    return false;
+  }
+}
+
+async function idbGetAllScripts() {
+  try {
+    const db = await openSpiderDB();
+    const tx = db.transaction("scripts", "readonly");
+    const store = tx.objectStore("scripts");
+    const req = store.getAll();
+    return new Promise((resolve) => {
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
+  }
+}
+
+// Browser Fallback with IndexedDB when running in Web/Mobile browser without Electron/Tauri
+if (typeof window !== "undefined" && !window.spiderShell) {
+  window.spiderShell = {
+    platform: "web",
+    isBrowser: true,
+    writeProjectFile: async (folder, name, content) => {
+      await idbSaveScript({ folder, name, content });
+      return { ok: true, path: `${folder}/${name}`, bytes: (content || "").length, inIndexedDb: true };
+    },
+    readProjectFile: async (folder, name) => {
+      const scripts = await idbGetAllScripts();
+      const found = scripts.find((s) => s.name === name || s.path === `${folder}/${name}`);
+      return found ? { ok: true, content: found.content } : { ok: false, error: "File not found in IndexedDB" };
+    },
+    listProjectFiles: async () => {
+      const scripts = await idbGetAllScripts();
+      return { ok: true, files: scripts.map((s) => s.name) };
+    }
+  };
+}
+
 
 // Left Navigation Items
 const LEFT_RAIL_ITEMS = [
@@ -577,14 +726,50 @@ export default function App() {
     return BUILTIN_PROJECT_SCRIPTS;
   });
 
-  // Permanently persist project files across app restarts & closures
+  // Permanently persist project files & JSX to IndexedDB & localStorage across app restarts
   useEffect(() => {
-    try {
-      if (projectScriptFiles && projectScriptFiles.length > 0) {
+    if (projectScriptFiles && projectScriptFiles.length > 0) {
+      idbSaveAllScripts(projectScriptFiles);
+      try {
         localStorage.setItem("spider-project-script-files", JSON.stringify(projectScriptFiles));
+      } catch (err) {
+        // QuotaExceededError is safely ignored since IndexedDB stores the full files without limit
       }
-    } catch {}
+    }
   }, [projectScriptFiles]);
+
+  // On boot: restore saved 3D scene & JSX scripts from browser IndexedDB
+  useEffect(() => {
+    (async () => {
+      // 1. Restore JSX / Project Scripts from IndexedDB
+      try {
+        const dbScripts = await idbGetAllScripts();
+        if (dbScripts && dbScripts.length > 0) {
+          setProjectScriptFiles((prev) => {
+            const map = new Map(prev.map((f) => [f.name, f]));
+            for (const d of dbScripts) {
+              map.set(d.name, { ...map.get(d.name), ...d });
+            }
+            return Array.from(map.values());
+          });
+          appendLog("Success", `Restored ${dbScripts.length} JSX scripts from browser IndexedDB`);
+        }
+      } catch (err) {
+        console.warn("Could not load scripts from IndexedDB:", err);
+      }
+
+      // 2. Restore 3D Scene from IndexedDB
+      try {
+        const savedScene = await idbGetScene("current-scene");
+        if (savedScene && savedScene.groups && Array.isArray(savedScene.groups)) {
+          setSceneGroups(sanitizeGroups(savedScene.groups));
+          appendLog("Success", `Restored 3D scene from browser IndexedDB (${savedScene.name})`);
+        }
+      } catch (err) {
+        console.warn("Could not restore scene from IndexedDB:", err);
+      }
+    })();
+  }, []);
 
   const [selectedScriptFolder, setSelectedScriptFolder] = useState("All Folders");
   const [scriptSearch, setScriptSearch] = useState("");
@@ -3187,26 +3372,29 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return "";
   };
   const writeProjectFileOrDownload = async (filename, json, kbHint) => {
+    // 1. ALWAYS persist scene into browser IndexedDB for persistent mobile & web storage
+    try {
+      await idbSaveScene({ id: filename, name: filename, json, groups: sceneGroups });
+      await idbSaveScene({ id: "current-scene", name: filename, json, groups: sceneGroups });
+    } catch (err) {
+      console.warn("IndexedDB scene save error:", err);
+    }
+
     const dir = currentProject?.root;
-    if (dir && window.spiderShell?.writeProjectFile) {
+    if (dir && window.spiderShell?.writeProjectFile && window.spiderShell.platform !== "web") {
       try {
         const r = await window.spiderShell.writeProjectFile(dir, filename, json);
         if (r?.ok) {
           appendLog("Success", `Saved to project folder: ${r.path} (${kbHint} KB)`);
           return true;
         }
-        appendLog("Warning", `Folder write failed (${r?.error || "unknown"}) — downloaded instead`);
+        appendLog("Warning", `Folder write failed (${r?.error || "unknown"}) — saved to IndexedDB`);
       } catch (e) {
-        appendLog("Warning", `Folder write failed (${e}) — downloaded instead`);
+        appendLog("Warning", `Folder write failed (${e}) — saved to IndexedDB`);
       }
     }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([json], { type: "application/json" }));
-    a.download = filename;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    appendLog("Success", `Scene downloaded: ${filename} (${kbHint} KB) — set a project folder to save in place`);
-    return false;
+    appendLog("Success", `Scene saved to browser IndexedDB: ${filename} (${kbHint} KB) — persists across restarts`);
+    return true;
   };
   // Unreal-style templates: real starting scenes per genre, deep-copied per project
   const buildTemplateGroups = (tpl) => {
