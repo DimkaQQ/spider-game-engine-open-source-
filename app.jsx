@@ -7003,21 +7003,149 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 {settingsSection === "Third-Party Licenses" && (
                   <div className="max-w-xl space-y-4 text-slate-700">
                     <div className="text-[11px] text-slate-500 pb-1">
-                      Spider Engine is open source under the MIT License. It incorporates and complies with the following third-party open-source components:
+                      Spider Canvas & Engine is open source under the MIT License. Below are the official licenses and notices for Spider Canvas and its third-party open-source components for judges and compliance reviewers:
                     </div>
-                    <div className="space-y-2.5">
+
+                    {/* Spider Canvas Core Engine (Primary Project) */}
+                    <div className="p-4 bg-emerald-500/10 border-2 border-emerald-500/30 rounded-2xl space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span className="font-extrabold text-[13px] text-slate-950">Spider Canvas (Spider Game Engine Core)</span>
+                          <span className="font-mono text-[10px] text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">v0.9.0 · Primary</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-600 text-white shadow-xs">MIT License</span>
+                      </div>
+                      <div className="text-[11px] text-slate-700">
+                        Copyright © 2026 <strong>Vivek / M4SPIDER</strong> (<a href="mailto:support@m4spider.com" className="text-emerald-700 font-semibold underline">support@m4spider.com</a>)
+                      </div>
+                      <div className="text-[11px] text-slate-600 leading-relaxed">
+                        Autonomous 3D Canvas runtime, live JSX hot-reloader, screenshot vision inspector, and MCP bridge.
+                      </div>
+                      <div className="text-[10px] text-emerald-900 font-semibold bg-emerald-100/80 p-2 rounded-lg border border-emerald-200">
+                        Legal Notice: Games created with Spider Canvas are strictly at your own risk.
+                      </div>
+                      <div className="pt-1">
+                        <a href="https://github.com/M4SPIDER/spider-game-engine-open-source-" target="_blank" rel="noreferrer" className="text-[10px] text-emerald-700 font-mono font-bold hover:underline flex items-center gap-1">
+                          https://github.com/M4SPIDER/spider-game-engine-open-source-
+                        </a>
+                      </div>
+                      <details className="mt-2 group">
+                        <summary className="cursor-pointer text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1.5 select-none pt-1">
+                          <span>Read Spider Canvas License & Legal Terms</span>
+                        </summary>
+                        <pre className="mt-2 p-3 bg-white rounded-xl text-[10px] font-mono text-slate-700 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed border border-emerald-200 shadow-inner">
+{`MIT License
+
+Copyright (c) 2026 Vivek / M4SPIDER (support@m4spider.com)
+GitHub: https://github.com/M4SPIDER/spider-game-engine-open-source-
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Spider Canvas / Spider Game Engine"),
+to deal in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+DISCLAIMER OF LIABILITY:
+GAMES CREATED WITH SPIDER CANVAS ARE STRICTLY AT YOUR OWN RISK.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.`}
+                        </pre>
+                      </details>
+                    </div>
+
+                    {/* Third-Party Packages */}
+                    <div className="space-y-2.5 pt-2">
                       {[
-                        { name: "React & React DOM", ver: "19.3.1", lic: "MIT", author: "Meta Platforms, Inc. and affiliates", url: "https://react.dev" },
-                        { name: "Three.js", ver: "0.186.1", lic: "MIT", author: "Ricardo Cabello (mrdoob) and Three.js authors", url: "https://threejs.org" },
-                        { name: "@react-three/fiber", ver: "9.8.2", lic: "MIT", author: "Paul Henschel and Poimandres contributors", url: "https://github.com/pmndrs/react-three-fiber" },
-                        { name: "@react-three/drei", ver: "10.7.9", lic: "MIT", author: "Poimandres contributors", url: "https://github.com/pmndrs/drei" },
-                        { name: "chess.js", ver: "1.4.0", lic: "BSD-2-Clause", author: "Jeff Hlywa", url: "https://github.com/jhlywa/chess.js" },
-                        { name: "Lucide React", ver: "1.61.0", lic: "ISC", author: "Lucide Contributors", url: "https://lucide.dev" },
-                        { name: "Sucrase", ver: "3.35.1", lic: "MIT", author: "Alan Pierce", url: "https://github.com/alangpierce/sucrase" },
-                        { name: "Tailwind CSS", ver: "4.3.3", lic: "MIT", author: "Tailwind Labs, Inc.", url: "https://tailwindcss.com" },
-                        { name: "Vite", ver: "8.3.5", lic: "MIT", author: "Yuxi (Evan) You and Vite contributors", url: "https://vite.dev" },
-                        { name: "Electron", ver: "45.0.0", lic: "MIT", author: "OpenJS Foundation and Electron contributors", url: "https://electronjs.org" },
-                        { name: "Tauri", ver: "2.12.4", lic: "MIT / Apache-2.0", author: "Tauri Programme within The Commons Conservancy", url: "https://tauri.app" }
+                        {
+                          name: "React & React DOM",
+                          ver: "19.3.1",
+                          lic: "MIT",
+                          author: "Meta Platforms, Inc. and affiliates",
+                          url: "https://react.dev",
+                          text: `MIT License\nCopyright (c) Meta Platforms, Inc. and affiliates.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software...`
+                        },
+                        {
+                          name: "Three.js",
+                          ver: "0.186.1",
+                          lic: "MIT",
+                          author: "Ricardo Cabello (mrdoob) and Three.js authors",
+                          url: "https://threejs.org",
+                          text: `MIT License\nCopyright (c) 2010-2026 Three.js authors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software...`
+                        },
+                        {
+                          name: "@react-three/fiber & @react-three/drei",
+                          ver: "9.8.2 / 10.7.9",
+                          lic: "MIT",
+                          author: "Paul Henschel and Poimandres contributors",
+                          url: "https://github.com/pmndrs/react-three-fiber",
+                          text: `MIT License\nCopyright (c) 2019-2026 Paul Henschel and Poimandres contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction...`
+                        },
+                        {
+                          name: "chess.js",
+                          ver: "1.4.0",
+                          lic: "BSD-2-Clause",
+                          author: "Jeff Hlywa",
+                          url: "https://github.com/jhlywa/chess.js",
+                          text: `BSD 2-Clause License\nCopyright (c) Jeff Hlywa (jhlywa@gmail.com)\nAll rights reserved.\n\nRedistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:\n1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.\n2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.`
+                        },
+                        {
+                          name: "Lucide React",
+                          ver: "1.61.0",
+                          lic: "ISC",
+                          author: "Lucide Contributors",
+                          url: "https://lucide.dev",
+                          text: `ISC License\nCopyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) 2022-2026 by Lucide Contributors.\n\nPermission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.`
+                        },
+                        {
+                          name: "Sucrase",
+                          ver: "3.35.1",
+                          lic: "MIT",
+                          author: "Alan Pierce",
+                          url: "https://github.com/alangpierce/sucrase",
+                          text: `MIT License\nCopyright (c) Alan Pierce\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies...`
+                        },
+                        {
+                          name: "Tailwind CSS",
+                          ver: "4.3.3",
+                          lic: "MIT",
+                          author: "Tailwind Labs, Inc.",
+                          url: "https://tailwindcss.com",
+                          text: `MIT License\nCopyright (c) Tailwind Labs, Inc.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction...`
+                        },
+                        {
+                          name: "Vite",
+                          ver: "8.3.5",
+                          lic: "MIT",
+                          author: "Yuxi (Evan) You and Vite contributors",
+                          url: "https://vite.dev",
+                          text: `MIT License\nCopyright (c) 2019-present, Yuxi (Evan) You and Vite contributors\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction...`
+                        },
+                        {
+                          name: "Electron",
+                          ver: "45.0.0",
+                          lic: "MIT",
+                          author: "OpenJS Foundation and Electron contributors",
+                          url: "https://electronjs.org",
+                          text: `MIT License\nCopyright (c) Electron contributors / OpenJS Foundation\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction...`
+                        },
+                        {
+                          name: "Tauri",
+                          ver: "2.12.4",
+                          lic: "MIT / Apache-2.0",
+                          author: "Tauri Programme within The Commons Conservancy",
+                          url: "https://tauri.app",
+                          text: `MIT / Apache-2.0 Dual License\nCopyright 2019-2026 Tauri Programme within The Commons Conservancy\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction...`
+                        }
                       ].map((pkg) => (
                         <div key={pkg.name} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
                           <div className="flex items-center justify-between">
@@ -7026,6 +7154,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           </div>
                           <div className="text-[11px] text-slate-500">Copyright © {pkg.author}</div>
                           <div className="text-[10px] text-indigo-600 font-mono truncate">{pkg.url}</div>
+                          <details className="mt-1 group">
+                            <summary className="cursor-pointer text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 select-none pt-1">
+                              <span>Read License Text</span>
+                            </summary>
+                            <pre className="mt-1.5 p-2.5 bg-white rounded-lg text-[10px] font-mono text-slate-600 whitespace-pre-wrap max-h-36 overflow-y-auto leading-relaxed border border-slate-200">
+                              {pkg.text}
+                            </pre>
+                          </details>
                         </div>
                       ))}
                     </div>

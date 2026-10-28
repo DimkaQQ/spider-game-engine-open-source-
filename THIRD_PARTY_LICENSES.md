@@ -1,7 +1,43 @@
-# Third-Party Open Source Software Licenses & Notices
+# Spider Canvas & Third-Party Open Source Software Licenses
 
-Spider Game Engine incorporates or links to the following third-party open-source components.
-We gratefully acknowledge the creators and maintainers of these projects.
+This document details the primary open-source license for **Spider Canvas (Spider Game Engine)** along with all third-party open-source components, libraries, and tools incorporated into or linked by the engine.
+
+---
+
+## 0. Spider Canvas / Spider Game Engine Core (Primary)
+- **Project**: [https://github.com/M4SPIDER/spider-game-engine-open-source-](https://github.com/M4SPIDER/spider-game-engine-open-source-)
+- **Version**: 0.9.0
+- **License**: MIT License
+- **Author / Copyright**: (c) 2026 Vivek / M4SPIDER (`support@m4spider.com`)
+- **Provenance Lineage**: `vivek::venom::quick::qucik::m4spider`
+- **Legal Notice**: Games created with Spider Canvas are strictly at your own risk.
+
+```
+MIT License
+
+Copyright (c) 2026 Vivek / M4SPIDER (support@m4spider.com)
+GitHub: https://github.com/M4SPIDER/spider-game-engine-open-source-
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Spider Canvas / Spider Game Engine"),
+to deal in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+DISCLAIMER OF LIABILITY:
+GAMES CREATED WITH SPIDER CANVAS ARE STRICTLY AT YOUR OWN RISK.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ---
 
