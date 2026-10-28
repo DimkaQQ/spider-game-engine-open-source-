@@ -5161,43 +5161,50 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
             {/* CENTER 3D VIEWPORT PANEL */}
             <section ref={viewportRef} className="flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative">
-              {/* Viewport Top Tab Bar: Hidden on mobile and env mode for clean canvas */}
-              {!isMobile && !isEnvMode && (
-                <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+              {/* Viewport Top Tab Bar: Shown on both mobile and desktop (only hidden in Env Mode) */}
+              {!isEnvMode && (
+                <div className="h-9 px-2 sm:px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0 select-none">
                   <div className="flex items-center gap-1">
-                    {[
-                      { id: "Viewport", icon: Box },
-                      { id: "Cinematic", icon: Film },
-                      { id: "Game View", icon: Gamepad2 }
-                    ].map((tab) => {
-                      const Icon = tab.icon;
-                      const active = viewportTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => {
-                            setViewportTab(tab.id);
-                            appendLog("Info", tab.id === "Game View" ? "Game View — chase camera locked to hero (Play to run)" : tab.id === "Cinematic" ? "Cinematic — slow auto-orbit camera" : "Viewport — free orbit camera");
-                          }}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                            active
-                              ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 shadow-2xs"
-                              : "text-slate-500 hover:text-slate-800"
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          <span>{tab.id}</span>
-                        </button>
-                      );
-                    })}
+                    {!isMobile ? (
+                      [
+                        { id: "Viewport", icon: Box },
+                        { id: "Cinematic", icon: Film },
+                        { id: "Game View", icon: Gamepad2 }
+                      ].map((tab) => {
+                        const Icon = tab.icon;
+                        const active = viewportTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => {
+                              setViewportTab(tab.id);
+                              appendLog("Info", tab.id === "Game View" ? "Game View — chase camera locked to hero (Play to run)" : tab.id === "Cinematic" ? "Cinematic — slow auto-orbit camera" : "Viewport — free orbit camera");
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                              active
+                                ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 shadow-2xs"
+                                : "text-slate-500 hover:text-slate-800"
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            <span>{tab.id}</span>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                        <Box className="w-3.5 h-3.5 text-indigo-600" />
+                        <span className="truncate max-w-[120px]">{activeJsxName || "Spider View"}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* Mode Toggles: 3D Viewport vs Code Editor */}
-                    <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-200">
+                    <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-200 shadow-2xs">
                       <button
                         onClick={() => setArtifactViewMode("viewport")}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
                           artifactViewMode === "viewport" ? "bg-white text-indigo-600 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                         }`}
                         title="Native 3D Viewport"
@@ -5207,10 +5214,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       </button>
                       <button
                         onClick={() => setArtifactViewMode("code")}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
                           artifactViewMode === "code" ? "bg-white text-indigo-600 shadow-2xs" : "text-slate-600 hover:text-slate-900"
                         }`}
-                        title="Live Interactive Code Editor"
+                        title="Live Interactive Code Editor (Code Mode)"
                       >
                         <Code2 className="w-3.5 h-3.5" />
                         <span>Code</span>
@@ -5236,11 +5243,20 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
                     {/* Full Screen Toggle */}
                     <button
-                      onClick={() => setIsArtifactFullscreen((f) => !f)}
-                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition cursor-pointer"
-                      title={isArtifactFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                      onClick={() => {
+                        setIsArtifactFullscreen((f) => !f);
+                        try {
+                          if (!document.fullscreenElement) {
+                            viewportRef.current?.requestFullscreen?.().catch?.(() => {});
+                          } else {
+                            document.exitFullscreen?.().catch?.(() => {});
+                          }
+                        } catch {}
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition cursor-pointer flex items-center justify-center"
+                      title={isArtifactFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
                     >
-                      {isArtifactFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                      {isArtifactFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-indigo-600" /> : <Maximize2 className="w-3.5 h-3.5 text-indigo-600" />}
                     </button>
                   </div>
                 </div>
@@ -5291,19 +5307,19 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     artifactViewMode === "code" ? "visible pointer-events-auto" : "invisible pointer-events-none"
                   }`}
                 >
-                  <div className="flex items-center justify-between px-4 py-2.5 bg-[#0f172a] border-b border-slate-700 text-slate-300">
+                  <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-[#0f172a] border-b border-slate-700 text-slate-300 flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-wider flex items-center gap-1.5 text-indigo-400 bg-indigo-950/70 border border-indigo-800/80 px-2 py-0.5 rounded-md">
                         <Edit3 className="w-3 h-3 text-indigo-400" />
-                        Live Editable
+                        Code Mode
                       </span>
-                      <span className="text-xs text-slate-200 font-semibold">{activeJsxName || (snakesActive ? "SnakesAndLadders3D.jsx" : "GameComponent.jsx")}</span>
-                      <span className="text-[10px] text-slate-400 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700 font-mono">
+                      <span className="text-xs text-slate-200 font-semibold truncate max-w-[130px] sm:max-w-none">{activeJsxName || (snakesActive ? "SnakesAndLadders3D.jsx" : "GameComponent.jsx")}</span>
+                      <span className="hidden sm:inline-block text-[10px] text-slate-400 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700 font-mono">
                         📁 {selectedScriptFolder}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <span>{((activeJsxCode !== null ? activeJsxCode : "") || "").split("\n").length} lines</span>
+                    <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-400 ml-auto">
+                      <span className="hidden sm:inline">{((activeJsxCode !== null ? activeJsxCode : "") || "").split("\n").length} lines</span>
                       <span className="px-1.5 py-0.5 bg-slate-800 rounded text-[10px] uppercase font-bold text-slate-300">
                         {/^\s*<!doctype|^\s*<html|^\s*<canvas/i.test(activeJsxCode || "") ? "HTML / Canvas" : "React JSX"}
                       </span>
@@ -5526,10 +5542,35 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
                 {/* --- MOBILE TOUCH CONTROLS & FLOATING QUICK BAR --- */}
                 {isMobile && !isEnvMode && (
-                  <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-emerald-500/30 shadow-xl">
+                  <div className="absolute top-3 right-3 z-30 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-emerald-500/30 shadow-xl">
+                    <button
+                      onClick={() => setArtifactViewMode((m) => (m === "code" ? "viewport" : "code"))}
+                      className="px-2 py-1.5 rounded-xl text-[11px] font-bold text-cyan-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
+                      title="Toggle Code Mode / 3D View"
+                    >
+                      <Code2 className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{artifactViewMode === "code" ? "3D" : "Code"}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsArtifactFullscreen((f) => !f);
+                        try {
+                          if (!document.fullscreenElement) {
+                            viewportRef.current?.requestFullscreen?.().catch?.(() => {});
+                          } else {
+                            document.exitFullscreen?.().catch?.(() => {});
+                          }
+                        } catch {}
+                      }}
+                      className="px-2 py-1.5 rounded-xl text-[11px] font-bold text-indigo-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
+                      title="Toggle Fullscreen"
+                    >
+                      {isArtifactFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-indigo-400" /> : <Maximize2 className="w-3.5 h-3.5 text-indigo-400" />}
+                      <span>{isArtifactFullscreen ? "Exit" : "Full"}</span>
+                    </button>
                     <button
                       onClick={toggleEnvMode}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-emerald-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
+                      className="px-2 py-1.5 rounded-xl text-[11px] font-bold text-emerald-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                       title="Toggle Environment Mode (Clean full-screen 3D canvas)"
                     >
                       <Eye className="w-3.5 h-3.5 text-emerald-400" />
@@ -5537,39 +5578,51 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     </button>
                     <button
                       onClick={() => setHierarchyOpen((p) => !p)}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
+                      className="px-2 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                     >
                       <Box className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Scene</span>
                     </button>
                     <button
                       onClick={() => setInspectorOpen((p) => !p)}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
+                      className="px-2 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                     >
                       <Sliders className="w-3.5 h-3.5 text-cyan-400" />
                       <span>Inspect</span>
-                    </button>
-                    <button
-                      onClick={() => setSettingsOpen(true)}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
-                    >
-                      <Settings className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Settings</span>
                     </button>
                   </div>
                 )}
 
                 {/* Clean Floating Env Mode exit indicator when in Env Mode */}
                 {isEnvMode && (
-                  <button
-                    onClick={toggleEnvMode}
-                    className="absolute top-3 right-3 z-40 px-3.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 rounded-full shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
-                    title="Exit Environment Mode"
-                  >
-                    <Eye className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>🌿 Env Mode</span>
-                    <span className="text-[10px] text-slate-400 ml-1">✕ Exit</span>
-                  </button>
+                  <div className="absolute top-3 right-3 z-40 flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setIsArtifactFullscreen((f) => !f);
+                        try {
+                          if (!document.fullscreenElement) {
+                            viewportRef.current?.requestFullscreen?.().catch?.(() => {});
+                          } else {
+                            document.exitFullscreen?.().catch?.(() => {});
+                          }
+                        } catch {}
+                      }}
+                      className="px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-indigo-300 border border-indigo-500/40 rounded-full shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
+                      title="Toggle Fullscreen"
+                    >
+                      {isArtifactFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-indigo-400" /> : <Maximize2 className="w-3.5 h-3.5 text-indigo-400" />}
+                      <span>{isArtifactFullscreen ? "Normal" : "Fullscreen"}</span>
+                    </button>
+                    <button
+                      onClick={toggleEnvMode}
+                      className="px-3.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 rounded-full shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                      title="Exit Environment Mode"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>🌿 Env Mode</span>
+                      <span className="text-[10px] text-slate-400 ml-1">✕ Exit</span>
+                    </button>
+                  </div>
                 )}
 
                 {/* Mobile Virtual Touch D-Pad & Jump Button when Playing or active JSX game */}
