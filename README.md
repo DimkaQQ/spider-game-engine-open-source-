@@ -21,8 +21,9 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 - **Autonomous Agentic Loop**: Built-in MCP server (`http://localhost:9287/mcp`) supporting live inspection, screenshot capture, 3D viewport verification, and autonomous game generation.
 - **Multi-Platform Support**:
   - **Web**: Fast Vite-powered dev server and production builds.
-  - **Desktop (Electron)**: Cross-platform desktop shell with deep OS integrations.
-  - **Desktop (Tauri)**: Ultra-lightweight Rust-backed native executable.
+  - **Desktop (Windows Electron)**: Desktop shell with deep OS integrations.
+  - **Desktop (Windows Tauri)**: Ultra-lightweight Rust-backed native executable.
+  - **macOS Support**: Native macOS port is in active development and **available soon** (Apple Silicon M-series & Intel)! 🍏
 - **Tournament Studio Rendering**: Dual shadow-casting lights, soft ambient lighting, logarithmic depth buffer, and zero Z-fighting coordinate systems.
 - **Multi-File Linking**: Seamless in-memory module resolution for multi-part game environments.
 
@@ -48,6 +49,9 @@ npm run electron:built
 ```bash
 npm run tauri:dev
 ```
+
+### 4. macOS Support
+> 🍏 **macOS port is available soon!** Native Apple Silicon (`aarch64`) and Intel (`x64`) bundles are currently being prepared.
 
 ---
 
