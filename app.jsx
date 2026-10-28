@@ -551,6 +551,17 @@ export default function App() {
     window.addEventListener("resize", handleCheckMobile);
     return () => window.removeEventListener("resize", handleCheckMobile);
   }, []);
+
+  const [showDirectGameOverlay, setShowDirectGameOverlay] = useState(() => {
+    try {
+      const saved = localStorage.getItem("spider-show-direct-game-overlay");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+  const [isDirectGameOverlayCollapsed, setIsDirectGameOverlayCollapsed] = useState(false);
+
   // Multi-Select Scripting State: 1 file = single active script; 2+ files / full project = unified full game scene
   const [selectedScriptNames, setSelectedScriptNames] = useState(() => new Set(["GameComponent.jsx"]));
 
@@ -5097,39 +5108,92 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       : "visible pointer-events-auto"
                   }`}
                 >
-                {/* Live Direct Game Status or Launch Pill */}
+                {/* Live Direct Game Status or Launch Pill with Minimize & Hide Options */}
                 {activeJsxCode ? (
-                  <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md rounded-xl border border-emerald-500/40 text-white z-30 shadow-xl text-xs font-mono">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="font-semibold text-emerald-300">🎮 Direct Game:</span>
-                    <span className="text-slate-200">{activeJsxName || "GameComponent.jsx"}</span>
-                    {selectedScriptNames.size > 1 && (
-                      <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800 font-mono font-bold">
-                        {selectedScriptNames.size} files linked
-                      </span>
-                    )}
-                    <button
-                      onClick={() => {
-                        setActiveJsxCode(null);
-                        setActiveJsxName(null);
-                        appendLog("Info", "Live JSX unmounted — returned to 3D World");
-                      }}
-                      className="ml-2 px-2 py-0.5 rounded bg-rose-500/30 hover:bg-rose-500/60 text-rose-200 border border-rose-400/40 text-[11px] font-sans font-semibold transition cursor-pointer flex items-center gap-1"
-                      title="Close game and return to 3D World"
-                    >
-                      <span>✕ Close Game</span>
-                    </button>
-                  </div>
+                  showDirectGameOverlay && (
+                    isDirectGameOverlayCollapsed ? (
+                      <button
+                        onClick={() => setIsDirectGameOverlayCollapsed(false)}
+                        className="absolute top-4 left-4 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 rounded-xl shadow-xl text-xs font-semibold backdrop-blur-md transition cursor-pointer select-none"
+                        title="Expand Direct Game Status"
+                      >
+                        <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-[10px] font-mono text-emerald-300">Direct Game Active</span>
+                      </button>
+                    ) : (
+                      <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md rounded-xl border border-emerald-500/40 text-white z-30 shadow-xl text-xs font-mono">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="font-semibold text-emerald-300">🎮 Direct Game:</span>
+                        <span className="text-slate-200">{activeJsxName || "GameComponent.jsx"}</span>
+                        {selectedScriptNames.size > 1 && (
+                          <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800 font-mono font-bold">
+                            {selectedScriptNames.size} files linked
+                          </span>
+                        )}
+                        <button
+                          onClick={() => {
+                            setActiveJsxCode(null);
+                            setActiveJsxName(null);
+                            appendLog("Info", "Live JSX unmounted — returned to 3D World");
+                          }}
+                          className="ml-2 px-2 py-0.5 rounded bg-rose-500/30 hover:bg-rose-500/60 text-rose-200 border border-rose-400/40 text-[11px] font-sans font-semibold transition cursor-pointer flex items-center gap-1"
+                          title="Close game and return to 3D World"
+                        >
+                          <span>✕ Close</span>
+                        </button>
+                        <button
+                          onClick={() => setIsDirectGameOverlayCollapsed(true)}
+                          className="px-1.5 py-0.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer text-xs"
+                          title="Minimize floating panel"
+                        >
+                          –
+                        </button>
+                      </div>
+                    )
+                  )
                 ) : (
-                  <button
-                    onClick={() => handleLaunchDirectGame()}
-                    className="absolute top-4 left-4 z-30 flex items-center gap-2 px-3.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md rounded-xl border border-emerald-500/40 text-white shadow-xl text-xs font-semibold cursor-pointer transition active:scale-95 select-none"
-                    title="Direct Game Mode: Immediately open and run full 3D game"
-                  >
-                    <Gamepad2 className="w-4 h-4 text-emerald-400" />
-                    <span>🎮 Direct Game ({projectScriptFiles.length} files)</span>
-                  </button>
+                  showDirectGameOverlay && (
+                    isDirectGameOverlayCollapsed ? (
+                      <button
+                        onClick={() => setIsDirectGameOverlayCollapsed(false)}
+                        className="absolute top-4 left-4 z-30 flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 rounded-xl shadow-xl text-xs font-semibold backdrop-blur-md transition cursor-pointer select-none"
+                        title="Expand Direct Game panel"
+                      >
+                        <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-[10px] text-slate-200">Direct Game</span>
+                      </button>
+                    ) : (
+                      <div className="absolute top-4 left-4 z-30 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md rounded-xl border border-emerald-500/40 text-white shadow-xl p-1 select-none">
+                        <button
+                          onClick={() => handleLaunchDirectGame()}
+                          className="flex items-center gap-2 px-3 py-1 rounded-lg hover:bg-slate-800 text-xs font-semibold cursor-pointer transition active:scale-95"
+                          title="Direct Game Mode: Immediately open and run full 3D game"
+                        >
+                          <Gamepad2 className="w-4 h-4 text-emerald-400" />
+                          <span>🎮 Direct Game ({projectScriptFiles.length} files)</span>
+                        </button>
+                        <button
+                          onClick={() => setIsDirectGameOverlayCollapsed(true)}
+                          className="px-2 py-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs transition cursor-pointer"
+                          title="Minimize to small icon"
+                        >
+                          –
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowDirectGameOverlay(false);
+                            try { localStorage.setItem("spider-show-direct-game-overlay", "false"); } catch {}
+                            appendLog("Info", "Direct Game floating panel hidden (toggle in Settings > Play & Game)");
+                          }}
+                          className="px-2 py-1 rounded-lg hover:bg-rose-500/30 text-slate-400 hover:text-rose-300 text-xs transition cursor-pointer"
+                          title="Hide floating panel (re-enable in Settings > Play & Game)"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )
+                  )
                 )}
 
                 <GameViewport
@@ -5269,6 +5333,18 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       </button>
                     </div>
                   </div>
+                )}
+
+                {/* Mobile Floating ChatGPT Action Button */}
+                {isMobile && openMenu !== "AskAI" && (
+                  <button
+                    onClick={() => setOpenMenu("AskAI")}
+                    className="absolute bottom-6 right-5 z-40 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:brightness-110 text-white font-bold px-4 py-3 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center gap-2 active:scale-95 transition border border-white/30 cursor-pointer select-none"
+                    title="Open Spider AI Chat (ChatGPT Mobile Mode)"
+                  >
+                    <Sparkles className="w-4 h-4 text-yellow-300" />
+                    <span className="text-xs font-extrabold tracking-wide">Ask AI</span>
+                  </button>
                 )}
 
                 {/* --- VIEWPORT FLOATING OVERLAYS --- */}
@@ -6364,10 +6440,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       </>
       ) : null}
 
-        {/* Ask AI slide-over — Gemini-style assistant panel */}
+        {/* Ask AI slide-over — ChatGPT-style on Mobile / Side-dock on Desktop */}
         {openMenu === "AskAI" && (
-          <aside className={`${panelWide ? "w-[26rem]" : "w-80"} bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-lg overflow-hidden transition-all`}>
-            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+          <aside className={`${isMobile ? "fixed inset-0 z-50 w-full h-full rounded-none" : panelWide ? "w-[26rem]" : "w-80"} bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-lg overflow-hidden transition-all`}>
+            <div className={`flex items-center justify-between ${isMobile ? "px-4 py-3 bg-slate-50/90" : "px-3 py-2"} border-b border-slate-100`}>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                 <button
                   onClick={() => setShowRecents((v) => !v)}
@@ -6379,9 +6455,24 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <button onClick={newChat} title="New chat" className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
-                <span>Spider AI</span>
+                <span className="font-extrabold text-[13px]">Spider AI</span>
+                {isMobile && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    ChatGPT Mode
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
+                {isMobile && (
+                  <button
+                    onClick={() => setOpenMenu(null)}
+                    className="px-2.5 py-1 rounded-lg bg-slate-900 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1"
+                    title="Switch to 3D Viewport"
+                  >
+                    <Box className="w-3 h-3 text-emerald-400" />
+                    <span>3D View</span>
+                  </button>
+                )}
                 {/* Security mode pill — click to toggle Secure Mode vs Auto-Accept */}
                 <button
                   type="button"
@@ -6396,16 +6487,40 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 >
                   {permissionMode === "secure" ? "🛡️ Secure" : "⚡ Auto"}
                 </button>
-                <button
-                  onClick={() => setPanelWide((w) => !w)}
-                  title={panelWide ? "Dock panel" : "Pop-out wider"}
-                  className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                </button>
+                {!isMobile && (
+                  <button
+                    onClick={() => setPanelWide((w) => !w)}
+                    title={panelWide ? "Dock panel" : "Pop-out wider"}
+                    className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button onClick={() => { setOpenMenu(null); setPendingConfirm(null); }} className="text-slate-400 hover:text-slate-700 text-sm px-1 rounded hover:bg-slate-100 cursor-pointer" title="Close">✕</button>
               </div>
             </div>
+
+            {/* Quick ChatGPT-style Prompts on Mobile */}
+            {isMobile && currentSession?.messages?.length <= 1 && (
+              <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-100 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+                {[
+                  "🎲 Build 3D Ludo game",
+                  "♟️ Spawn 3D Chess board",
+                  "🐍 Create Snakes & Ladders",
+                  "🕹️ Add hero jump & movement",
+                  "⚡ Spawn random 3D props"
+                ].map((promptText) => (
+                  <button
+                    key={promptText}
+                    type="button"
+                    onClick={() => setAiPrompt(promptText)}
+                    className="shrink-0 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-full text-[11px] font-semibold transition cursor-pointer"
+                  >
+                    {promptText}
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Claude-Code-style permission prompt for destructive actions */}
             {pendingConfirm && (
               <div className="px-3 py-2 bg-amber-50 border-b border-amber-200">
@@ -6954,11 +7069,31 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </div>
                 )}
                 {settingsSection === "Play & Game" && (
-                  <div className="max-w-md space-y-3 text-slate-600">
+                  <div className="max-w-md space-y-4 text-slate-600">
                     <div>Move step <span className="font-mono font-semibold text-slate-800">{PLAYER.moveStep}/tick</span></div>
                     <div>Jump impulse <span className="font-mono font-semibold text-slate-800">{PLAYER.jumpImpulse}</span> · Gravity <span className="font-mono font-semibold text-slate-800">{PLAYER.gravity}</span></div>
                     <div>Score <span className="font-mono font-semibold text-slate-800">{score}</span> · Coins left <span className="font-mono font-semibold text-slate-800">{coins.filter((c) => !c.taken).length}/3</span></div>
                     <button onClick={() => { setScore(0); setCoins(COINS.map((c) => ({ ...c, taken: false }))); appendLog("Info", "Score reset from Settings"); }} className="px-3 py-1.5 text-[11px] font-semibold bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 rounded-lg cursor-pointer">Reset score & coins</button>
+
+                    <div className="pt-3 border-t border-slate-200 space-y-2">
+                      <div className="font-bold text-slate-800 text-[12px]">3D Viewport Overlays</div>
+                      <label className="flex items-center justify-between text-slate-700 cursor-pointer">
+                        <span>Show Direct Game floating panel on Viewport</span>
+                        <input
+                          type="checkbox"
+                          checked={showDirectGameOverlay}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setShowDirectGameOverlay(val);
+                            try { localStorage.setItem("spider-show-direct-game-overlay", String(val)); } catch {}
+                          }}
+                          className="round-check"
+                        />
+                      </label>
+                      <div className="text-[11px] text-slate-400 leading-snug">
+                        Disable this if you prefer a clean 3D canvas without the floating Direct Game widget. You can still launch Direct Game anytime from the top bar.
+                      </div>
+                    </div>
                   </div>
                 )}
                 {settingsSection === "Scene & Data" && (
