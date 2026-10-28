@@ -535,6 +535,22 @@ export default function App() {
   const [artifactViewMode, setArtifactViewMode] = useState("viewport"); // 'viewport' | 'code'
   const [isArtifactFullscreen, setIsArtifactFullscreen] = useState(false);
   const [isCodeCopied, setIsCodeCopied] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleCheckMobile = () => {
+      const mob = typeof window !== "undefined" && window.innerWidth < 768;
+      setIsMobile(mob);
+      if (mob) {
+        setHierarchyOpen(false);
+        setInspectorOpen(false);
+        setBottomLeftOpen(false);
+        setConsoleOpen(false);
+      }
+    };
+    handleCheckMobile();
+    window.addEventListener("resize", handleCheckMobile);
+    return () => window.removeEventListener("resize", handleCheckMobile);
+  }, []);
   // Multi-Select Scripting State: 1 file = single active script; 2+ files / full project = unified full game scene
   const [selectedScriptNames, setSelectedScriptNames] = useState(() => new Set(["GameComponent.jsx"]));
 
@@ -4383,7 +4399,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       {/* ==================== MAIN ENGINE BODY ==================== */}
       <div className="flex-1 flex overflow-hidden p-1.5 gap-1.5">
         {/* 1. LEFT VERTICAL NAVIGATION RAIL */}
-        <aside className="w-44 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col justify-between py-2 px-1.5 shrink-0 shadow-2xs">
+        <aside className={`${isMobile ? "hidden" : "flex"} w-44 bg-white/95 rounded-xl border border-slate-200/80 flex-col justify-between py-2 px-1.5 shrink-0 shadow-2xs`}>
           <div className="space-y-0.5 overflow-y-auto no-scrollbar">
             {LEFT_RAIL_ITEMS.map((item) => {
               const IconComponent = item.icon;
@@ -4425,7 +4441,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
           <div className="flex-[1.55] flex gap-1.5 min-h-0">
             {/* SCENE HIERARCHY & SCRIPTING EXPLORER PANEL */}
             {hierarchyOpen ? (
-              <section className="w-64 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-2xs overflow-hidden">
+              <>
+                {isMobile && (
+                  <div
+                    className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs"
+                    onClick={() => setHierarchyOpen(false)}
+                  />
+                )}
+                <section className={`${isMobile ? "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] shadow-2xl" : "w-64"} bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-2xs overflow-hidden`}>
                 {/* Header Dual Tab: Hierarchy vs Scripts */}
                 <div className="px-2 py-1.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
                   <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-semibold">
@@ -4862,6 +4885,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </div>
                 )}
               </section>
+            </>
             ) : null}
 
             {/* CENTER 3D VIEWPORT PANEL */}
@@ -5158,6 +5182,94 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   />
                   <span className="font-mono w-11 text-right">{timelineT.toFixed(1)}h</span>
                 </div>
+
+                {/* --- MOBILE TOUCH CONTROLS & FLOATING QUICK BAR --- */}
+                {isMobile && (
+                  <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-emerald-500/30 shadow-xl">
+                    <button
+                      onClick={() => setHierarchyOpen((p) => !p)}
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1"
+                    >
+                      <Box className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Scene</span>
+                    </button>
+                    <button
+                      onClick={() => setInspectorOpen((p) => !p)}
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1"
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Inspect</span>
+                    </button>
+                    <button
+                      onClick={() => setSettingsOpen(true)}
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1"
+                    >
+                      <Settings className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Settings</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Mobile Virtual Touch D-Pad & Jump Button when Playing */}
+                {isMobile && isPlaying && (
+                  <div className="absolute inset-x-0 bottom-4 z-30 flex items-end justify-between px-4 pointer-events-none select-none">
+                    {/* D-Pad */}
+                    <div className="pointer-events-auto flex flex-col items-center gap-1 bg-slate-950/75 backdrop-blur-xl p-2 rounded-2xl border border-emerald-500/30 shadow-2xl">
+                      <button
+                        onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, w: true, arrowup: true })); }}
+                        onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, w: false, arrowup: false })); }}
+                        onMouseDown={() => setKeysPressed((p) => ({ ...p, w: true, arrowup: true }))}
+                        onMouseUp={() => setKeysPressed((p) => ({ ...p, w: false, arrowup: false }))}
+                        className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                      >
+                        ▲
+                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, a: true, arrowleft: true })); }}
+                          onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, a: false, arrowleft: false })); }}
+                          onMouseDown={() => setKeysPressed((p) => ({ ...p, a: true, arrowleft: true }))}
+                          onMouseUp={() => setKeysPressed((p) => ({ ...p, a: false, arrowleft: false }))}
+                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                        >
+                          ◀
+                        </button>
+                        <button
+                          onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, s: true, arrowdown: true })); }}
+                          onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, s: false, arrowdown: false })); }}
+                          onMouseDown={() => setKeysPressed((p) => ({ ...p, s: true, arrowdown: true }))}
+                          onMouseUp={() => setKeysPressed((p) => ({ ...p, s: false, arrowdown: false }))}
+                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                        >
+                          ▼
+                        </button>
+                        <button
+                          onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, d: true, arrowright: true })); }}
+                          onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, d: false, arrowright: false })); }}
+                          onMouseDown={() => setKeysPressed((p) => ({ ...p, d: true, arrowright: true }))}
+                          onMouseUp={() => setKeysPressed((p) => ({ ...p, d: false, arrowright: false }))}
+                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                        >
+                          ▶
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Jump Button */}
+                    <div className="pointer-events-auto flex flex-col items-center">
+                      <button
+                        onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, " ": true })); }}
+                        onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, " ": false })); }}
+                        onMouseDown={() => setKeysPressed((p) => ({ ...p, " ": true }))}
+                        onMouseUp={() => setKeysPressed((p) => ({ ...p, " ": false }))}
+                        className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 active:brightness-125 text-white font-black text-xs flex flex-col items-center justify-center shadow-2xl active:scale-90 transition border border-emerald-400/40"
+                      >
+                        <span>JUMP</span>
+                        <span className="text-[9px] opacity-75 font-mono">Space</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* --- VIEWPORT FLOATING OVERLAYS --- */}
                 {/* Top-Left Camera / Shading Pills */}
@@ -5729,7 +5841,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
         {/* 3. RIGHT INSPECTOR / WORLD SETTINGS SIDEBAR */}
         {inspectorOpen ? (
-        <aside className="w-72 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-2xs overflow-hidden">
+          <>
+            {isMobile && (
+              <div
+                className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs"
+                onClick={() => setInspectorOpen(false)}
+              />
+            )}
+            <aside className={`${isMobile ? "fixed inset-y-0 right-0 z-50 w-80 max-w-[90vw] shadow-2xl" : "w-72"} bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-2xs overflow-hidden`}>
           {/* Inspector / World Settings Top Tabs */}
           <div className="h-9 px-2 border-b border-slate-100 flex items-center gap-1 bg-slate-50/50 shrink-0">
             <button
@@ -6242,7 +6361,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             </div>
           )}
         </aside>
-        ) : null}
+      </>
+      ) : null}
 
         {/* Ask AI slide-over — Gemini-style assistant panel */}
         {openMenu === "AskAI" && (
@@ -6773,10 +6893,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             </div>
             <button onClick={() => setSettingsOpen(false)} className="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-lg hover:bg-slate-700 cursor-pointer">Done</button>
           </div>
-          <div className="flex-1 flex overflow-hidden">
+          <div className={`flex-1 flex ${isMobile ? "flex-col" : "flex-row"} overflow-hidden`}>
             {/* Left sidebar */}
-            <div className="w-60 bg-white border-r border-slate-200 p-3 flex flex-col gap-4 shrink-0">
-              <div className="space-y-0.5 text-[12px] font-medium pt-1">
+            <div className={`${isMobile ? "w-full border-b border-r-0 flex-row overflow-x-auto p-2" : "w-60 border-r p-3 flex-col"} bg-white border-slate-200 flex gap-2 shrink-0`}>
+              <div className={`${isMobile ? "flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0" : "space-y-0.5"} text-[12px] font-medium pt-1`}>
                 {[
                   { id: "Rendering", icon: Sun },
                   { id: "Play & Game", icon: Gamepad2 },
