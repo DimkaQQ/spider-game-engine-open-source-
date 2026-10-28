@@ -12,10 +12,12 @@ import { Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 
 /**
- * Hook providing smoothed arrow-key and WASD movement vector
+ * Hook providing smoothed arrow-key, WASD, and mobile touch swipe/drag movement vector
  */
 export function useKeyboardControls() {
   const keys = useRef({});
+  const touchDir = useRef({ x: 0, z: 0, jump: false });
+  const touchStart = useRef(null);
 
   useEffect(() => {
     const onDown = (e) => {
@@ -28,11 +30,43 @@ export function useKeyboardControls() {
     const onUp = (e) => {
       keys.current[e.key.toLowerCase()] = false;
     };
+
+    // Mobile touch controls: swipe & drag to move, tap to jump
+    const onTouchStart = (e) => {
+      const t = e.touches[0];
+      if (t) {
+        touchStart.current = { x: t.clientX, y: t.clientY };
+        touchDir.current.jump = true;
+        setTimeout(() => { touchDir.current.jump = false; }, 150);
+      }
+    };
+    const onTouchMove = (e) => {
+      if (!touchStart.current) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const dx = t.clientX - touchStart.current.x;
+      const dy = t.clientY - touchStart.current.y;
+      if (Math.hypot(dx, dy) > 15) {
+        touchDir.current.x = Math.max(-1, Math.min(1, dx / 40));
+        touchDir.current.z = Math.max(-1, Math.min(1, dy / 40));
+      }
+    };
+    const onTouchEnd = () => {
+      touchStart.current = null;
+      touchDir.current = { x: 0, z: 0, jump: false };
+    };
+
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
     return () => {
       window.removeEventListener('keydown', onDown);
       window.removeEventListener('keyup', onUp);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
     };
   }, []);
 
@@ -44,11 +78,23 @@ export function useKeyboardControls() {
       if (k.arrowright || k.d) x += 1;
       if (k.arrowup || k.w) z -= 1;
       if (k.arrowdown || k.s) z += 1;
+
+      // Merge mobile touch swipe/drag
+      if (touchDir.current.x !== 0) x = touchDir.current.x;
+      if (touchDir.current.z !== 0) z = touchDir.current.z;
+
+      // Merge virtual on-screen d-pad if present
+      if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+        if (window.__spiderVirtualTouch.x) x = window.__spiderVirtualTouch.x;
+        if (window.__spiderVirtualTouch.z) z = window.__spiderVirtualTouch.z;
+      }
+
       if (x !== 0 && z !== 0) {
         x *= 0.7071;
         z *= 0.7071;
       }
-      return { x, z, jump: !!(k[' '] || k.spacebar) };
+      const jump = !!(k[' '] || k.spacebar || touchDir.current.jump || (typeof window !== "undefined" && window.__spiderVirtualTouch?.jump));
+      return { x, z, jump };
     }
   };
 }

@@ -670,12 +670,50 @@ export default function App() {
   const [timelinePlaying, setTimelinePlaying] = useState(false);
   const [timelineT, setTimelineT] = useState(14.5); // scrubbed solar time
   const [buildLogs, setBuildLogs] = useState([]);
-  const [activeJsxCode, setActiveJsxCode] = useState(null); // Real-time JSX game code parsed live in Viewport
+  const [activeJsxCode, setActiveJsxCode] = useState(() => {
+    try {
+      const saved = localStorage.getItem("spider-active-jsx-code");
+      return saved && saved.trim() ? saved : null;
+    } catch { return null; }
+  });
   const activeJsxCodeRef = useRef(null);
-  useEffect(() => { activeJsxCodeRef.current = activeJsxCode; }, [activeJsxCode]);
-  const [activeJsxName, setActiveJsxName] = useState(null);
+  useEffect(() => {
+    activeJsxCodeRef.current = activeJsxCode;
+    try {
+      if (activeJsxCode) {
+        localStorage.setItem("spider-active-jsx-code", activeJsxCode);
+        idbSaveScene("active-jsx-code", { code: activeJsxCode, name: activeJsxName, updatedAt: Date.now() });
+      } else {
+        localStorage.removeItem("spider-active-jsx-code");
+      }
+    } catch {}
+  }, [activeJsxCode, activeJsxName]);
+
+  const [activeJsxName, setActiveJsxName] = useState(() => {
+    try {
+      return localStorage.getItem("spider-active-jsx-name") || null;
+    } catch { return null; }
+  });
   const activeJsxNameRef = useRef(null);
-  useEffect(() => { activeJsxNameRef.current = activeJsxName; }, [activeJsxName]);
+  useEffect(() => {
+    activeJsxNameRef.current = activeJsxName;
+    try {
+      if (activeJsxName) localStorage.setItem("spider-active-jsx-name", activeJsxName);
+      else localStorage.removeItem("spider-active-jsx-name");
+    } catch {}
+  }, [activeJsxName]);
+
+  const [isEnvMode, setIsEnvMode] = useState(() => {
+    try { return localStorage.getItem("spider-env-mode") === "true"; } catch { return false; }
+  });
+  const toggleEnvMode = () => {
+    setIsEnvMode((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("spider-env-mode", String(next)); } catch {}
+      appendLog("Info", `Environment Mode: ${next ? "ACTIVATED (Full 3D Canvas)" : "DEACTIVATED (Editor Mode)"}`);
+      return next;
+    });
+  };
   const lastSavedContentRef = useRef(null);
   const lastInternalSaveTimeRef = useRef(0);
   const isEditorFocusedRef = useRef(false);
@@ -768,6 +806,15 @@ export default function App() {
       } catch (err) {
         console.warn("Could not restore scene from IndexedDB:", err);
       }
+
+      // 3. Restore active JSX code from IndexedDB so code never vanishes on refresh
+      try {
+        const savedCode = await idbGetScene("active-jsx-code");
+        if (savedCode && savedCode.code) {
+          setActiveJsxCode((cur) => cur || savedCode.code);
+          setActiveJsxName((cur) => cur || savedCode.name || "GameComponent.jsx");
+        }
+      } catch (err) {}
     })();
   }, []);
 
@@ -2741,7 +2788,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       };
 
       const callModel = async (task, history) => {
-        const sys = systemPrompt(snapshot()) + "\n" + GAME_BUILDER_PRIMER;
+        const sys = systemPrompt(snapshot(), { isMobile }) + "\n" +
+          (isMobile
+            ? "\n\nCRITICAL MOBILE REQUIREMENT: The user is on a MOBILE PHONE touchscreen! Absolutely NO keyboard controls! DO NOT USE WASD or arrow keys. All movement, steering, and actions MUST be 100% touch controlled (tap, swipe, pointer events, or on-screen touch buttons). Never tell the user to press a keyboard key (no 'Press SPACE' or 'Press R'). Tap anywhere to restart on Game Over.\n"
+            : "") + GAME_BUILDER_PRIMER;
         let messages;
         if (history.length === 0) {
           messages = [
@@ -4364,7 +4414,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         </div>
       )}
       {/* ==================== TOP HEADER BAR ==================== */}
-      <header className="h-11 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 flex items-center justify-between shrink-0 z-30 shadow-2xs">
+      <header className={`${isEnvMode ? "hidden" : "h-11"} bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 flex items-center justify-between shrink-0 z-30 shadow-2xs`}>
         {/* Left: Brand Logo & Menu Bar */}
         <div className="flex items-center gap-3">
           {/* Spider Engine Shield Logo */}
@@ -4453,14 +4503,30 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
         {/* Right: Direct Game, Play, Build, Settings & Window Controls */}
         <div className="flex items-center gap-2">
-          {/* DIRECT GAME BUTTON */}
+          {/* DIRECT GAME BUTTON: PC Only, hidden on phones */}
+          {!isMobile && (
+            <button
+              onClick={() => handleLaunchDirectGame()}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-950/20 active:scale-95"
+              title="🎮 Direct Game: Instantly launch and play the complete 3D game with all project files linked"
+            >
+              <Gamepad2 className="w-3.5 h-3.5 fill-current" />
+              <span>Direct Game</span>
+            </button>
+          )}
+
+          {/* ENV MODE TOGGLE BUTTON */}
           <button
-            onClick={() => handleLaunchDirectGame()}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-950/20 active:scale-95"
-            title="🎮 Direct Game: Instantly launch and play the complete 3D game with all project files linked"
+            onClick={toggleEnvMode}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer ${
+              isEnvMode
+                ? "bg-emerald-600 text-white shadow-emerald-500/20 font-bold"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+            }`}
+            title="Toggle Environment Mode (Clean, full-screen 3D Canvas without editor clutter)"
           >
-            <Gamepad2 className="w-3.5 h-3.5 fill-current" />
-            <span>Direct Game</span>
+            <Eye className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Env Mode</span>
           </button>
 
           <button
@@ -5093,88 +5159,90 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
             {/* CENTER 3D VIEWPORT PANEL */}
             <section ref={viewportRef} className="flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative">
-              {/* Viewport Top Tab Bar */}
-              <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
-                <div className="flex items-center gap-1">
-                  {[
-                    { id: "Viewport", icon: Box },
-                    { id: "Cinematic", icon: Film },
-                    { id: "Game View", icon: Gamepad2 }
-                  ].map((tab) => {
-                    const Icon = tab.icon;
-                    const active = viewportTab === tab.id;
-                    return (
-                      <button
-                        key={tab.id}
-                        onClick={() => {
-                          setViewportTab(tab.id);
-                          appendLog("Info", tab.id === "Game View" ? "Game View — chase camera locked to hero (Play to run)" : tab.id === "Cinematic" ? "Cinematic — slow auto-orbit camera" : "Viewport — free orbit camera");
-                        }}
-                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                          active
-                            ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 shadow-2xs"
-                            : "text-slate-500 hover:text-slate-800"
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span>{tab.id}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Mode Toggles: 3D Viewport vs Code Editor */}
-                  <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-200">
-                    <button
-                      onClick={() => setArtifactViewMode("viewport")}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
-                        artifactViewMode === "viewport" ? "bg-white text-indigo-600 shadow-2xs" : "text-slate-600 hover:text-slate-900"
-                      }`}
-                      title="Native 3D Viewport"
-                    >
-                      <Box className="w-3.5 h-3.5" />
-                      <span>3D View</span>
-                    </button>
-                    <button
-                      onClick={() => setArtifactViewMode("code")}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
-                        artifactViewMode === "code" ? "bg-white text-indigo-600 shadow-2xs" : "text-slate-600 hover:text-slate-900"
-                      }`}
-                      title="Live Interactive Code Editor"
-                    >
-                      <Code2 className="w-3.5 h-3.5" />
-                      <span>Code</span>
-                    </button>
+              {/* Viewport Top Tab Bar: Hidden on mobile and env mode for clean canvas */}
+              {!isMobile && !isEnvMode && (
+                <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                  <div className="flex items-center gap-1">
+                    {[
+                      { id: "Viewport", icon: Box },
+                      { id: "Cinematic", icon: Film },
+                      { id: "Game View", icon: Gamepad2 }
+                    ].map((tab) => {
+                      const Icon = tab.icon;
+                      const active = viewportTab === tab.id;
+                      return (
+                        <button
+                          key={tab.id}
+                          onClick={() => {
+                            setViewportTab(tab.id);
+                            appendLog("Info", tab.id === "Game View" ? "Game View — chase camera locked to hero (Play to run)" : tab.id === "Cinematic" ? "Cinematic — slow auto-orbit camera" : "Viewport — free orbit camera");
+                          }}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                            active
+                              ? "bg-indigo-50 text-indigo-600 border border-indigo-200/60 shadow-2xs"
+                              : "text-slate-500 hover:text-slate-800"
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          <span>{tab.id}</span>
+                        </button>
+                      );
+                    })}
                   </div>
 
-                  {/* Copy Code Button */}
-                  <button
-                    onClick={() => {
-                      const codeToCopy = activeJsxCode || "";
-                      if (codeToCopy) {
-                        navigator.clipboard?.writeText(codeToCopy);
-                        setIsCodeCopied(true);
-                        setTimeout(() => setIsCodeCopied(false), 1500);
-                        appendLog("Success", "Game source code copied to clipboard");
-                      }
-                    }}
-                    className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition cursor-pointer"
-                    title="Copy Code"
-                  >
-                    {isCodeCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Mode Toggles: 3D Viewport vs Code Editor */}
+                    <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg border border-slate-200">
+                      <button
+                        onClick={() => setArtifactViewMode("viewport")}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                          artifactViewMode === "viewport" ? "bg-white text-indigo-600 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                        }`}
+                        title="Native 3D Viewport"
+                      >
+                        <Box className="w-3.5 h-3.5" />
+                        <span>3D View</span>
+                      </button>
+                      <button
+                        onClick={() => setArtifactViewMode("code")}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer ${
+                          artifactViewMode === "code" ? "bg-white text-indigo-600 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                        }`}
+                        title="Live Interactive Code Editor"
+                      >
+                        <Code2 className="w-3.5 h-3.5" />
+                        <span>Code</span>
+                      </button>
+                    </div>
 
-                  {/* Full Screen Toggle */}
-                  <button
-                    onClick={() => setIsArtifactFullscreen((f) => !f)}
-                    className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition cursor-pointer"
-                    title={isArtifactFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                  >
-                    {isArtifactFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                  </button>
+                    {/* Copy Code Button */}
+                    <button
+                      onClick={() => {
+                        const codeToCopy = activeJsxCode || "";
+                        if (codeToCopy) {
+                          navigator.clipboard?.writeText(codeToCopy);
+                          setIsCodeCopied(true);
+                          setTimeout(() => setIsCodeCopied(false), 1500);
+                          appendLog("Success", "Game source code copied to clipboard");
+                        }
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition cursor-pointer"
+                      title="Copy Code"
+                    >
+                      {isCodeCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+
+                    {/* Full Screen Toggle */}
+                    <button
+                      onClick={() => setIsArtifactFullscreen((f) => !f)}
+                      className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition cursor-pointer"
+                      title={isArtifactFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                    >
+                      {isArtifactFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Tutorial card — per-template steps, auto-advances on real events */}
               {tutorial && (() => {
@@ -5300,9 +5368,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       : "visible pointer-events-auto"
                   }`}
                 >
-                {/* Live Direct Game Status or Launch Pill with Minimize & Hide Options */}
-                {activeJsxCode ? (
-                  showDirectGameOverlay && (
+                {/* Direct Game floating widget: PC ONLY, completely removed on mobile phones & env mode */}
+                {!isMobile && !isEnvMode && showDirectGameOverlay && (
+                  activeJsxCode ? (
                     isDirectGameOverlayCollapsed ? (
                       <button
                         onClick={() => setIsDirectGameOverlayCollapsed(false)}
@@ -5343,9 +5411,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         </button>
                       </div>
                     )
-                  )
-                ) : (
-                  showDirectGameOverlay && (
+                  ) : (
                     isDirectGameOverlayCollapsed ? (
                       <button
                         onClick={() => setIsDirectGameOverlayCollapsed(false)}
@@ -5388,6 +5454,21 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   )
                 )}
 
+                {/* Mobile clean Exit Game button when a game component is active */}
+                {isMobile && !isEnvMode && activeJsxCode && (
+                  <button
+                    onClick={() => {
+                      setActiveJsxCode(null);
+                      setActiveJsxName(null);
+                      appendLog("Info", "Returned to 3D Scene View");
+                    }}
+                    className="absolute top-3 left-3 z-40 px-3 py-1.5 rounded-full bg-slate-900/85 hover:bg-slate-900 text-rose-300 border border-rose-500/40 text-xs font-bold backdrop-blur-md shadow-xl flex items-center gap-1.5 cursor-pointer active:scale-95 transition"
+                    title="Exit game & return to 3D Scene"
+                  >
+                    <span>✕ Exit Game</span>
+                  </button>
+                )}
+
                 <GameViewport
                   sceneGroups={sceneGroups}
                   selectedNodeId={selectedNodeId}
@@ -5417,48 +5498,58 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   all3dActive={selectedScriptNames.size > 1}
                   projectFiles={projectScriptFiles}
                 />
-                {/* Timeline scrub — drives solar time live, plays back when armed */}
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-xl shadow-md border border-white/50 z-20 text-[11px] font-semibold text-slate-700">
-                  <button
-                    onClick={() => setTimelinePlaying((p) => !p)}
-                    title={timelinePlaying ? "Pause timeline" : "Play timeline"}
-                    className="p-1 rounded-md hover:bg-indigo-50 hover:text-indigo-600 transition cursor-pointer"
-                  >
-                    {timelinePlaying ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
-                  </button>
-                  <span className="text-slate-400">Timeline</span>
-                  <input
-                    type="range"
-                    min="4"
-                    max="22"
-                    step="0.1"
-                    value={timelineT}
-                    onChange={(e) => { const t = parseFloat(e.target.value); setTimelineT(t); setTimeOfDay(t); }}
-                    className="w-44 accent-indigo-600 cursor-pointer"
-                  />
-                  <span className="font-mono w-11 text-right">{timelineT.toFixed(1)}h</span>
-                </div>
+                {/* Timeline scrub — drives solar time live (Desktop only, hidden on mobile & env mode) */}
+                {!isMobile && !isEnvMode && (
+                  <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-xl shadow-md border border-white/50 z-20 text-[11px] font-semibold text-slate-700">
+                    <button
+                      onClick={() => setTimelinePlaying((p) => !p)}
+                      title={timelinePlaying ? "Pause timeline" : "Play timeline"}
+                      className="p-1 rounded-md hover:bg-indigo-50 hover:text-indigo-600 transition cursor-pointer"
+                    >
+                      {timelinePlaying ? <Square className="w-3 h-3 fill-current" /> : <Play className="w-3 h-3 fill-current" />}
+                    </button>
+                    <span className="text-slate-400">Timeline</span>
+                    <input
+                      type="range"
+                      min="4"
+                      max="22"
+                      step="0.1"
+                      value={timelineT}
+                      onChange={(e) => { const t = parseFloat(e.target.value); setTimelineT(t); setTimeOfDay(t); }}
+                      className="w-44 accent-indigo-600 cursor-pointer"
+                    />
+                    <span className="font-mono w-11 text-right">{timelineT.toFixed(1)}h</span>
+                  </div>
+                )}
 
                 {/* --- MOBILE TOUCH CONTROLS & FLOATING QUICK BAR --- */}
-                {isMobile && (
+                {isMobile && !isEnvMode && (
                   <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1 rounded-2xl border border-emerald-500/30 shadow-xl">
                     <button
+                      onClick={toggleEnvMode}
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-emerald-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
+                      title="Toggle Environment Mode (Clean full-screen 3D canvas)"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Env</span>
+                    </button>
+                    <button
                       onClick={() => setHierarchyOpen((p) => !p)}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                     >
                       <Box className="w-3.5 h-3.5 text-emerald-400" />
                       <span>Scene</span>
                     </button>
                     <button
                       onClick={() => setInspectorOpen((p) => !p)}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                     >
                       <Sliders className="w-3.5 h-3.5 text-cyan-400" />
                       <span>Inspect</span>
                     </button>
                     <button
                       onClick={() => setSettingsOpen(true)}
-                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1"
+                      className="px-2.5 py-1.5 rounded-xl text-[11px] font-bold text-slate-200 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                     >
                       <Settings className="w-3.5 h-3.5 text-amber-400" />
                       <span>Settings</span>
@@ -5466,72 +5557,205 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </div>
                 )}
 
-                {/* Mobile Virtual Touch D-Pad & Jump Button when Playing */}
-                {isMobile && isPlaying && (
+                {/* Clean Floating Env Mode exit indicator when in Env Mode */}
+                {isEnvMode && (
+                  <button
+                    onClick={toggleEnvMode}
+                    className="absolute top-3 right-3 z-40 px-3.5 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-emerald-400 border border-emerald-500/40 rounded-full shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                    title="Exit Environment Mode"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>🌿 Env Mode</span>
+                    <span className="text-[10px] text-slate-400 ml-1">✕ Exit</span>
+                  </button>
+                )}
+
+                {/* Mobile Virtual Touch D-Pad & Jump Button when Playing or active JSX game */}
+                {isMobile && !isEnvMode && (isPlaying || activeJsxCode) && (
                   <div className="absolute inset-x-0 bottom-4 z-30 flex items-end justify-between px-4 pointer-events-none select-none">
                     {/* D-Pad */}
-                    <div className="pointer-events-auto flex flex-col items-center gap-1 bg-slate-950/75 backdrop-blur-xl p-2 rounded-2xl border border-emerald-500/30 shadow-2xl">
+                    <div className="pointer-events-auto flex flex-col items-center gap-1 bg-slate-950/80 backdrop-blur-xl p-2 rounded-2xl border border-emerald-500/30 shadow-2xl">
                       <button
-                        onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, w: true, arrowup: true })); }}
-                        onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, w: false, arrowup: false })); }}
-                        onMouseDown={() => setKeysPressed((p) => ({ ...p, w: true, arrowup: true }))}
-                        onMouseUp={() => setKeysPressed((p) => ({ ...p, w: false, arrowup: false }))}
-                        className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          setKeysPressed((p) => ({ ...p, w: true, arrowup: true }));
+                          if (typeof window !== "undefined") {
+                            window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                            window.__spiderVirtualTouch.z = -1;
+                          }
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          setKeysPressed((p) => ({ ...p, w: false, arrowup: false }));
+                          if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                            window.__spiderVirtualTouch.z = 0;
+                          }
+                        }}
+                        onMouseDown={() => {
+                          setKeysPressed((p) => ({ ...p, w: true, arrowup: true }));
+                          if (typeof window !== "undefined") {
+                            window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                            window.__spiderVirtualTouch.z = -1;
+                          }
+                        }}
+                        onMouseUp={() => {
+                          setKeysPressed((p) => ({ ...p, w: false, arrowup: false }));
+                          if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                            window.__spiderVirtualTouch.z = 0;
+                          }
+                        }}
+                        className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition cursor-pointer"
                       >
                         ▲
                       </button>
                       <div className="flex items-center gap-1">
                         <button
-                          onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, a: true, arrowleft: true })); }}
-                          onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, a: false, arrowleft: false })); }}
-                          onMouseDown={() => setKeysPressed((p) => ({ ...p, a: true, arrowleft: true }))}
-                          onMouseUp={() => setKeysPressed((p) => ({ ...p, a: false, arrowleft: false }))}
-                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            setKeysPressed((p) => ({ ...p, a: true, arrowleft: true }));
+                            if (typeof window !== "undefined") {
+                              window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                              window.__spiderVirtualTouch.x = -1;
+                            }
+                          }}
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            setKeysPressed((p) => ({ ...p, a: false, arrowleft: false }));
+                            if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                              window.__spiderVirtualTouch.x = 0;
+                            }
+                          }}
+                          onMouseDown={() => {
+                            setKeysPressed((p) => ({ ...p, a: true, arrowleft: true }));
+                            if (typeof window !== "undefined") {
+                              window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                              window.__spiderVirtualTouch.x = -1;
+                            }
+                          }}
+                          onMouseUp={() => {
+                            setKeysPressed((p) => ({ ...p, a: false, arrowleft: false }));
+                            if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                              window.__spiderVirtualTouch.x = 0;
+                            }
+                          }}
+                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition cursor-pointer"
                         >
                           ◀
                         </button>
                         <button
-                          onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, s: true, arrowdown: true })); }}
-                          onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, s: false, arrowdown: false })); }}
-                          onMouseDown={() => setKeysPressed((p) => ({ ...p, s: true, arrowdown: true }))}
-                          onMouseUp={() => setKeysPressed((p) => ({ ...p, s: false, arrowdown: false }))}
-                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            setKeysPressed((p) => ({ ...p, s: true, arrowdown: true }));
+                            if (typeof window !== "undefined") {
+                              window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                              window.__spiderVirtualTouch.z = 1;
+                            }
+                          }}
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            setKeysPressed((p) => ({ ...p, s: false, arrowdown: false }));
+                            if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                              window.__spiderVirtualTouch.z = 0;
+                            }
+                          }}
+                          onMouseDown={() => {
+                            setKeysPressed((p) => ({ ...p, s: true, arrowdown: true }));
+                            if (typeof window !== "undefined") {
+                              window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                              window.__spiderVirtualTouch.z = 1;
+                            }
+                          }}
+                          onMouseUp={() => {
+                            setKeysPressed((p) => ({ ...p, s: false, arrowdown: false }));
+                            if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                              window.__spiderVirtualTouch.z = 0;
+                            }
+                          }}
+                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition cursor-pointer"
                         >
                           ▼
                         </button>
                         <button
-                          onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, d: true, arrowright: true })); }}
-                          onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, d: false, arrowright: false })); }}
-                          onMouseDown={() => setKeysPressed((p) => ({ ...p, d: true, arrowright: true }))}
-                          onMouseUp={() => setKeysPressed((p) => ({ ...p, d: false, arrowright: false }))}
-                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition"
+                          onTouchStart={(e) => {
+                            e.preventDefault();
+                            setKeysPressed((p) => ({ ...p, d: true, arrowright: true }));
+                            if (typeof window !== "undefined") {
+                              window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                              window.__spiderVirtualTouch.x = 1;
+                            }
+                          }}
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            setKeysPressed((p) => ({ ...p, d: false, arrowright: false }));
+                            if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                              window.__spiderVirtualTouch.x = 0;
+                            }
+                          }}
+                          onMouseDown={() => {
+                            setKeysPressed((p) => ({ ...p, d: true, arrowright: true }));
+                            if (typeof window !== "undefined") {
+                              window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                              window.__spiderVirtualTouch.x = 1;
+                            }
+                          }}
+                          onMouseUp={() => {
+                            setKeysPressed((p) => ({ ...p, d: false, arrowright: false }));
+                            if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                              window.__spiderVirtualTouch.x = 0;
+                            }
+                          }}
+                          className="w-11 h-11 rounded-xl bg-slate-800/90 active:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow active:scale-95 transition cursor-pointer"
                         >
                           ▶
                         </button>
                       </div>
                     </div>
 
-                    {/* Jump Button */}
+                    {/* Jump & Action Button (Taps Jump and Space/R for restart) */}
                     <div className="pointer-events-auto flex flex-col items-center">
                       <button
-                        onTouchStart={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, " ": true })); }}
-                        onTouchEnd={(e) => { e.preventDefault(); setKeysPressed((p) => ({ ...p, " ": false })); }}
-                        onMouseDown={() => setKeysPressed((p) => ({ ...p, " ": true }))}
-                        onMouseUp={() => setKeysPressed((p) => ({ ...p, " ": false }))}
-                        className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 active:brightness-125 text-white font-black text-xs flex flex-col items-center justify-center shadow-2xl active:scale-90 transition border border-emerald-400/40"
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          setKeysPressed((p) => ({ ...p, " ": true, r: true }));
+                          if (typeof window !== "undefined") {
+                            window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                            window.__spiderVirtualTouch.jump = true;
+                          }
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          setKeysPressed((p) => ({ ...p, " ": false, r: false }));
+                          if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                            window.__spiderVirtualTouch.jump = false;
+                          }
+                        }}
+                        onMouseDown={() => {
+                          setKeysPressed((p) => ({ ...p, " ": true, r: true }));
+                          if (typeof window !== "undefined") {
+                            window.__spiderVirtualTouch = window.__spiderVirtualTouch || {};
+                            window.__spiderVirtualTouch.jump = true;
+                          }
+                        }}
+                        onMouseUp={() => {
+                          setKeysPressed((p) => ({ ...p, " ": false, r: false }));
+                          if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                            window.__spiderVirtualTouch.jump = false;
+                          }
+                        }}
+                        className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 active:brightness-125 text-white font-black text-xs flex flex-col items-center justify-center shadow-2xl active:scale-90 transition border border-emerald-400/40 cursor-pointer"
                       >
                         <span>JUMP</span>
-                        <span className="text-[9px] opacity-75 font-mono">Space</span>
+                        <span className="text-[9px] opacity-75 font-mono">Action</span>
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* Mobile Floating ChatGPT Action Button */}
-                {isMobile && openMenu !== "AskAI" && (
+                {/* Mobile Floating Ask AI Button (Shifted above Jump button when game is running so it never overlaps) */}
+                {isMobile && openMenu !== "AskAI" && !isEnvMode && (
                   <button
                     onClick={() => setOpenMenu("AskAI")}
-                    className="absolute bottom-6 right-5 z-40 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:brightness-110 text-white font-bold px-4 py-3 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center gap-2 active:scale-95 transition border border-white/30 cursor-pointer select-none"
+                    className={`absolute ${(isPlaying || activeJsxCode) ? "bottom-24" : "bottom-6"} right-5 z-40 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:brightness-110 text-white font-bold px-4 py-3 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center gap-2 active:scale-95 transition border border-white/30 cursor-pointer select-none`}
                     title="Open Spider AI Chat"
                   >
                     <Sparkles className="w-4 h-4 text-yellow-300" />
@@ -5539,8 +5763,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </button>
                 )}
 
-                {/* --- VIEWPORT FLOATING OVERLAYS --- */}
-                {/* Top-Left Camera / Shading Pills */}
+                {/* --- DESKTOP VIEWPORT FLOATING OVERLAYS (Hidden on Mobile & Env Mode) --- */}
+                {!isMobile && !isEnvMode && (
+                  <>
+                    {/* Top-Left Camera / Shading Pills */}
                     <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20">
                       <button
                         onClick={() =>
@@ -5647,69 +5873,70 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       })}
                     </div>
 
+                    {/* Bottom Overlays: Zoom & Telemetry */}
+                    {/* Bottom-Left Zoom & Screenshot Controls */}
+                    <div className="absolute bottom-3 left-3 flex items-center gap-1.5 z-20">
+                      <button
+                        onClick={() =>
+                          setCameraZoom((z) => (z >= 1.4 ? 1.0 : Number((z + 0.2).toFixed(1))))
+                        }
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-[11px] font-bold text-slate-800 shadow-sm cursor-pointer"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-slate-600" />
+                        <span>{cameraZoom.toFixed(1)}x</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          const url = viewportApi.capture?.(true);
+                          if (url) appendLog("Success", "Viewport screenshot captured (Image downloaded)");
+                          else appendLog("Warning", "Viewport not ready — screenshot unavailable");
+                        }}
+                        className="p-1.5 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-slate-700 shadow-sm cursor-pointer"
+                        title="Capture Screenshot"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
-                {/* Bottom Overlays: Zoom & Telemetry */}
-                {/* Bottom-Left Zoom & Screenshot Controls */}
-                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 z-20">
-                  <button
-                    onClick={() =>
-                      setCameraZoom((z) => (z >= 1.4 ? 1.0 : Number((z + 0.2).toFixed(1))))
-                    }
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-[11px] font-bold text-slate-800 shadow-sm cursor-pointer"
-                  >
-                    <Camera className="w-3.5 h-3.5 text-slate-600" />
-                    <span>{cameraZoom.toFixed(1)}x</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      const url = viewportApi.capture?.(true);
-                      if (url) appendLog("Success", "Viewport screenshot captured (Image downloaded)");
-                      else appendLog("Warning", "Viewport not ready — screenshot unavailable");
-                    }}
-                    className="p-1.5 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-slate-700 shadow-sm cursor-pointer"
-                    title="Capture Screenshot"
-                  >
-                    <Camera className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                    {/* Bottom-Right Live status / RTX / FPS Telemetry Pills */}
+                    <div className="absolute bottom-3 right-3 flex items-center gap-1.5 z-20">
+                      <span className={`px-2.5 py-1 backdrop-blur-md rounded-lg text-[11px] font-bold shadow-sm ${isPlaying ? "bg-emerald-50 text-emerald-700" : "bg-white/90 text-slate-800"}`}>
+                        {isPlaying ? "Real-time" : "Editor"}
+                      </span>
 
-                {/* Bottom-Right Live status / RTX / FPS Telemetry Pills */}
-                <div className="absolute bottom-3 right-3 flex items-center gap-1.5 z-20">
-                  <span className={`px-2.5 py-1 backdrop-blur-md rounded-lg text-[11px] font-bold shadow-sm ${isPlaying ? "bg-emerald-50 text-emerald-700" : "bg-white/90 text-slate-800"}`}>
-                    {isPlaying ? "Real-time" : "Editor"}
-                  </span>
+                      <button
+                        onClick={() => {
+                          setRtxEnabled(!rtxEnabled);
+                          appendLog(
+                            "Info",
+                            `RTX Raytracing ${!rtxEnabled ? "Enabled" : "Disabled"}`
+                          );
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-[11px] font-bold text-slate-800 shadow-sm cursor-pointer"
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            rtxEnabled ? "bg-emerald-500" : "bg-slate-400"
+                          }`}
+                        />
+                        <span>RTX</span>
+                      </button>
 
-                  <button
-                    onClick={() => {
-                      setRtxEnabled(!rtxEnabled);
-                      appendLog(
-                        "Info",
-                        `RTX Raytracing ${!rtxEnabled ? "Enabled" : "Disabled"}`
-                      );
-                    }}
-                    className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-[11px] font-bold text-slate-800 shadow-sm cursor-pointer"
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        rtxEnabled ? "bg-emerald-500" : "bg-slate-400"
-                      }`}
-                    />
-                    <span>RTX</span>
-                  </button>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[11px] font-bold text-slate-800 shadow-sm">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span>{fps} FPS</span>
+                      </div>
 
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md rounded-lg text-[11px] font-bold text-slate-800 shadow-sm">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span>{fps} FPS</span>
-                  </div>
-
-                  <button
-                    onClick={toggleViewportFullscreen}
-                    title="Toggle viewport fullscreen"
-                    className="p-1.5 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-slate-700 shadow-sm cursor-pointer"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                      <button
+                        onClick={toggleViewportFullscreen}
+                        title="Toggle viewport fullscreen"
+                        className="p-1.5 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-slate-700 shadow-sm cursor-pointer"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </>
+                )}
                 </div>
 
                 {/* Fullscreen Exit Hint */}
@@ -6687,15 +6914,15 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             </div>
 
-            {/* Quick ChatGPT-style Prompts on Mobile */}
+            {/* Quick Mobile Touch Game Prompts */}
             {isMobile && aiHistory.length <= 1 && (
               <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-100 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                 {[
-                  "🎲 Build 3D Ludo game",
-                  "♟️ Spawn 3D Chess board",
-                  "🐍 Create Snakes & Ladders",
-                  "🕹️ Add hero jump & movement",
-                  "⚡ Spawn random 3D props"
+                  "🏎️ Touch 3D Runner (Tap Jump)",
+                  "🎲 Touch 3D Ludo Board",
+                  "♟️ Tap 3D Chess Game",
+                  "🐍 Touch Snakes & Ladders",
+                  "⚡ Touch Coin Collector Arena"
                 ].map((promptText) => (
                   <button
                     key={promptText}

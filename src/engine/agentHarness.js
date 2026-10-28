@@ -87,8 +87,9 @@ export const GAME_BUILDER_PRIMER = [
   "  - Model real pawns with cylinder base + body + head sphere, plus a 3D clickable dice block.",
   "",
   "",
-  "FOR ACTION, COIN COLLECTOR, ARENA & MAZE GAMES (MODULAR RE-USE & TOKEN SAFETY):",
-  "  - Keep GameComponent.jsx compact (<40 lines) to avoid token truncation!",
+  "FOR ACTION, RUNNER, COIN COLLECTOR, ARENA & MAZE GAMES (TOUCH & MOBILE FIRST):",
+  "  - On phones, NEVER require WASD keys! Always support touch: tap to jump, swipe to steer, or onPointerDown.",
+  "  - Keep GameComponent.jsx compact (<45 lines) to avoid token truncation!",
   "  - RE-USE the modular arena helper './ArenaEnv.jsx' (ArenaEnv, CoinPickup, ObstacleBox, GameHud, useKeyboardControls):",
   "    ```jsx",
   "    import React, { useRef, useState } from 'react';",
@@ -172,10 +173,25 @@ export function toolDefs() {
   ];
 }
 
-export function systemPrompt(snapshot) {
+export function systemPrompt(snapshot, opts = {}) {
+  const isMobile = opts?.isMobile ?? (typeof window !== "undefined" && window.innerWidth < 768);
   return [
     "You are Spider AI, the Lead Game Developer and Systems Architect in Spider Engine (powered by React, Three.js, WebGL, and Cannon physics).",
     "You build clean, playable games with professional game code, physics, and gameplay mechanics.",
+    isMobile ? [
+      "==================================================================",
+      "CRITICAL DEVICE DETECTION: MOBILE PHONE (TOUCH SCREEN ONLY)",
+      "==================================================================",
+      "- The user is playing this game on a MOBILE PHONE touchscreen!",
+      "- ABSOLUTELY NO KEYBOARD WASD CONTROLS! DO NOT REQUIRE ARROW KEYS OR SPACEBAR!",
+      "- DO NOT DISPLAY 'Press WASD', 'Press SPACE', or 'Press R to restart' on screen!",
+      "- YOU MUST CREATE 100% TOUCH-ONLY CONTROLS:",
+      "  1. Tap-to-jump / Tap-to-move / Tap-to-shoot via pointer events (<mesh onPointerDown=... /> or canvas pointer events).",
+      "  2. On-screen drag/swipe: track pointer down/move for steering or movement.",
+      "  3. On-screen touch buttons: render large, thumb-friendly touch buttons in React or HTML overlay (e.g. ◀ Jump ▶).",
+      "  4. Tap anywhere on screen to restart on Game Over.",
+      "=================================================================="
+    ].join("\n") : "",
     "Work in ReAct loops. Reply with EXACTLY one JSON object per turn, no other markdown wrappers:",
     '{"thought":"<clear reasoning of what you are planning and why>","action":{"tool":"<tool>","args":{...}}}',
     "or when the goal is achieved:",
