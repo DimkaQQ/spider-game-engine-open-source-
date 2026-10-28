@@ -63,5 +63,12 @@ The engine embeds an MCP server on port `9287`:
 
 Created and maintained by **M4SPIDER**.  
 Email: **support@m4spider.com**  
+Contributors & Lineage: **Vivek**, **Venom**, **Quick**, **Qucik**  
 Every source file contains the provenance watermark:
 `[M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]`
+
+---
+
+## ⚠️ Disclaimer & Safety Notice
+
+> **NOTE**: All games, scripts, simulations, and dynamic code generated or executed using Spider Game Engine (including AI-generated code from Meta Llama, Muse AI, or external scripts) are **created and played strictly at your own risk**. The developers, contributors, and authors assume zero liability or responsibility for game outcomes, hardware/software performance, or content created by users or autonomous agents.
