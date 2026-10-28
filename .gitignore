@@ -1,7 +1,23 @@
+# Dependencies
 node_modules/
+
+# Production & Build outputs
 dist/
+dist-game/
+build-exe/
 release/
-build/
+
+# Rust/Tauri build artifacts
+src-tauri/target/
+
+# System & editor files
 *.log
 .DS_Store
 Thumbs.db
+.system_generated/
+*.tmp
+
+# Environment variables
+.env
+.env.*
+!.env.example

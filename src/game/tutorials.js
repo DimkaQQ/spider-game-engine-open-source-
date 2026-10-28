@@ -1,5 +1,20 @@
+/*
+ * ============================================================================
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * ============================================================================
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ * ============================================================================
+ */
 // Tutorial scripts per template — steps auto-complete on real game events.
 export const TUTORIALS = {
+  chess: [
+    { title: "Your move", text: "White to play — click one of your pieces.", check: null },
+    { title: "Legal squares", text: "Click a destination square — the engine enforces real rules.", check: "chessMove" },
+    { title: "Capture", text: "Take an enemy piece and watch it leave the board.", check: "chessCapture" },
+    { title: "Checkmate", text: "Trap the king. Aim, plan, finish — or press Play and walk the board.", check: null }
+  ],
   folder: [
     { title: "Your folder, live", text: "Every model in it spawned into GameWorld. Drag to orbit.", check: null },
     { title: "Remix", text: "Ask AI: “spawn castle” — or drag any gizmo.", check: null },

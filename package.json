@@ -2,11 +2,14 @@
   "name": "spider-engine",
   "version": "0.9.0",
   "description": "Spider Engine - React based game engine",
-  "author": "",
+  "author": "M4SPIDER <support@m4spider.com>",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:game": "vite build --config vite.game.config.js && node scripts/copy-game-html.cjs",
+    "tauri:build": "tauri build --no-bundle",
+    "tauri:dev": "tauri dev",
     "game:export": "node scripts/export-level.cjs",
     "electron:dev": "electron .",
     "electron:built": "electron . --built",
@@ -19,6 +22,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@tauri-apps/cli": "^2.12.4",
     "@vitejs/plugin-react": "^6.1.2",
     "autoprefixer": "^10.6.1",
     "electron": "^45.0.0",
@@ -32,10 +36,12 @@
   "dependencies": {
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
+    "chess.js": "^1.4.0",
     "electron-context-menu": "^5.1.0",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
+    "sucrase": "^3.35.1",
     "three": "^0.186.1"
   },
   "build": {
@@ -60,5 +66,11 @@
       "electron/**/*",
       "package.json"
     ]
-  }
+  },
+  "homepage": "https://github.com/M4SPIDER/spider-game-engine-open-source-",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/M4SPIDER/spider-game-engine-open-source-"
+  },
+  "birthmark": "M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552"
 }

@@ -1,3 +1,12 @@
+/*
+ * ============================================================================
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * ============================================================================
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ * ============================================================================
+ */
 const { contextBridge, ipcRenderer } = require('electron')
 
 // Spider Engine shell API. The live MCP tool surface (listScene, spawnObject,
@@ -15,6 +24,25 @@ contextBridge.exposeInMainWorld('spiderShell', {
   pickFolder: () => ipcRenderer.invoke('spider-pick-folder'),
   writeProjectFile: (dir, name, contents) => ipcRenderer.invoke('spider-write-file', { dir, name, contents }),
   readProjectFile: (dir, name) => ipcRenderer.invoke('spider-read-file', { dir, name }),
+  listFiles: (dir, opts = {}) => ipcRenderer.invoke('spider-list-files', { dir, ...opts }),
+  deleteProjectFile: (dir, name) => ipcRenderer.invoke('spider-delete-file', { dir, name }),
+  watchFolder: (dir) => ipcRenderer.invoke('spider-watch-folder', { dir }),
+  onFolderChange: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('spider-folder-changed', handler);
+    return () => ipcRenderer.removeListener('spider-folder-changed', handler);
+  },
+  // Real Shell Execution (cmd/powershell/bash) with live output streaming
+  runCommand: (command, cwd, timeout, runId) => ipcRenderer.invoke('spider-run-command', { command, cwd, timeout, runId }),
+  onShellStream: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('spider-shell-stream', handler);
+    return () => ipcRenderer.removeListener('spider-shell-stream', handler);
+  },
   // Tell the shell a project is open → expand to the full editor window
-  projectOpened: () => ipcRenderer.invoke('spider-project-open')
+  projectOpened: () => ipcRenderer.invoke('spider-project-open'),
+  // Standalone game compilation & launch
+  convertExe: () => ipcRenderer.invoke('spider-convert-exe'),
+  launchExe: (exePath) => ipcRenderer.invoke('spider-launch-exe', exePath),
+  openFolder: (folderPath) => ipcRenderer.invoke('spider-open-folder', folderPath)
 })

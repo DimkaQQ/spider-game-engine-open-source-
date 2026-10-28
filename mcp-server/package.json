@@ -9,5 +9,12 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0"
-  }
+  },
+  "author": "M4SPIDER <support@m4spider.com>",
+  "homepage": "https://github.com/M4SPIDER/spider-game-engine-open-source-",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/M4SPIDER/spider-game-engine-open-source-"
+  },
+  "birthmark": "M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552"
 }

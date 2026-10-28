@@ -1,9 +1,19 @@
+/*
+ * ============================================================================
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * ============================================================================
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ * ============================================================================
+ */
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { OrbitControls, Sky, Stars, Grid, TransformControls, GizmoHelper, GizmoViewport, useGLTF, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import DynamicJsxRenderer from "./DynamicJsxRenderer.jsx";
 
 // 1 engine unit = 1m. App mock numbers are large, so static scenery uses WORLD scale.
 const WORLD = 0.12;
@@ -49,7 +59,7 @@ function FovSync({ zoom }) {
 
 // Follows the hero in Play/Game modes; slow auto-orbit in Cinematic;
 // Unreal-style WASD/QE camera fly in the free Viewport when not playing.
-function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo }) {
+function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo, hasChess }) {
   const controls = useThree((s) => s.controls);
   const camera = useThree((s) => s.camera);
   const target = useMemo(() => new THREE.Vector3(), []);
@@ -58,6 +68,12 @@ function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo }) {
   const right = useMemo(() => new THREE.Vector3(), []);
   const up = useMemo(() => new THREE.Vector3(0, 1, 0), []);
   useFrame(({ clock }) => {
+    if (hasChess) {
+      if (controls && controls.target.lengthSq() > 0.05) {
+        controls.target.lerp(new THREE.Vector3(0, 0, 0), 0.1);
+      }
+      return;
+    }
     if (mode === "Cinematic") {
       const t = clock.elapsedTime * 0.12;
       const r = 34;
@@ -104,17 +120,34 @@ function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo }) {
   return null;
 }
 
-// Exposes renderer capture for the Screenshot button (needs preserveDrawingBuffer).
+// Exposes renderer capture for the Screenshot button & Agent Multimodal Vision.
 function CaptureApi() {
   const gl = useThree((s) => s.gl);
   useEffect(() => {
-    viewportApi.capture = () => {
-      const url = gl.domElement.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `SpiderViewport_${Date.now()}.png`;
-      a.click();
-      return url;
+    viewportApi.capture = (download = false, maxWidth = 640) => {
+      try {
+        let url = gl.domElement.toDataURL("image/jpeg", 0.82);
+        if (maxWidth && gl.domElement.width > maxWidth) {
+          const c = document.createElement("canvas");
+          const scale = maxWidth / gl.domElement.width;
+          c.width = maxWidth;
+          c.height = Math.round(gl.domElement.height * scale);
+          const cx = c.getContext("2d");
+          if (cx) {
+            cx.drawImage(gl.domElement, 0, 0, c.width, c.height);
+            url = c.toDataURL("image/jpeg", 0.82);
+          }
+        }
+        if (download) {
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `SpiderViewport_${Date.now()}.jpg`;
+          a.click();
+        }
+        return url;
+      } catch (e) {
+        return null;
+      }
     };
     return () => {
       viewportApi.capture = null;
@@ -133,7 +166,9 @@ function LiveGroup({ node, selected, onSelect, register, children }) {
   }, [node.id, register]);
   useFrame(() => {
     if (!ref.current || transforming) return;
-    target.position.set(node.pos.x * WORLD, node.pos.y * WORLD, node.pos.z * WORLD);
+    const isChess = String(node.id).startsWith("spawn-chess-");
+    const mult = isChess ? 1.0 : WORLD;
+    target.position.set(node.pos.x * mult, node.pos.y * (isChess ? 1.0 : WORLD), node.pos.z * mult);
     target.rotation.set(node.rot.x * DEG, node.rot.y * DEG, node.rot.z * DEG);
     target.scale.set(node.scale.x, node.scale.y, node.scale.z);
     ref.current.position.lerp(target.position, 0.25);
@@ -315,6 +350,366 @@ function PropMesh({ node, wire, selected }) {
       </group>
     );
   }
+  if (name.includes("village") || name.includes("house") || name.includes("tudor")) {
+    return (
+      <group>
+        <mesh position={[0, 0.9, 0]} castShadow>
+          <boxGeometry args={[2.2, 1.8, 1.8]} />
+          <Std color="#e2e8f0" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 2.2, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+          <coneGeometry args={[1.7, 1.2, 4]} />
+          <Std color="#b45309" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0.6, 2.4, 0.4]} castShadow>
+          <boxGeometry args={[0.3, 0.8, 0.3]} />
+          <Std color="#78716c" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.45, 0.91]}>
+          <boxGeometry args={[0.5, 0.9, 0.05]} />
+          <Std color="#78350f" wire={wire} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("bridge") || name.includes("viaduct")) {
+    return (
+      <group>
+        <mesh position={[0, 1.2, 0]} castShadow>
+          <boxGeometry args={[4.2, 0.35, 1.8]} />
+          <Std color="#a8a29e" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.55, 0.85]} castShadow>
+          <boxGeometry args={[4.2, 0.35, 0.15]} />
+          <Std color="#78716c" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.55, -0.85]} castShadow>
+          <boxGeometry args={[4.2, 0.35, 0.15]} />
+          <Std color="#78716c" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[-1.4, 0.5, 0]} castShadow>
+          <cylinderGeometry args={[0.35, 0.45, 1.1, 8]} />
+          <Std color="#57534e" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[1.4, 0.5, 0]} castShadow>
+          <cylinderGeometry args={[0.35, 0.45, 1.1, 8]} />
+          <Std color="#57534e" wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("ruin") || name.includes("temple") || name.includes("pillar")) {
+    return (
+      <group>
+        <mesh position={[0, 0.2, 0]} castShadow>
+          <boxGeometry args={[2.8, 0.4, 2.2]} />
+          <Std color="#a8a29e" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[-0.9, 1.3, -0.6]} castShadow>
+          <cylinderGeometry args={[0.22, 0.28, 1.8, 12]} />
+          <Std color="#d6d3d1" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0.9, 1.5, -0.6]} castShadow>
+          <cylinderGeometry args={[0.22, 0.28, 2.2, 12]} />
+          <Std color="#d6d3d1" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[-0.2, 0.45, 0.5]} rotation={[0, 0.4, Math.PI / 2]} castShadow>
+          <cylinderGeometry args={[0.22, 0.25, 1.4, 12]} />
+          <Std color="#78716c" wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("cave") || name.includes("cavern")) {
+    return (
+      <group>
+        <mesh position={[0, 1.2, 0]} castShadow>
+          <dodecahedronGeometry args={[2.2, 0]} />
+          <Std color="#57534e" wire={wire} emissive={e} flatShading />
+        </mesh>
+        <mesh position={[0, 0.9, 1.3]}>
+          <boxGeometry args={[1.2, 1.4, 0.5]} />
+          <meshBasicMaterial color="#09090b" />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("waterfall") || name.includes("cascade")) {
+    return (
+      <group>
+        <mesh position={[0, 2, -0.4]} castShadow>
+          <boxGeometry args={[2.4, 4, 1.2]} />
+          <Std color="#57534e" wire={wire} emissive={e} flatShading />
+        </mesh>
+        <mesh position={[0, 2, 0.25]}>
+          <boxGeometry args={[1.6, 3.8, 0.15]} />
+          <meshStandardMaterial color="#38bdf8" roughness={0.1} metalness={0.1} transparent opacity={0.88} />
+        </mesh>
+        <mesh position={[0, 0.1, 0.6]}>
+          <cylinderGeometry args={[1.3, 1.4, 0.2, 16]} />
+          <meshStandardMaterial color="#bae6fd" roughness={0.3} transparent opacity={0.8} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("mountain") || name.includes("alpine") || name.includes("peak")) {
+    return (
+      <group>
+        <mesh position={[0, 3, 0]} castShadow>
+          <coneGeometry args={[2.8, 6, 6]} />
+          <Std color="#64748b" wire={wire} emissive={e} flatShading />
+        </mesh>
+        <mesh position={[0, 4.8, 0]}>
+          <coneGeometry args={[1.2, 2.4, 6]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.6} flatShading />
+        </mesh>
+        <mesh position={[1.8, 2, -0.6]} castShadow>
+          <coneGeometry args={[1.8, 4, 5]} />
+          <Std color="#475569" wire={wire} emissive={e} flatShading />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("cloud") || name.includes("cumulus")) {
+    return (
+      <group position={[0, 4, 0]}>
+        <mesh position={[0, 0, 0]}>
+          <sphereGeometry args={[1.4, 12, 12]} />
+          <meshStandardMaterial color="#ffffff" roughness={0.9} transparent opacity={0.92} />
+        </mesh>
+        <mesh position={[-1, -0.2, 0.3]}>
+          <sphereGeometry args={[1, 10, 10]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.9} transparent opacity={0.92} />
+        </mesh>
+        <mesh position={[1, -0.1, -0.2]}>
+          <sphereGeometry args={[1.1, 10, 10]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.9} transparent opacity={0.92} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("cliff")) {
+    return (
+      <group>
+        <mesh position={[0, 1.2, 0]} castShadow>
+          <boxGeometry args={[3.2, 2.4, 1.8]} />
+          <Std color="#78716c" wire={wire} emissive={e} flatShading />
+        </mesh>
+        <mesh position={[0.4, 2.2, -0.2]} castShadow>
+          <boxGeometry args={[2.2, 1.6, 1.4]} />
+          <Std color="#57534e" wire={wire} emissive={e} flatShading />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("water") || name.includes("lake") || name.includes("river") || name.includes("pond")) {
+    return (
+      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[3, 3]} />
+        <meshStandardMaterial color="#0284c7" roughness={0.1} metalness={0.2} transparent opacity={0.85} />
+      </mesh>
+    );
+  }
+  if (name.includes("grass") || name.includes("meadow")) {
+    return (
+      <group>
+        <mesh position={[0, 0.4, 0]} castShadow>
+          <cylinderGeometry args={[0.08, 0.18, 0.8, 6]} />
+          <Std color="#65a30d" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0.2, 0.35, 0.1]} rotation={[0, 0, 0.2]} castShadow>
+          <cylinderGeometry args={[0.06, 0.15, 0.7, 6]} />
+          <Std color="#84cc16" wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("sphere") || name.includes("ball") || name.includes("orb")) {
+    return (
+      <mesh castShadow>
+        <sphereGeometry args={[1, 24, 24]} />
+        <Std color={accent} wire={wire} emissive={e} />
+      </mesh>
+    );
+  }
+  if (name.includes("cylinder") || name.includes("pipe") || name.includes("pole")) {
+    return (
+      <mesh castShadow>
+        <cylinderGeometry args={[0.8, 0.8, 2, 24]} />
+        <Std color={accent} wire={wire} emissive={e} />
+      </mesh>
+    );
+  }
+  if (name.includes("cone") || name.includes("spike") || name.includes("pyramid")) {
+    return (
+      <mesh castShadow>
+        <coneGeometry args={[1, 2, 24]} />
+        <Std color={accent} wire={wire} emissive={e} />
+      </mesh>
+    );
+  }
+  if (name.includes("torus") || name.includes("ring") || name.includes("portal") || name.includes("hoop")) {
+    return (
+      <mesh castShadow>
+        <torusGeometry args={[1.4, 0.28, 16, 32]} />
+        <Std color={accent} wire={wire} emissive={e} />
+      </mesh>
+    );
+  }
+  if (name.includes("ramp") || name.includes("wedge")) {
+    return (
+      <mesh castShadow rotation={[-Math.PI / 6, 0, 0]}>
+        <boxGeometry args={[2, 0.25, 3]} />
+        <Std color={accent} wire={wire} emissive={e} />
+      </mesh>
+    );
+  }
+  if (name.includes("pawn")) {
+    return (
+      <group position={[0, 0, 0]}>
+        <mesh position={[0, 0.15, 0]} castShadow>
+          <cylinderGeometry args={[0.35, 0.45, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.55, 0]} castShadow>
+          <cylinderGeometry args={[0.2, 0.3, 0.5, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.88, 0]} castShadow>
+          <sphereGeometry args={[0.25, 16, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("rook")) {
+    return (
+      <group position={[0, 0, 0]}>
+        <mesh position={[0, 0.15, 0]} castShadow>
+          <cylinderGeometry args={[0.4, 0.5, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.65, 0]} castShadow>
+          <cylinderGeometry args={[0.3, 0.38, 0.7, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.1, 0]} castShadow>
+          <cylinderGeometry args={[0.36, 0.3, 0.25, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("knight")) {
+    return (
+      <group position={[0, 0, 0]}>
+        <mesh position={[0, 0.15, 0]} castShadow>
+          <cylinderGeometry args={[0.4, 0.5, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.6, 0]} castShadow>
+          <cylinderGeometry args={[0.28, 0.38, 0.6, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.05, 0.1]} rotation={[0.4, 0, 0]} castShadow>
+          <boxGeometry args={[0.35, 0.5, 0.45]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("bishop")) {
+    return (
+      <group position={[0, 0, 0]}>
+        <mesh position={[0, 0.15, 0]} castShadow>
+          <cylinderGeometry args={[0.38, 0.48, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.7, 0]} castShadow>
+          <cylinderGeometry args={[0.25, 0.35, 0.8, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.25, 0]} castShadow>
+          <coneGeometry args={[0.25, 0.45, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.52, 0]} castShadow>
+          <sphereGeometry args={[0.08, 12, 12]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("queen")) {
+    return (
+      <group position={[0, 0, 0]}>
+        <mesh position={[0, 0.15, 0]} castShadow>
+          <cylinderGeometry args={[0.42, 0.52, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.8, 0]} castShadow>
+          <cylinderGeometry args={[0.26, 0.38, 1.0, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.4, 0]} castShadow>
+          <cylinderGeometry args={[0.38, 0.22, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.62, 0]} castShadow>
+          <sphereGeometry args={[0.1, 12, 12]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("king")) {
+    return (
+      <group position={[0, 0, 0]}>
+        <mesh position={[0, 0.15, 0]} castShadow>
+          <cylinderGeometry args={[0.44, 0.54, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.85, 0]} castShadow>
+          <cylinderGeometry args={[0.28, 0.4, 1.1, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.5, 0]} castShadow>
+          <cylinderGeometry args={[0.35, 0.26, 0.3, 16]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.75, 0]} castShadow>
+          <boxGeometry args={[0.08, 0.3, 0.08]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 1.8, 0]} castShadow>
+          <boxGeometry args={[0.22, 0.08, 0.08]} />
+          <Std color={accent} wire={wire} emissive={e} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("chessboard") || name.includes("board")) {
+    return (
+      <group position={[0, 0, 0]}>
+        <mesh position={[0, 0.15, 0]} castShadow>
+          <boxGeometry args={[8.6, 0.3, 8.6]} />
+          <Std color="#334155" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.31, 0]}>
+          <planeGeometry args={[8, 8]} />
+          <meshStandardMaterial color="#f8fafc" roughness={0.3} />
+        </mesh>
+      </group>
+    );
+  }
+  if (name.includes("plane") || name.includes("floor") || name.includes("platform") || name.includes("deck")) {
+    return (
+      <mesh castShadow>
+        <boxGeometry args={[4, 0.25, 4]} />
+        <Std color={accent} wire={wire} emissive={e} />
+      </mesh>
+    );
+  }
   return (
     <mesh castShadow>
       <boxGeometry args={[1.4, 1.4, 1.4]} />
@@ -443,7 +838,7 @@ function Guards({ node, wire, selected }) {
 }
 
 // Click-to-shoot in Play — raycast from screen center, targets die on hit.
-function ShootHandler({ registry, isPlaying, onShoot }) {
+function ShootHandler({ registry, isPlaying, onShoot, hasChess }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const ray = useMemo(() => new THREE.Raycaster(), []);
@@ -472,7 +867,7 @@ function ShootHandler({ registry, isPlaying, onShoot }) {
   };
   // Live aim marker — raycast from the cursor every frame while playing
   useFrame(() => {
-    if (!isPlaying || !mouse.current.inside) {
+    if (hasChess || !isPlaying || !mouse.current.inside) {
       if (aim) setAim(null);
       return;
     }
@@ -483,7 +878,7 @@ function ShootHandler({ registry, isPlaying, onShoot }) {
     });
   });
   useEffect(() => {
-    if (!isPlaying) {
+    if (!isPlaying || hasChess) {
       setAim(null);
       return;
     }
@@ -674,8 +1069,24 @@ export default function GameViewport({
   coins,
   tint,
   onFps,
-  onShoot
+  onShoot,
+  chessSel,
+  chessTargets = [],
+  chessCaptures = [],
+  activeJsxCode = null,
+  activeJsxName = null,
+  snakesActive = false,
+  all3dActive = false,
+  selectedScriptNames = null,
+  projectFiles = []
 }) {
+  const hasChess = useMemo(() => {
+    return sceneGroups.some((g) => (g.children || []).some((c) => String(c.id).startsWith("spawn-chess-")));
+  }, [sceneGroups]);
+  const hasCustomJsx = Boolean(activeJsxCode && activeJsxCode.trim());
+  const isBoardGame = hasChess || snakesActive;
+  const isolateCustomGame = hasCustomJsx || isBoardGame;
+
   const registry = useRef(new Map());
   const register = (id, obj) => {
     if (obj) registry.current.set(id, obj);
@@ -711,23 +1122,41 @@ export default function GameViewport({
 
   const gizmoMode =
     activeGizmo === "rotate" ? "rotate" : activeGizmo === "scale" ? "scale" : "translate";
-  const showTransform = activeGizmo !== "select" && selectedObj && !isPlaying;
+  const showTransform = activeGizmo !== "select" && selectedObj && selectedObj.parent && !isPlaying;
   const heroMoving = isPlaying && keysPressed && Object.values(keysPressed).some(Boolean);
 
   return (
-    <div className="absolute inset-0" style={{ cursor: isPlaying ? "crosshair" : undefined }}>
+    <div
+      className="absolute inset-0 focus:outline-none"
+      tabIndex={0}
+      onClick={() => {
+        try {
+          if (document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA") {
+            document.activeElement.blur();
+          }
+        } catch {}
+        window.focus();
+      }}
+      style={{ cursor: isPlaying ? "crosshair" : undefined }}
+    >
       <Canvas
-        key={projection}
-        shadows={rtxEnabled}
+        key={`${projection}-${hasCustomJsx}`}
+        shadows={rtxEnabled ? "pcf" : false}
         orthographic={projection === "Orthographic"}
         camera={
           projection === "Orthographic"
             ? { position: [50, 50, 50], zoom: 22 }
+            : hasCustomJsx
+            ? { position: [0, 13, 14], fov: 44 / cameraZoom }
+            : isBoardGame
+            ? { position: [0, 16, 18], fov: 46 / cameraZoom }
             : { position: [14, 10, 18], fov: 55 / cameraZoom }
         }
         dpr={[1, 2]}
-        gl={{ preserveDrawingBuffer: true, antialias: true }}
-        onPointerMissed={() => onSelectNode("player")}
+        gl={{ preserveDrawingBuffer: true, antialias: true, logarithmicDepthBuffer: true }}
+        onPointerMissed={() => {
+          if (!isBoardGame) onSelectNode("player");
+        }}
       >
         {!night && sky && sky.visible !== false ? (
           <Sky distance={450000} sunPosition={sunPos} inclination={0.52} />
@@ -750,8 +1179,35 @@ export default function GameViewport({
           />
         )}
 
-        {/* Terrain + distant peaks */}
-        {terrain && terrain.visible !== false && (
+        {/* Dedicated Studio & Tournament Lighting for Custom & Board Games */}
+        {isolateCustomGame && (
+          <>
+            <hemisphereLight skyColor="#f8fafc" groundColor="#1e293b" intensity={0.65} />
+            <directionalLight
+              position={[14, 24, 18]}
+              intensity={1.6}
+              castShadow
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-left={-16}
+              shadow-camera-right={16}
+              shadow-camera-top={16}
+              shadow-camera-bottom={-16}
+              shadow-bias={-0.0001}
+            />
+            <directionalLight position={[-12, 14, -12]} intensity={0.45} color="#93c5fd" />
+          </>
+        )}
+
+        {/* Clean Tournament Tiled Stage under Board & Custom Games */}
+        {isolateCustomGame && (
+          <mesh position={[0, -0.42, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <planeGeometry args={[180, 180]} />
+            <meshStandardMaterial color="#0f172a" roughness={0.85} metalness={0.08} />
+          </mesh>
+        )}
+
+        {/* Terrain + distant peaks (only for outdoor gameplay) */}
+        {!isolateCustomGame && terrain && terrain.visible !== false && (
           <group>
             <mesh rotation-x={-Math.PI / 2} receiveShadow>
               <planeGeometry args={[260, 260]} />
@@ -778,7 +1234,7 @@ export default function GameViewport({
         )}
 
         {/* Water */}
-        {water && water.visible !== false && (
+        {!isolateCustomGame && water && water.visible !== false && (
           <mesh
             rotation-x={-Math.PI / 2}
             position={[water.pos.x * WORLD, -0.5, water.pos.z * WORLD]}
@@ -796,14 +1252,14 @@ export default function GameViewport({
         )}
 
         {/* Trees */}
-        {trees && trees.visible !== false && (
+        {!isolateCustomGame && trees && trees.visible !== false && (
           <LiveGroup node={trees} selected={selId === "trees"} onSelect={onSelectNode} register={register}>
             <SwayingTrees node={trees} wire={wire} selected={selId === "trees"} />
           </LiveGroup>
         )}
 
         {/* Rocks */}
-        {rocks && rocks.visible !== false && (
+        {!isolateCustomGame && rocks && rocks.visible !== false && (
           <LiveGroup node={rocks} selected={selId === "rocks"} onSelect={onSelectNode} register={register}>
             {[
               [0, 0, 1],
@@ -819,38 +1275,38 @@ export default function GameViewport({
         )}
 
         {/* Castle */}
-        {buildings && buildings.visible !== false && (
+        {!isolateCustomGame && buildings && buildings.visible !== false && (
           <LiveGroup node={buildings} selected={selId === "buildings"} onSelect={onSelectNode} register={register}>
             <Castle node={buildings} wire={wire} selected={selId === "buildings"} />
           </LiveGroup>
         )}
 
         {/* Boat */}
-        {vehicles && vehicles.visible !== false && (
+        {!isolateCustomGame && vehicles && vehicles.visible !== false && (
           <LiveGroup node={vehicles} selected={selId === "vehicles"} onSelect={onSelectNode} register={register}>
             <Boat node={vehicles} wire={wire} selected={selId === "vehicles"} />
           </LiveGroup>
         )}
 
-        {/* Guards on patrol */}
-        {npcs && npcs.visible !== false && (
+        {/* Guards on patrol (disabled during custom games / board games) */}
+        {!isolateCustomGame && npcs && npcs.visible !== false && (
           <LiveGroup node={npcs} selected={selId === "npcs"} onSelect={onSelectNode} register={register}>
             <Guards node={npcs} wire={wire} selected={selId === "npcs"} />
           </LiveGroup>
         )}
 
-        {/* Hero */}
-        {player && player.visible !== false && (
+        {/* Hero (disabled during custom games / board games) */}
+        {!isolateCustomGame && player && player.visible !== false && (
           <LiveGroup node={player} selected={selId === "player"} onSelect={onSelectNode} register={register}>
             <Hero node={player} wire={wire} selected={selId === "player"} moving={heroMoving} />
           </LiveGroup>
         )}
 
-        {/* Collectible coins — real gameplay objective */}
-        <Coins coins={coins || []} wire={wire} />
+        {/* Collectible coins */}
+        {!isolateCustomGame && <Coins coins={coins || []} wire={wire} />}
 
         {/* Weapon follows hero */}
-        {weapon && weapon.visible !== false && player && (
+        {!isolateCustomGame && weapon && weapon.visible !== false && player && (
           <WeaponFollow player={player} weapon={weapon} wire={wire} selected={selId === "weapon"} onSelect={onSelectNode} />
         )}
 
@@ -864,15 +1320,27 @@ export default function GameViewport({
           </LiveGroup>
         )}
 
-        {/* Spawned props */}
+        {/* Spawned props & 3D Chess Pieces / Board */}
         {spawned.map(
           (n) =>
             n.visible !== false && (
               <LiveGroup key={n.id} node={n} selected={selectedNodeId === n.id} onSelect={onSelectNode} register={register}>
-                <PropMesh node={n} wire={wire} selected={selectedNodeId === n.id} />
+                <PropMesh
+                  node={n}
+                  wire={wire}
+                  selected={selectedNodeId === n.id}
+                  chessSel={chessSel}
+                  chessTargets={chessTargets}
+                  chessCaptures={chessCaptures}
+                />
               </LiveGroup>
             )
         )}
+
+        {/* Dynamic 3D Game / Component Staging — Powered by Muse / Spider AI */}
+        {activeJsxCode && activeJsxCode.trim() ? (
+          <DynamicJsxRenderer code={activeJsxCode} name={activeJsxName} projectFiles={projectFiles} />
+        ) : null}
 
         {/* Real gizmo on the selected actor */}
         {showTransform && (
@@ -892,17 +1360,25 @@ export default function GameViewport({
           />
         )}
 
-        {showGrid && <Grid position={[0, 0.01, 0]} args={[120, 120]} cellColor="#94a3b8" sectionColor="#475569" fadeDistance={140} />}
-        <OrbitControls makeDefault maxPolarAngle={Math.PI / 2.05} minDistance={4} maxDistance={160} enabled={cameraMode !== "Game View"} />
+        {showGrid && !isolateCustomGame && <Grid position={[0, 0.01, 0]} args={[120, 120]} cellColor="#94a3b8" sectionColor="#475569" fadeDistance={140} />}
+        {!hasCustomJsx && (
+          <OrbitControls makeDefault target={[0, 0, 0]} maxPolarAngle={Math.PI / 2.05} minDistance={4} maxDistance={160} enabled={isBoardGame || cameraMode !== "Game View"} />
+        )}
         {/* Live axis orientation gizmo — tracks the real camera */}
-        <GizmoHelper alignment="bottom-right" margin={[70, 70]}>
-          <GizmoViewport axisColors={["#ef4444", "#22c55e", "#2563eb"]} labelColor="white" />
-        </GizmoHelper>
-        <CameraRig mode={cameraMode || "Viewport"} isPlaying={isPlaying} keysPressed={keysPressed} activeGizmo={activeGizmo} followRef={{ current: registry.current.get("player") || null }} />
+        {!isPlaying && !hasCustomJsx && (
+          <GizmoHelper alignment="bottom-right" margin={[70, 70]}>
+            <GizmoViewport axisColors={["#ef4444", "#22c55e", "#2563eb"]} labelColor="white" />
+          </GizmoHelper>
+        )}
+        {!hasCustomJsx && (
+          <CameraRig mode={cameraMode || "Viewport"} isPlaying={isPlaying} keysPressed={keysPressed} activeGizmo={activeGizmo} followRef={{ current: registry.current.get("player") || null }} hasChess={isBoardGame} />
+        )}
         <FpsMeter onFps={onFps} />
         <FovSync zoom={cameraZoom} />
         <CaptureApi />
-        <ShootHandler registry={registry} isPlaying={isPlaying} onShoot={onShoot} />
+        {!isolateCustomGame && (
+          <ShootHandler registry={registry} isPlaying={isPlaying} onShoot={onShoot} hasChess={isBoardGame} />
+        )}
       </Canvas>
     </div>
   );

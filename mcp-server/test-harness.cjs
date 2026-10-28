@@ -1,3 +1,12 @@
+/*
+ * ============================================================================
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * ============================================================================
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ * ============================================================================
+ */
 // MCP end-to-end test: live bridge tools + MCP server (live + file mode).
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -42,7 +51,7 @@ function startServer(env = {}) {
   // ---- 1. bridge health ----
   try {
     const h = await fetch(`${BRIDGE}/health`).then((r) => r.json());
-    ok("bridge/health", h.ok && h.tools.length === 8, JSON.stringify(h));
+    ok("bridge/health", h.ok && h.tools.length >= 12, JSON.stringify(h));
   } catch (e) { ok("bridge/health", false, String(e)); }
 
   // ---- 2. live tools via bridge ----
@@ -79,6 +88,23 @@ function startServer(env = {}) {
   const ask = await bridge("ask", { text: "help" });
   ok("bridge/ask", ask.ok, JSON.stringify(ask));
 
+  // generic agent tools through the same bridge
+  const bulk = await bridge("spawn_set", { items: [{ asset: "crate", x: -8, z: 20 }, { asset: "rocks", x: -4, z: 20 }] });
+  const bulkIds = bulk.result && bulk.result.ids;
+  ok("bridge/spawn_set", bulk.ok && Array.isArray(bulkIds) && bulkIds.length === 2, JSON.stringify(bulk).slice(0, 200));
+  if (bulkIds && bulkIds[0]) {
+    const pa = await bridge("set_actor", { id: bulkIds[0], patch: { pos: { x: -8, y: 2, z: 20 } } });
+    ok("bridge/set_actor", pa.ok, JSON.stringify(pa).slice(0, 160));
+    const rm = await bridge("remove_prop", { id: bulkIds[1] });
+    ok("bridge/remove_prop", rm.ok, JSON.stringify(rm).slice(0, 160));
+    const rm2 = await bridge("remove_prop", { id: bulkIds[0] });
+    ok("bridge/remove_prop-cleanup", rm2.ok, JSON.stringify(rm2).slice(0, 160));
+  } else {
+    ok("bridge/set_actor", false, "spawn_set gave no ids");
+    ok("bridge/remove_prop", false, "spawn_set gave no ids");
+    ok("bridge/remove_prop-cleanup", false, "spawn_set gave no ids");
+  }
+
   const bad = await bridge("nope", {});
   ok("bridge/unknown-tool-errors", bad.ok === false, JSON.stringify(bad));
 
@@ -88,7 +114,7 @@ function startServer(env = {}) {
   srv.notify("notifications/initialized");
   const tools = await srv.send("tools/list", {});
   const names = (tools.result?.tools || []).map((t) => t.name);
-  const expected = ["engine_status", "list_scene", "spawn_object", "move_object", "set_visibility", "set_time", "play", "get_score", "ask_engine"];
+  const expected = ["engine_status", "list_scene", "spawn_object", "spawn_set", "move_object", "set_actor", "remove_prop", "set_visibility", "set_time", "play", "get_score", "ask_engine", "scaffold_board_game"];
   ok("mcp/tools-list", expected.every((t) => names.includes(t)), names.join(","));
 
   const call = async (name, args) => {

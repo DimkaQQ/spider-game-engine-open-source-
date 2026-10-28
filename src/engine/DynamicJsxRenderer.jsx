@@ -1,0 +1,331 @@
+/*
+ * ============================================================================
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * ============================================================================
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ * ============================================================================
+ */
+import React, { Component, useState, useEffect, useMemo, useRef, useCallback, useReducer, useLayoutEffect } from "react";
+import * as THREE from "three";
+import * as Fiber from "@react-three/fiber";
+import * as Drei from "@react-three/drei";
+import { transform } from "sucrase";
+import { Chess } from "chess.js";
+
+class JsxErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.warn("[DynamicJsxRenderer] Runtime error in dynamic JSX component:", error);
+    if (typeof window !== "undefined") {
+      window.__lastDynamicJsxError = `Runtime error in ${this.props.name || "GameComponent"}: ${error?.message || String(error)}`;
+    }
+    if (this.props.onError) this.props.onError(error);
+  }
+  componentDidUpdate(prevProps) {
+    if (prevProps.code !== this.props.code && this.state.hasError) {
+      if (typeof window !== "undefined") {
+        window.__lastDynamicJsxError = null;
+      }
+      this.setState({ hasError: false, error: null });
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      // Do NOT plaster code/errors across the 3D canvas! Keep 3D scene pristine.
+      return null;
+    }
+    return this.props.children;
+  }
+}
+
+const EMPTY_SCOPE = Object.freeze({});
+const EMPTY_PROJECT_FILES = Object.freeze([]);
+const COMPILATION_CACHE = new Map();
+const MAX_CACHE_SIZE = 64;
+
+function computeCacheKey(codeStr, projectFiles) {
+  let key = codeStr;
+  if (Array.isArray(projectFiles) && projectFiles.length > 0) {
+    key += "||" + projectFiles.map((f) => `${f.name}:${f.content || ""}`).join(";");
+  }
+  return key;
+}
+
+/**
+ * Strips markdown code blocks (```jsx ... ```) and extra whitespace.
+ */
+export function cleanJsxCode(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  let str = raw.trim();
+  const match = str.match(/^```(?:jsx|tsx|javascript|js)?\s*([\s\S]*?)```$/i);
+  if (match) {
+    str = match[1].trim();
+  } else {
+    str = str.replace(/^```[a-z0-9_-]*\r?\n/i, "").replace(/\r?\n```\s*$/i, "").trim();
+  }
+  return str;
+}
+
+/**
+ * Compiles a raw JSX/TSX string in real-time and returns the React component.
+ * Supports multi-file project imports by recursively resolving and compiling projectFiles.
+ * Uses persistent compilation cache to preserve React component identity across parent re-renders.
+ */
+export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError = null, projectFiles = EMPTY_PROJECT_FILES, moduleCache = new Map()) {
+  const codeStr = cleanJsxCode(rawCode);
+  if (!codeStr) return null;
+
+  // If code is raw HTML document or non-React HTML snippet, skip 3D JSX compilation
+  const lower = codeStr.trim().toLowerCase();
+  if (
+    lower.startsWith("<!doctype") ||
+    lower.startsWith("<html") ||
+    lower.startsWith("<head") ||
+    lower.startsWith("<body") ||
+    (lower.startsWith("<canvas") && !codeStr.includes("import ") && !codeStr.includes("export "))
+  ) {
+    return null;
+  }
+
+  // Check persistent compilation cache
+  const cacheKey = computeCacheKey(codeStr, projectFiles);
+  if (COMPILATION_CACHE.has(cacheKey)) {
+    return COMPILATION_CACHE.get(cacheKey);
+  }
+
+  try {
+    const transformed = transform(codeStr, {
+      transforms: ["jsx", "imports", "typescript"],
+      jsxRuntime: "classic"
+    }).code;
+
+    const module = { exports: {} };
+    const exports = module.exports;
+
+    const scopeMap = {
+      react: React,
+      three: THREE,
+      "@react-three/fiber": Fiber,
+      "@react-three/drei": Drei,
+      "chess.js": { Chess, default: Chess },
+      ...customScope
+    };
+
+    const customRequire = (name) => {
+      if (scopeMap[name]) return scopeMap[name];
+      if (name.startsWith("./") || name.startsWith("../")) {
+        const cleanName = name.replace(/^(\.\/|\.\.\/)+/, "");
+        const base = cleanName.split("/").pop().replace(/\.(jsx?|tsx?)$/, "");
+
+        if (moduleCache.has(base)) return moduleCache.get(base);
+        if (scopeMap[base]) return scopeMap[base];
+
+        // Search in projectFiles
+        const targetFile = (projectFiles || []).find((f) => {
+          const fBase = (f.name || "").replace(/\.(jsx?|tsx?)$/, "");
+          return fBase === base || f.name === cleanName || f.name === name || (f.path && f.path.endsWith(cleanName));
+        });
+
+        if (targetFile && targetFile.content) {
+          const subModule = { exports: {} };
+          moduleCache.set(base, subModule.exports);
+          try {
+            const subTransformed = transform(cleanJsxCode(targetFile.content), {
+              transforms: ["jsx", "imports", "typescript"],
+              jsxRuntime: "classic"
+            }).code;
+
+            const subKeys = [
+              "require",
+              "module",
+              "exports",
+              "React",
+              "useState",
+              "useEffect",
+              "useRef",
+              "useMemo",
+              "useCallback",
+              "useReducer",
+              "useLayoutEffect",
+              "THREE",
+              "useFrame",
+              "useThree",
+              "Float",
+              "Trail",
+              "Text",
+              "Sparkles",
+              "Sky",
+              "Stars",
+              "Grid",
+              "Html",
+              "Chess"
+            ];
+            const subValues = [
+              customRequire,
+              subModule,
+              subModule.exports,
+              React,
+              useState,
+              useEffect,
+              useRef,
+              useMemo,
+              useCallback,
+              useReducer,
+              useLayoutEffect,
+              THREE,
+              Fiber.useFrame,
+              Fiber.useThree,
+              Drei.Float,
+              Drei.Trail,
+              Drei.Text,
+              Drei.Sparkles,
+              Drei.Sky,
+              Drei.Stars,
+              Drei.Grid,
+              Drei.Html,
+              Chess
+            ];
+            const subFn = new Function(...subKeys, subTransformed);
+            subFn(...subValues);
+
+            if (subModule.exports && !subModule.exports.default) {
+              const fnExport = Object.values(subModule.exports).find((v) => typeof v === "function");
+              if (fnExport) subModule.exports.default = fnExport;
+            }
+
+            moduleCache.set(base, subModule.exports);
+            return subModule.exports;
+          } catch (subErr) {
+            console.warn(`[DynamicJsxRenderer] Failed to compile imported file "${targetFile.name}":`, subErr);
+            return subModule.exports;
+          }
+        }
+      }
+      return {};
+    };
+
+    const scopeKeys = [
+      "require",
+      "module",
+      "exports",
+      "React",
+      "useState",
+      "useEffect",
+      "useRef",
+      "useMemo",
+      "useCallback",
+      "useReducer",
+      "useLayoutEffect",
+      "THREE",
+      "useFrame",
+      "useThree",
+      "Float",
+      "Trail",
+      "Text",
+      "Sparkles",
+      "Sky",
+      "Stars",
+      "Grid",
+      "Html",
+      "Chess"
+    ];
+
+    const scopeValues = [
+      customRequire,
+      module,
+      exports,
+      React,
+      useState,
+      useEffect,
+      useRef,
+      useMemo,
+      useCallback,
+      useReducer,
+      useLayoutEffect,
+      THREE,
+      Fiber.useFrame,
+      Fiber.useThree,
+      Drei.Float,
+      Drei.Trail,
+      Drei.Text,
+      Drei.Sparkles,
+      Drei.Sky,
+      Drei.Stars,
+      Drei.Grid,
+      Drei.Html,
+      Chess
+    ];
+
+    const fn = new Function(...scopeKeys, transformed);
+    fn(...scopeValues);
+
+    const ComponentTarget = exports.default || Object.values(exports).find((v) => typeof v === "function") || null;
+    if (ComponentTarget && typeof window !== "undefined" && !window.__lastDynamicJsxError?.startsWith("Runtime error")) {
+      window.__lastDynamicJsxError = null;
+    }
+
+    if (ComponentTarget) {
+      if (COMPILATION_CACHE.size >= MAX_CACHE_SIZE) {
+        const oldestKey = COMPILATION_CACHE.keys().next().value;
+        COMPILATION_CACHE.delete(oldestKey);
+      }
+      COMPILATION_CACHE.set(cacheKey, ComponentTarget);
+    }
+    return ComponentTarget;
+  } catch (err) {
+    console.warn("[DynamicJsxRenderer] Compilation error:", err);
+    if (typeof window !== "undefined") {
+      window.__lastDynamicJsxError = `Compilation error: ${err?.message || String(err)}`;
+    }
+    if (onError) onError(err);
+    return null;
+  }
+}
+
+/**
+ * DynamicJsxRenderer component to be mounted inside <Canvas>
+ */
+export default function DynamicJsxRenderer({
+  code,
+  name,
+  customScope = EMPTY_SCOPE,
+  onError = null,
+  projectFiles = EMPTY_PROJECT_FILES
+}) {
+  const filesSignature = useMemo(() => {
+    if (!Array.isArray(projectFiles) || projectFiles.length === 0) return "";
+    return projectFiles.map((f) => `${f.name}:${f.content ? f.content.length : 0}`).join(",");
+  }, [projectFiles]);
+
+  const ComponentToRender = useMemo(() => {
+    let comp = compileJsxComponent(code, customScope, onError, projectFiles);
+    // If the active file did NOT export a React component (e.g. it was a helper file like rules.js or pieces.jsx),
+    // automatically fall back to the root game component in projectFiles so the game STILL opens and runs!
+    if (!comp && Array.isArray(projectFiles) && projectFiles.length > 0) {
+      const rootFile =
+        projectFiles.find((f) => f.name?.toLowerCase() === "gamecomponent.jsx") ||
+        projectFiles.find((f) => f.name?.toLowerCase().includes("game") && f.name?.endsWith(".jsx")) ||
+        projectFiles.find((f) => f.content && (f.content.includes("export default function") || f.content.includes("export default")));
+      if (rootFile && rootFile.content && rootFile.content !== code) {
+        comp = compileJsxComponent(rootFile.content, customScope, onError, projectFiles);
+      }
+    }
+    return comp;
+  }, [code, filesSignature]);
+
+  if (!ComponentToRender) return null;
+
+  return (
+    <JsxErrorBoundary code={code} onError={onError}>
+      <ComponentToRender />
+    </JsxErrorBoundary>
+  );
+}

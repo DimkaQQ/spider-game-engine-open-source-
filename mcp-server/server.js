@@ -1,4 +1,13 @@
 #!/usr/bin/env node
+/*
+ * ============================================================================
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * ============================================================================
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ * ============================================================================
+ */
 // Spider Engine MCP server — tools for any MCP client (Claude Code/Desktop, agents).
 // LIVE path: POSTs to the running engine at http://127.0.0.1:9287/mcp
 // FILE path: if the engine is closed, scene tools operate on a project folder's GameWorld.scene.json
@@ -122,6 +131,66 @@ server.tool("play", { on: z.boolean() }, async ({ on }) => {
 server.tool("get_score", {}, async () => {
   const out = await bridge("getScore", {});
   return { content: [{ type: "text", text: JSON.stringify(out) }] };
+});
+
+server.tool("spawn_set", { items: z.array(z.object({ asset: z.string(), x: z.number().optional(), y: z.number().optional(), z: z.number().optional() })) }, async ({ items }) => {
+  const out = await bridge("spawn_set", { items });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("set_actor", { id: z.string(), patch: z.record(z.string(), z.any()).optional() }, async ({ id, patch }) => {
+  const out = await bridge("set_actor", { id, patch: patch || {} });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("remove_prop", { id: z.string() }, async ({ id }) => {
+  const out = await bridge("remove_prop", { id });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("scaffold_board_game", { game: z.string().optional() }, async ({ game }) => {
+  const out = await bridge("scaffold_board_game", { game: game || "chess" });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("render_jsx", { code: z.string(), name: z.string().optional() }, async ({ code, name }) => {
+  const out = await bridge("render_jsx", { code, name: name || "DynamicComponent.jsx" });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("get_active_component", {}, async () => {
+  const out = await bridge("getActiveComponent", {});
+  return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
+});
+
+server.tool("get_logs", {}, async () => {
+  const out = await bridge("getLogs", {});
+  return { content: [{ type: "text", text: JSON.stringify(out, null, 2) }] };
+});
+
+server.tool("capture_screenshot", {}, async () => {
+  const out = await bridge("captureScreenshot", {});
+  return { content: [{ type: "text", text: JSON.stringify(out) }] };
+});
+
+server.tool("check_3d_view", {}, async () => {
+  const out = await bridge("check3DView", {});
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("edit_file", { name: z.string(), old: z.string(), text: z.string(), dir: z.string().optional() }, async ({ name, old, text, dir }) => {
+  const out = await bridge("editFile", { name, old, text, dir });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("create_file", { name: z.string(), content: z.string(), dir: z.string().optional() }, async ({ name, content, dir }) => {
+  const out = await bridge("createFile", { name, content, dir });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
+});
+
+server.tool("create_multiple_files", { files: z.array(z.object({ name: z.string(), content: z.string(), dir: z.string().optional() })), dir: z.string().optional() }, async ({ files, dir }) => {
+  const out = await bridge("create_multiple_files", { files, dir });
+  return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
 });
 
 server.tool("ask_engine", { text: z.string() }, async ({ text }) => {

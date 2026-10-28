@@ -36,4 +36,4 @@ node server.js            # stdio (Claude Code / Desktop)
 
 ## Tools
 
-`engine_status, list_scene, spawn_object, move_object, set_visibility, set_time, play, get_score, ask_engine`
+`engine_status, list_scene, spawn_object, spawn_set, move_object, set_actor, remove_prop, set_visibility, set_time, play, get_score, ask_engine, scaffold_board_game`

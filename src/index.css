@@ -1,3 +1,9 @@
+/*
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ */
 @import "tailwindcss";
 
 html, body, #root {
@@ -61,12 +67,26 @@ html, body, #root {
   padding-left: 2px;
 }
 .ai-shimmer-text {
-  background: linear-gradient(110deg, #0f172a 30%, #64748b 50%, #0f172a 70%);
-  background-size: 200% 100%;
+  background: linear-gradient(90deg, #000000 0%, #000000 35%, #94a3b8 50%, #000000 65%, #000000 100%);
+  background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
+  -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: ai-shimmer-sweep 1.4s linear infinite;
+  animation: ai-shimmer-sweep 2s ease-in-out infinite;
   font-size: 11px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.term-shimmer-text {
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 35%, #ffffff 50%, #94a3b8 65%, #64748b 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: ai-shimmer-sweep 2s ease-in-out infinite;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }

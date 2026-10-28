@@ -1,3 +1,12 @@
+/*
+ * ============================================================================
+ * SPIDER GAME ENGINE (OPEN SOURCE)
+ * ============================================================================
+ * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
+ * Author: M4SPIDER (support@m4spider.com)
+ * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
+ * ============================================================================
+ */
 // Material library — name ↔ color binding. Element 0 drives the primary
 // channel (via node.tint), Element 1 drives the secondary (via node.tint2).
 export const MATERIAL_PRESETS = {

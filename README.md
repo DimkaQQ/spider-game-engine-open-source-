@@ -1,40 +1,67 @@
-<p align="center">
-  <img src="./Spider Engine.png" alt="Spider Engine" width="220" />
-</p>
+# Spider Game Engine (Open Source) 🕷️🎮
 
-# Spider Engine — open-source game engine (React + Three.js + Electron)
+**Fingerprint**: `[M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]`  
+**Author**: M4SPIDER (`support@m4spider.com`)  
+**Repository**: [https://github.com/M4SPIDER/spider-game-engine-open-source-](https://github.com/M4SPIDER/spider-game-engine-open-source-)  
+**License**: MIT  
 
-A real-time 3D game engine and editor that runs as a desktop app. All JSX — no C++ in this build.
+---
 
-## Run it
+## Overview
 
+**Spider Game Engine** is an autonomous, agentic 3D game engine and simulation environment built on React, Three.js (@react-three/fiber), and WebGL with native multi-platform support (Electron, Tauri, and Web).
+
+It integrates directly with multimodal AI models (including Meta Llama and Muse AI) over MCP (Model Context Protocol) to synthesize, mount, verify, and run 3D games and interactive simulations entirely in real-time.
+
+---
+
+## Features
+
+- **Real-Time Dynamic JSX Engine**: Live mounting of arbitrary React Three Fiber components with instant AST compilation cache.
+- **Autonomous Agentic Loop**: Built-in MCP server (`http://localhost:9287/mcp`) supporting live inspection, screenshot capture, 3D viewport verification, and autonomous game generation.
+- **Multi-Platform Support**:
+  - **Web**: Fast Vite-powered dev server and production builds.
+  - **Desktop (Electron)**: Cross-platform desktop shell with deep OS integrations.
+  - **Desktop (Tauri)**: Ultra-lightweight Rust-backed native executable.
+- **Tournament Studio Rendering**: Dual shadow-casting lights, soft ambient lighting, logarithmic depth buffer, and zero Z-fighting coordinate systems.
+- **Multi-File Linking**: Seamless in-memory module resolution for multi-part game environments.
+
+---
+
+## Quick Start
+
+### 1. Web Dev Server
 ```bash
 npm install
-npm run dev        # web preview (http://localhost:5173)
-npx electron . --built   # desktop app (after npm run build)
-npm run dist       # Windows installer + portable exe
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### 2. Electron Desktop App
+```bash
+npm run electron:dev
+# or for pre-built:
+npm run electron:built
 ```
 
-## What's inside
-
-- **Editor** — Scene Hierarchy, Inspector (Transform/Mesh/Materials/Animation/Physics), Content Browser, Console, Build Log, Timeline sun scrub, Game/CinematicViewport modes
-- **Real 3D viewport** — Three.js: castle, terrain, water, trees, guards on patrol, day/night sun, shadows, wireframe, live axis gizmo
-- **Playable demo game** (`src/game/`) — hero (WASD + Space), 3 spinning coins, score + win state, BlockAll collision, falling physics props
-- **Import** — `.glb/.gltf/.fbx/.obj` models, images as textures, audio preview, whole-folder parse, or open a folder as a project
-- **Projects** — multiple saved scenes (Unreal-style New Project wizard: Normal, TPP/FPP Shooting, Racing, Custom, Blank), autosaved locally
-- **Ask AI panel** — slide-over assistant: natural-language scene commands, recent chats, thinking levels, per-message actions, MCP tool bridge (`window.spiderEngine`), Meta Model API chat with encrypted key storage
-- **Build** — validates + exports portable `GameWorld.scene.json` (assets embedded)
-
-## Demo game files
-
-```
-src/game/
-  scene.js      — GameWorld level
-  assets.js     — spawnable props
-  coins.js      — collectibles + rules
-  player.js     — hero tuning
-  materials.js  — material library
-  levels/GameWorld.scene.json  — exported playable level
+### 3. Tauri Desktop App
+```bash
+npm run tauri:dev
 ```
 
-MIT — build games with it.
+---
+
+## MCP Server & Autonomous Agent Integration
+
+The engine embeds an MCP server on port `9287`:
+- `POST /mcp` with actions: `listScene`, `check3DView`, `captureScreenshot`, `render_jsx`, `scaffold_board_game`, `ask`, etc.
+- Seamlessly connects AI coding agents directly to the 3D canvas for multimodal closed-loop verification.
+
+---
+
+## Authors & Provenance
+
+Created and maintained by **M4SPIDER**.  
+Email: **support@m4spider.com**  
+Every source file contains the provenance watermark:
+`[M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]`
