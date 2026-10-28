@@ -6689,7 +6689,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             </div>
 
             {/* Quick ChatGPT-style Prompts on Mobile */}
-            {isMobile && currentSession?.messages?.length <= 1 && (
+            {isMobile && aiHistory.length <= 1 && (
               <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-100 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                 {[
                   "🎲 Build 3D Ludo game",
