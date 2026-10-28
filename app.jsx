@@ -1346,64 +1346,44 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const [metaModel, setMetaModel] = useState(() => {
     try {
       const saved = localStorage.getItem("spider-meta-model");
-      if (saved && saved.toLowerCase().includes("contributor") && saved.toLowerCase().includes("1.3")) return saved;
-      localStorage.setItem("spider-meta-model", "muse-spark-1.3-contributor");
-      return "muse-spark-1.3-contributor";
+      if (saved) return saved;
+      return "muse-spark-1.3";
     }
-    catch { return "muse-spark-1.3-contributor"; }
+    catch { return "muse-spark-1.3"; }
   });
   const [metaModels, setMetaModels] = useState(() => {
     try {
       const raw = localStorage.getItem("spider-meta-models");
       const arr = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(arr) && arr.length > 0) {
-        return [...arr].sort((a, b) => {
-          const aIs = a.toLowerCase().includes("contributor") && a.toLowerCase().includes("1.3") ? 1 : 0;
-          const bIs = b.toLowerCase().includes("contributor") && b.toLowerCase().includes("1.3") ? 1 : 0;
-          return bIs - aIs;
-        });
-      }
-      return ["muse-spark-1.3-contributor", "muse-spark-1.3", "muse-wonder"];
-    } catch { return ["muse-spark-1.3-contributor", "muse-spark-1.3", "muse-wonder"]; }
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+      return ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"];
+    } catch { return ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"]; }
   });
   // Friendly names for Meta models — fetched list stays source of truth (declared after state: no TDZ)
   const friendlyModel = (id) => {
     const low = String(id).toLowerCase();
     if (low.includes("wonder-full") || (low.includes("wonder") && low.includes("full"))) return { name: "Wonder Full", desc: "Most advanced, hardest tasks" };
     if (low.includes("wonder")) return { name: "Wonder", desc: "Complex tasks, plans & delegates" };
-    if (low.includes("1.3") && low.includes("contributor")) return { name: "Spark 1.3 Contributor", desc: "Agentic coding, contributor mode (STRICT)" };
-    if (low.includes("1.3")) return { name: "Spark 1.3", desc: "All-round help" };
+    if (low.includes("1.3") && low.includes("contributor")) return { name: "Spark 1.3 Contributor", desc: "Agentic coding, contributor tier" };
+    if (low.includes("1.3")) return { name: "Spark 1.3", desc: "High-capacity agentic reasoning (Official)" };
     if (low.includes("1.2")) return { name: "Spark 1.2", desc: "Fast answers" };
     if (low.includes("1.1")) return { name: "Spark 1.1", desc: "Fastest answers" };
     if (low.includes("spark")) return { name: "Spark", desc: "Agentic help" };
     const pretty = String(id).replace(/^muse-/, "").replace(/-/g, " ");
     return { name: pretty.charAt(0).toUpperCase() + pretty.slice(1), desc: "Meta model" };
   };
-  const chatModels = (metaModels.length > 0 ? metaModels : []).filter((id) => id.toLowerCase().includes("spark") || id.toLowerCase().includes("wonder") || id.toLowerCase().includes("contributor"));
-  // Always strictly sort so Spark 1.3 Contributor is first
-  const modelChoices = [...(chatModels.length > 0 ? chatModels : metaModels)].sort((a, b) => {
-    const aIs = a.toLowerCase().includes("contributor") && a.toLowerCase().includes("1.3") ? 1 : 0;
-    const bIs = b.toLowerCase().includes("contributor") && b.toLowerCase().includes("1.3") ? 1 : 0;
-    return bIs - aIs;
-  });
-  const effectiveModel = (metaModel && metaModel.toLowerCase().includes("contributor") && metaModel.toLowerCase().includes("1.3"))
+  const chatModels = (metaModels.length > 0 ? metaModels : []).filter((id) => id.toLowerCase().includes("spark") || id.toLowerCase().includes("wonder") || id.toLowerCase().includes("contributor") || id.toLowerCase().includes("llama"));
+  const modelChoices = chatModels.length > 0 ? chatModels : (metaModels.length > 0 ? metaModels : ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"]);
+  const effectiveModel = metaModel && modelChoices.includes(metaModel)
     ? metaModel
-    : (modelChoices.find((id) => id.toLowerCase().includes("contributor") && id.toLowerCase().includes("1.3")) || "muse-spark-1.3-contributor");
-  const effectiveFriendly = effectiveModel ? friendlyModel(effectiveModel).name : "Spark 1.3 Contributor";
+    : (modelChoices[0] || "muse-spark-1.3");
+  const effectiveFriendly = effectiveModel ? friendlyModel(effectiveModel).name : "Spark 1.3";
 
   // Meta keys must be pure header-safe text — strip invisible copy-paste junk
   const sanitizeKey = (s) => String(s || "").replace(/[\s\u200B-\u200D\uFEFF\u00A0]+/g, "").trim();
 
   // Unlock the Meta key into memory on boot (never rendered, never logged)
   useEffect(() => {
-    try {
-      // Strictly enforce muse-spark-1.3-contributor on boot
-      const cur = localStorage.getItem("spider-meta-model");
-      if (!cur || !cur.toLowerCase().includes("contributor") || !cur.toLowerCase().includes("1.3")) {
-        localStorage.setItem("spider-meta-model", "muse-spark-1.3-contributor");
-        setMetaModel("muse-spark-1.3-contributor");
-      }
-    } catch {}
     (async () => {
       try {
         const cipher = localStorage.getItem("spider-meta-key");
@@ -1448,19 +1428,13 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       const data = await res.json();
       const ids = (data?.data || []).map((m) => m.id).filter(Boolean);
       if (ids.length > 0) {
-        // Strictly sort so muse-spark-1.3-contributor is at index 0
-        const sortedIds = [...ids].sort((a, b) => {
-          const aIs = a.toLowerCase().includes("contributor") && a.toLowerCase().includes("1.3") ? 1 : 0;
-          const bIs = b.toLowerCase().includes("contributor") && b.toLowerCase().includes("1.3") ? 1 : 0;
-          return bIs - aIs;
-        });
-        setMetaModels(sortedIds);
-        try { localStorage.setItem("spider-meta-models", JSON.stringify(sortedIds)); } catch {}
+        setMetaModels(ids);
+        try { localStorage.setItem("spider-meta-models", JSON.stringify(ids)); } catch {}
         setMetaModel((cur) => {
-          if (cur && cur.toLowerCase().includes("contributor") && cur.toLowerCase().includes("1.3")) return cur;
-          const contrib = sortedIds.find((id) => id.toLowerCase().includes("contributor") && id.toLowerCase().includes("1.3")) || "muse-spark-1.3-contributor";
-          try { localStorage.setItem("spider-meta-model", contrib); } catch {}
-          return contrib;
+          if (cur && ids.includes(cur)) return cur;
+          const chosen = ids.find((id) => id.includes("1.3")) || ids[0] || "muse-spark-1.3";
+          try { localStorage.setItem("spider-meta-model", chosen); } catch {}
+          return chosen;
         });
       } else {
         setMetaModelsError("Meta API returned an empty model list");
@@ -1568,39 +1542,60 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return [sys, firstUser, ...recent];
   };
 
-  // Free chat via Meta Model API — resilient with auto-retry and token protection against 500 errors
+  // Free chat via Meta Model API — resilient with auto-retry and multi-tier model fallback
   const callLlama = async (prompt, onToken, opts = {}) => {
     const key = sanitizeKey(metaKeyRef.current);
     if (!key) return null;
-    const model = (metaModel && metaModel.toLowerCase().includes("contributor") && metaModel.toLowerCase().includes("1.3"))
-      ? metaModel
-      : (modelChoices.find((id) => id.toLowerCase().includes("contributor") && id.toLowerCase().includes("1.3")) || "muse-spark-1.3-contributor");
-    const sys = opts.system || `You are Spider AI, the unbounded master game architect and developer inside Spider Engine (React + Three.js). The current project is "${sceneLabel}"${currentProject?.root ? ` located at ${currentProject.root}` : ""}. You have complete capability to write multiple modular JavaScript game code files, compose rich 3D scenes, orchestrate physics, design mechanics, and build entire games. Be thorough, creative, and write real production code without artificial limits.`;
+    let chosenModel = opts.model || metaModel || modelChoices[0] || "muse-spark-1.3";
+    const sys = opts.system || `You are Spider AI, the master game architect and developer inside Spider Engine (React + Three.js). The current project is "${sceneLabel}"${currentProject?.root ? ` located at ${currentProject.root}` : ""}. You have complete capability to write multiple modular JavaScript game code files, compose rich 3D scenes, orchestrate physics, design mechanics, and build entire games. Be thorough, creative, and write real production code without artificial limits.`;
     const { historyBlock, live } = buildLlamaContext();
     const rawMessages = opts.messages || [
       { role: "system", content: `${sys}\n\n${(historyBlock ? historyBlock + "\n" : "") + live}` },
       { role: "user", content: prompt }
     ];
 
-    let maxTokens = 6144;
+    let maxTokens = 4096;
     let messages = compactMetaMessages(rawMessages, 24000);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     let lastError = null;
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    // List of candidate models to fallback on 400 invalid parameters / 500 errors
+    const fallbackCandidates = [
+      chosenModel,
+      ...(chosenModel.includes("contributor") ? [chosenModel.replace("-contributor", "")] : []),
+      "muse-spark-1.3",
+      "muse-spark-1.2",
+      "muse-wonder"
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
+    for (let attempt = 1; attempt <= 4; attempt++) {
       if (abortAgentRef.current) throw new Error("Agent stopped by user.");
 
+      // Pick model for this attempt
+      const currentModel = fallbackCandidates[Math.min(attempt - 1, fallbackCandidates.length - 1)];
+
       if (attempt === 2) {
-        try { appendLog("Warning", "Meta API 500 error encountered — auto-recovering with compacted messages and non-streaming mode..."); } catch {}
-        await sleep(1200);
+        try { appendLog("Warning", `Meta API retry (attempt 2) — switching to model "${currentModel}"...`); } catch {}
+        await sleep(600);
         messages = compactMetaMessages(rawMessages, 16000);
         maxTokens = 4096;
       } else if (attempt === 3) {
-        try { appendLog("Warning", "Meta API still unresponsive — attempting minimal direct recovery prompt..."); } catch {}
-        await sleep(1800);
+        try { appendLog("Warning", `Meta API retry (attempt 3) — trying with simplified message payload on "${currentModel}"...`); } catch {}
+        await sleep(1000);
         const sysMsg = messages.find((m) => m.role === "system") || { role: "system", content: sys };
         const lastUser = [...messages].reverse().find((m) => m.role === "user") || { role: "user", content: prompt };
-        messages = [sysMsg, lastUser];
+        messages = [
+          { role: "system", content: typeof sysMsg.content === "string" ? sysMsg.content.slice(0, 8000) : sys },
+          { role: "user", content: typeof lastUser.content === "string" ? lastUser.content : String(prompt || "") }
+        ];
+        maxTokens = 2048;
+      } else if (attempt === 4) {
+        try { appendLog("Warning", `Meta API retry (attempt 4) — single-turn developer context prompt on "${currentModel}"...`); } catch {}
+        await sleep(1500);
+        const lastUser = [...messages].reverse().find((m) => m.role === "user") || { role: "user", content: prompt };
+        messages = [
+          { role: "user", content: `Context: ${sys.slice(0, 3000)}\n\nGoal: ${typeof lastUser.content === "string" ? lastUser.content : prompt}` }
+        ];
         maxTokens = 2048;
       }
 
@@ -1618,7 +1613,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
           body: JSON.stringify({
-            model,
+            model: currentModel,
             messages,
             max_tokens: maxTokens,
             ...(shouldStream ? { stream: true } : {})
@@ -1634,11 +1629,20 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
             detail += ` — ${err?.error?.message || err?.message || JSON.stringify(err).slice(0, 160)}`;
           } catch {}
 
-          if (res.status >= 500 && attempt < 3) {
+          if ((res.status === 400 || res.status >= 500) && attempt < 4) {
             lastError = new Error(detail);
             continue;
           }
           throw new Error(detail);
+        }
+
+        // If a fallback model worked, update state and localStorage so subsequent calls are immediate!
+        if (currentModel !== metaModel) {
+          try {
+            setMetaModel(currentModel);
+            localStorage.setItem("spider-meta-model", currentModel);
+            appendLog("Success", `Auto-selected working Meta model: ${currentModel}`);
+          } catch {}
         }
 
         if (shouldStream && res.body && res.body.getReader) {
@@ -5528,7 +5532,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   <button
                     onClick={() => setOpenMenu("AskAI")}
                     className="absolute bottom-6 right-5 z-40 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:brightness-110 text-white font-bold px-4 py-3 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center gap-2 active:scale-95 transition border border-white/30 cursor-pointer select-none"
-                    title="Open Spider AI Chat (ChatGPT Mobile Mode)"
+                    title="Open Spider AI Chat"
                   >
                     <Sparkles className="w-4 h-4 text-yellow-300" />
                     <span className="text-xs font-extrabold tracking-wide">Ask AI</span>
@@ -6644,11 +6648,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   <Plus className="w-3.5 h-3.5" />
                 </button>
                 <span className="font-extrabold text-[13px]">Spider AI</span>
-                {isMobile && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                    ChatGPT Mode
-                  </span>
-                )}
               </div>
               <div className="flex items-center gap-1.5">
                 {isMobile && (
