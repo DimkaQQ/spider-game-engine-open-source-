@@ -6782,6 +6782,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   { id: "Play & Game", icon: Gamepad2 },
                   { id: "Scene & Data", icon: Box },
                   { id: "AI & Keys", icon: Sparkles },
+                  { id: "Third-Party Licenses", icon: FileText },
                   { id: "About", icon: Info }
                 ].map((s) => {
                   const Icon = s.icon;
@@ -6994,6 +6995,37 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       {[["WASD / Arrows", "Move hero"], ["Space", "Jump"], ["H", "Hierarchy panel"], ["Alt", "Native menu"], ["Left-drag", "Orbit 3D view"]].map(([k, v]) => (
                         <div key={k} className="flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100">
                           <span className="font-mono font-semibold text-slate-800">{k}</span><span>{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {settingsSection === "Third-Party Licenses" && (
+                  <div className="max-w-xl space-y-4 text-slate-700">
+                    <div className="text-[11px] text-slate-500 pb-1">
+                      Spider Engine is open source under the MIT License. It incorporates and complies with the following third-party open-source components:
+                    </div>
+                    <div className="space-y-2.5">
+                      {[
+                        { name: "React & React DOM", ver: "19.3.1", lic: "MIT", author: "Meta Platforms, Inc. and affiliates", url: "https://react.dev" },
+                        { name: "Three.js", ver: "0.186.1", lic: "MIT", author: "Ricardo Cabello (mrdoob) and Three.js authors", url: "https://threejs.org" },
+                        { name: "@react-three/fiber", ver: "9.8.2", lic: "MIT", author: "Paul Henschel and Poimandres contributors", url: "https://github.com/pmndrs/react-three-fiber" },
+                        { name: "@react-three/drei", ver: "10.7.9", lic: "MIT", author: "Poimandres contributors", url: "https://github.com/pmndrs/drei" },
+                        { name: "chess.js", ver: "1.4.0", lic: "BSD-2-Clause", author: "Jeff Hlywa", url: "https://github.com/jhlywa/chess.js" },
+                        { name: "Lucide React", ver: "1.61.0", lic: "ISC", author: "Lucide Contributors", url: "https://lucide.dev" },
+                        { name: "Sucrase", ver: "3.35.1", lic: "MIT", author: "Alan Pierce", url: "https://github.com/alangpierce/sucrase" },
+                        { name: "Tailwind CSS", ver: "4.3.3", lic: "MIT", author: "Tailwind Labs, Inc.", url: "https://tailwindcss.com" },
+                        { name: "Vite", ver: "8.3.5", lic: "MIT", author: "Yuxi (Evan) You and Vite contributors", url: "https://vite.dev" },
+                        { name: "Electron", ver: "45.0.0", lic: "MIT", author: "OpenJS Foundation and Electron contributors", url: "https://electronjs.org" },
+                        { name: "Tauri", ver: "2.12.4", lic: "MIT / Apache-2.0", author: "Tauri Programme within The Commons Conservancy", url: "https://tauri.app" }
+                      ].map((pkg) => (
+                        <div key={pkg.name} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-900">{pkg.name} <span className="font-mono text-[10px] text-slate-500 font-normal">v{pkg.ver}</span></span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">{pkg.lic}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500">Copyright © {pkg.author}</div>
+                          <div className="text-[10px] text-indigo-600 font-mono truncate">{pkg.url}</div>
                         </div>
                       ))}
                     </div>
