@@ -89,6 +89,12 @@ export function getPseudoMoves(board,x,y,lastMove,castling){
         if(ks&&!board[row][5]&&!board[row][6]&&board[row][7]?.type==='r'&&board[row][7]?.color===c){
           if(!isAttacked(board,4,row,enemy)&&!isAttacked(board,5,row,enemy)&&!isAttacked(board,6,row,enemy)) moves.push({from:[x,y],to:[6,row],castle:'K'});
         }
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
         if(qs&&!board[row][1]&&!board[row][2]&&!board[row][3]&&board[row][0]?.type==='r'&&board[row][0]?.color===c){
           if(!isAttacked(board,4,row,enemy)&&!isAttacked(board,3,row,enemy)&&!isAttacked(board,2,row,enemy)) moves.push({from:[x,y],to:[2,row],castle:'Q'});
         }

@@ -3545,6 +3545,12 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         appendLog("Info", "Play mode started — chase cam locked, WASD + Space, grab the coins");
         appendLog("Info", "Possessing Actor: PlayerCharacter (WASD / Arrows to move)");
       }
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
     } else {
       setIsPlaying(false);
       setViewportTab("Viewport");

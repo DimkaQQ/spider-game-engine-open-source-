@@ -85,6 +85,12 @@ export function pseudoMoves(b,r,c,enPassant){
         if(!b[row][5]&&!b[row][6]&&b[row][7]&&b[row][7].type==='r'&&!b[row][7].hasMoved){
           if(!isAttacked(b,row,5,p.color==='w'?'b':'w')&&!isAttacked(b,row,6,p.color==='w'?'b':'w'))moves.push({from:[r,c],to:[row,6],castle:'K'});
         }
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
         if(!b[row][3]&&!b[row][2]&&!b[row][1]&&b[row][0]&&b[row][0].type==='r'&&!b[row][0].hasMoved){
           if(!isAttacked(b,row,3,p.color==='w'?'b':'w')&&!isAttacked(b,row,2,p.color==='w'?'b':'w'))moves.push({from:[r,c],to:[row,2],castle:'Q'});
         }

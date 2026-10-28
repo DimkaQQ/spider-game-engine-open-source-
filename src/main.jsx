@@ -35,11 +35,17 @@ if (typeof window !== 'undefined') {
   window.Chess = Chess;
 }
 
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
 class RootErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { error: null };
   }
+
   static getDerivedStateFromError(error) {
     return { error };
   }

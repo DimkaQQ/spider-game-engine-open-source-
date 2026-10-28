@@ -12,6 +12,12 @@ import { GAME_WORLD } from "../src/game/scene.js";
 import { COINS } from "../src/game/coins.js";
 import { PLAYER } from "../src/game/player.js";
 
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
 const level = {
   engine: "Spider Engine 0.9.0",
   scene: "GameWorld",

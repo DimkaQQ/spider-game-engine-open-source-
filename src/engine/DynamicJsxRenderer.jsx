@@ -196,6 +196,12 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
             const subFn = new Function(...subKeys, subTransformed);
             subFn(...subValues);
 
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
             if (subModule.exports && !subModule.exports.default) {
               const fnExport = Object.values(subModule.exports).find((v) => typeof v === "function");
               if (fnExport) subModule.exports.default = fnExport;

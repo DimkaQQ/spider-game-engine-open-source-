@@ -17,6 +17,12 @@ const W=v=>[(Math.floor(v/15)-7)*0.5,(v%15-7)*0.5];
 export default function GameComponent(){
 const [tk,setTk]=useState(Array(16).fill(-1));
 const [tn,setTn]=useState(0);const [dc,setDc]=useState(6);const [rl,setRl]=useState(false);const [wn,setWn]=useState(-1);
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
 const can=(i,r)=>{const p=tk[i];if(p===56)return false;if(p===-1)return r===6;return p+r<=56;};
 const anyM=(pl,r)=>{for(let i=pl*4;i<pl*4+4;i++)if(can(i,r))return true;return false;};
 const roll=()=>{if(rl||wn>=0)return;const r=1+Math.floor(Math.random()*6);setDc(r);setRl(true);if(!anyM(tn,r))setTimeout(()=>{setTn((tn+1)%4);setRl(false);},800);};

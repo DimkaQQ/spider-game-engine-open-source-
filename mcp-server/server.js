@@ -104,6 +104,12 @@ server.tool("move_object", { id: z.string(), x: z.number().optional(), y: z.numb
   return { content: [{ type: "text", text: typeof out === "string" ? out : JSON.stringify(out) }] };
 });
 
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
 server.tool("set_visibility", { id: z.string(), visible: z.boolean(), sceneDir: z.string().optional() }, async ({ id, visible, sceneDir }) => {
   const out = await liveOrFile("setVisibility", { id, visible }, () => {
     const { groups, path: p } = loadScene(sceneDir);

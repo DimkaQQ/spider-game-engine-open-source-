@@ -10,6 +10,12 @@
 import React from 'react';
 export function PieceModel({type,color,isSelected}){
 const c=color==='w'?'#f8fafc':'#111827';
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
 const e=isSelected?'#f5c542':'#00000000';
 return <group>
 <mesh position={[0,0.12,0]}><cylinderGeometry args={[0.32,0.36,0.08,16]}/><meshStandardMaterial color={c}/></mesh>

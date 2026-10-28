@@ -25,5 +25,11 @@ export const PRIMITIVE_SHAPES = [
   { id: "shape-chessboard", name: "Chess Board", shape: "chessboard", mesh: "chessboard", category: "Chess", color: "#38bdf8", gradient: "from-sky-500 to-indigo-800" }
 ];
 
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
 // Backwards-compatible alias for any code still expecting ENVIRONMENT_ASSETS
 export const ENVIRONMENT_ASSETS = PRIMITIVE_SHAPES;

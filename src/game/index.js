@@ -7,6 +7,11 @@
  * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
  * ============================================================================
  */
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
 // Spider Engine demo game — all gameplay data in one place.
 export { GAME_WORLD } from "./scene.js";
 export { ENVIRONMENT_ASSETS, PRIMITIVE_SHAPES } from "./assets.js";

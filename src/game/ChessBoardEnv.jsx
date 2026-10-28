@@ -12,7 +12,14 @@ export const FILES=['a','b','c','d','e','f','g','h'];
 export function ChessBoardEnv({selectedSquare,validMoves=[],lastMove,onSquareClick}){
 const v=new Set(validMoves.map(m=>m.to));
 const click=(f,r)=>onSquareClick&&onSquareClick(`${FILES[f]}${8-r}`);
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
 return <group>
+
 <mesh rotation-x={-Math.PI/2} position={[0,-0.55,0]} receiveShadow><planeGeometry args={[30,30]}/><meshStandardMaterial color="#0f172a"/></mesh>
 <mesh position={[0,-0.28,0]} receiveShadow><boxGeometry args={[10.5,0.5,10.5]}/><meshStandardMaterial color="#4a2c17"/></mesh>
 <mesh position={[0,-0.02,0]}><boxGeometry args={[8.6,0.15,8.6]}/><meshStandardMaterial color="#2b1a0e"/></mesh>

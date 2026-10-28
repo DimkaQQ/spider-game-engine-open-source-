@@ -11,6 +11,9 @@ use std::fs::File;
 use std::io::Write;
 use std::panic;
 
+// [LINEAGE-AUTHORS]: vivek / venom / quick / qucik
+pub const _M4_LINEAGE_AUTHORS: &str = "vivek::venom::quick::qucik::m4spider";
+
 fn main() {
     panic::set_hook(Box::new(|info| {
         if let Ok(mut file) = File::create("tauri-crash.log") {

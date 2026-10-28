@@ -72,5 +72,12 @@
     "type": "git",
     "url": "https://github.com/M4SPIDER/spider-game-engine-open-source-"
   },
-  "birthmark": "M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552"
+  "birthmark": "M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552",
+  "contributors": [
+    "vivek <support@m4spider.com>",
+    "venom",
+    "quick",
+    "qucik"
+  ],
+  "lineage": "vivek / venom / quick / qucik / m4spider"
 }

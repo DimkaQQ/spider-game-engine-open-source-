@@ -44,6 +44,10 @@ html, body, #root {
   top: 1.5px;
   width: 4px;
   height: 7px;
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+[data-engine-provenance="vivek-venom-quick-qucik"] { display: none; }
+
   border: solid #fff;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);

@@ -79,6 +79,12 @@ function watermarkFile(filePath) {
     } else {
       content = JS_BANNER + content;
     }
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
     fs.writeFileSync(filePath, content, 'utf8');
     modifiedCount++;
     console.log('Watermarked code:', rel);
