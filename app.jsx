@@ -677,6 +677,14 @@ export default function App() {
     } catch { return null; }
   });
   const activeJsxCodeRef = useRef(null);
+
+  const [activeJsxName, setActiveJsxName] = useState(() => {
+    try {
+      return localStorage.getItem("spider-active-jsx-name") || null;
+    } catch { return null; }
+  });
+  const activeJsxNameRef = useRef(null);
+
   useEffect(() => {
     activeJsxCodeRef.current = activeJsxCode;
     try {
@@ -689,12 +697,6 @@ export default function App() {
     } catch {}
   }, [activeJsxCode, activeJsxName]);
 
-  const [activeJsxName, setActiveJsxName] = useState(() => {
-    try {
-      return localStorage.getItem("spider-active-jsx-name") || null;
-    } catch { return null; }
-  });
-  const activeJsxNameRef = useRef(null);
   useEffect(() => {
     activeJsxNameRef.current = activeJsxName;
     try {
