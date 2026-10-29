@@ -19,3 +19,4 @@ export { COINS, COIN_RULES } from "./coins.js";
 export { PLAYER, physicsFallSpeed } from "./player.js";
 export { MATERIAL_PRESETS, matColor } from "./materials.js";
 export { TUTORIALS } from "./tutorials.js";
+export { default as GameMainMenu } from "./GameMainMenu.jsx";
