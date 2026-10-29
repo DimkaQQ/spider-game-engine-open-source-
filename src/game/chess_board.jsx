@@ -30,7 +30,7 @@ export function BoardSquares({ selected, legalMoves=[], lastMove=null, checkSqua
       const x = (c-3.5); const z = (r-3.5);
       squares.push(
         <group key={key} position={[x,0,z]}>
-          <mesh position={[0,-0.15,0]} onClick={(e)=>{e.stopPropagation(); onSquareClick(r,c);}} onPointerOver={(e)=>{e.stopPropagation(); document.body.style.cursor='pointer';}}>
+          <mesh position={[0,-0.15,0]} onClick={(e)=>{e.stopPropagation(); onSquareClick(r,c);}}>
             <boxGeometry args={[1,0.3,1]} />
             <meshStandardMaterial color={col} roughness={0.55} metalness={0.05} />
           </mesh>
