@@ -85,12 +85,15 @@ import {
   Minimize2,
   Edit3,
   FolderKanban,
+  PanelLeftClose,
+  PanelLeftOpen,
   X
 } from "lucide-react";
 
 
 import { starterWorld } from "../mobile/store.js";
 import "./desktop.css";
+import { SpiderMark, M4Mark } from "./Logo.jsx";
 
 // Default level is a plain starter scene (ground, a few shapes, hero, coins).
 // The full demo world (forest, rocks, water) stays available for the shooter/racing templates.
@@ -667,6 +670,16 @@ export default function App() {
   const [bottomTab, setBottomTab] = useState("Content Browser"); // Content Browser, Console, Build Log
   const [rightTab, setRightTab] = useState("Inspector"); // Inspector, World Settings
   const [activeFolder, setActiveFolder] = useState("3D Shapes");
+  const [railOpen, setRailOpen] = useState(() => {
+    try {
+      const v = localStorage.getItem("spider-rail-open");
+      if (v !== null) return v === "true";
+    } catch {}
+    return typeof window !== "undefined" ? window.innerWidth >= 1280 : true;
+  });
+  useEffect(() => {
+    try { localStorage.setItem("spider-rail-open", String(railOpen)); } catch {}
+  }, [railOpen]);
   const [hierarchyOpen, setHierarchyOpen] = useState(true);
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [bottomLeftOpen, setBottomLeftOpen] = useState(true);
@@ -4474,11 +4487,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         <div className="flex items-center gap-3">
           {/* Spider Engine Shield Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-blue-500 flex items-center justify-center shadow-sm shadow-indigo-500/20">
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
-                <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1 14.5l-3.5-3.5 1.41-1.41L11 13.67l4.59-4.59L17 10.5 11 16.5z" />
-              </svg>
-            </div>
+            <SpiderMark size={28} className="shrink-0" />
             <span className="font-extrabold text-[13px] tracking-wider text-slate-900 whitespace-nowrap shrink-0">
               SPIDER ENGINE
             </span>
@@ -4587,7 +4596,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               title="Convert Game to Executable / Platforms"
             >
               <Zap className="w-3.5 h-3.5 fill-current" />
-              <span>Convert</span>
+              <span className="max-[1099px]:hidden">Convert</span>
               <ChevronDown className={`w-3 h-3 transition-transform ${convertOpen ? "rotate-180" : ""}`} />
             </button>
 
@@ -4680,7 +4689,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 shadow-2xs transition cursor-pointer"
           >
             <Box className={`w-3.5 h-3.5 text-indigo-600 ${isBuilding ? "animate-spin" : ""}`} />
-            <span>{isBuilding ? "Building..." : "Build"}</span>
+            <span className="max-[1099px]:hidden">{isBuilding ? "Building..." : "Build"}</span>
           </button>
 
           <button
@@ -4688,7 +4697,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200 shadow-2xs transition cursor-pointer"
           >
             <Settings className="w-3.5 h-3.5 text-slate-600" />
-            <span>Settings</span>
+            <span className="max-[1099px]:hidden">Settings</span>
           </button>
 
         </div>
@@ -4697,40 +4706,47 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       {/* ==================== MAIN ENGINE BODY ==================== */}
       <div className="flex-1 flex overflow-hidden p-1.5 gap-1.5">
         {/* 1. LEFT VERTICAL NAVIGATION RAIL */}
-        <aside className={`${isMobile ? "hidden" : "flex"} w-12 min-[1280px]:w-44 bg-white/95 rounded-xl border border-slate-200/80 flex-col justify-between py-2 px-1.5 shrink-0 shadow-2xs`}>
-          <div className="space-y-0.5 overflow-y-auto no-scrollbar">
-            {LEFT_RAIL_ITEMS.map((item) => {
-              const IconComponent = item.icon;
-              const isActive = activeLeftRail === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveLeftRail(item.id);
-                    handleRailAction(item.id);
-                  }}
-                  title={item.id}
-                  className={`w-full flex items-center justify-center min-[1280px]:justify-start gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
-                    isActive
-                      ? "bg-gradient-to-r from-indigo-600 to-violet-500 text-white shadow-xs shadow-indigo-500/30"
-                      : "text-slate-600 hover:bg-slate-100"
-                  }`}
-                >
-                  <IconComponent className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-white" : "text-slate-500"}`} />
-                  <span className="hidden min-[1280px]:inline">{item.id}</span>
-                </button>
-              );
-            })}
+        <aside className={`${isMobile ? "hidden" : "flex"} ${railOpen ? "w-44" : "w-[52px]"} transition-[width] duration-200 bg-white/95 rounded-xl border border-slate-200/80 flex-col justify-between py-2 px-1.5 shrink-0 shadow-2xs overflow-hidden`}>
+          <div className="min-h-0 flex flex-col gap-1">
+            <button
+              onClick={() => setRailOpen((v) => !v)}
+              title={railOpen ? "Collapse menu" : "Expand menu"}
+              aria-label={railOpen ? "Collapse menu" : "Expand menu"}
+              aria-expanded={railOpen}
+              className={`w-full flex items-center ${railOpen ? "justify-between px-2.5" : "justify-center"} py-1.5 rounded-lg text-[11px] font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800 cursor-pointer transition`}
+            >
+              {railOpen && <span className="uppercase tracking-wider text-[10px] text-slate-400">Menu</span>}
+              {railOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+            </button>
+            <div className="space-y-0.5 overflow-y-auto no-scrollbar min-h-0">
+              {LEFT_RAIL_ITEMS.map((item) => {
+                const IconComponent = item.icon;
+                const isActive = activeLeftRail === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveLeftRail(item.id);
+                      handleRailAction(item.id);
+                    }}
+                    title={item.id}
+                    aria-label={item.id}
+                    className={`w-full flex items-center ${railOpen ? "justify-start px-2.5" : "justify-center"} gap-2 py-1.5 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
+                      isActive ? "bg-indigo-600 text-white shadow-xs" : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    <IconComponent className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-500"}`} />
+                    {railOpen && <span className="truncate">{item.id}</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Bottom M4 SPIDER Badge */}
-          <div className="pt-2 border-t border-slate-100 flex flex-col items-center justify-center text-center">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-xs mb-0.5">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
-            <span className="text-[9px] font-extrabold tracking-tight text-slate-700">
-              M4 SPIDER
-            </span>
+          {/* Bottom M4 SPIDER badge: full when the menu is open, icon only when collapsed */}
+          <div className={`pt-2 mt-1 border-t border-slate-100 flex items-center ${railOpen ? "justify-start gap-2 px-1.5" : "justify-center"}`}>
+            <M4Mark size={railOpen ? 26 : 28} className="shrink-0" />
+            {railOpen && <span className="text-[10px] font-extrabold tracking-wide text-slate-700 whitespace-nowrap">M4 SPIDER</span>}
           </div>
         </aside>
 
@@ -4747,10 +4763,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     onClick={() => setHierarchyOpen(false)}
                   />
                 )}
-                <section className={`${isMobile ? "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] shadow-2xl" : "w-52 min-[1280px]:w-64"} bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-2xs overflow-hidden`}>
+                <section className={`${isMobile ? "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] shadow-2xl" : "w-52 min-[1280px]:w-64"} @container bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-2xs overflow-hidden`}>
                 {/* Header Dual Tab: Hierarchy vs Scripts */}
-                <div className="px-2 py-1.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                  <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-semibold">
+                <div className="px-2 py-1.5 border-b border-slate-100 flex items-center justify-between gap-1 bg-slate-50/70">
+                  <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-semibold min-w-0">
                     <button
                       onClick={() => setLeftPanelTab("hierarchy")}
                       className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition cursor-pointer ${
@@ -4758,7 +4774,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       }`}
                     >
                       <Box className="w-3 h-3" />
-                      <span>Scene</span>
+                      <span className="@max-[230px]:hidden">Scene</span>
                     </button>
                     <button
                       onClick={() => setLeftPanelTab("scripts")}
@@ -4767,11 +4783,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       }`}
                     >
                       <Code2 className="w-3 h-3" />
-                      <span>Scripts ({projectScriptFiles.length})</span>
+                      <span className="@max-[230px]:hidden">Scripts</span><span className="text-[10px] text-slate-400 font-mono">{projectScriptFiles.length}</span>
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-0.5">
+                  <div className="flex items-center gap-0.5 shrink-0">
                     {leftPanelTab === "hierarchy" ? (
                       <>
                         <button
@@ -4837,13 +4853,13 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     {/* Search Input */}
                     <div className="p-2 border-b border-slate-100">
                       <div className="flex items-center gap-1.5 bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200/60">
-                        <Search className="w-3 h-3 text-slate-400" />
+                        <Search className="w-3 h-3 text-slate-400 shrink-0" />
                         <input
                           type="text"
                           placeholder="Search objects..."
                           value={hierarchySearch}
                           onChange={(e) => setHierarchySearch(e.target.value)}
-                          className="bg-transparent text-[11px] w-full focus:outline-none text-slate-700"
+                          className="bg-transparent text-[11px] w-full min-w-0 focus:outline-none text-slate-700"
                         />
                       </div>
                     </div>
@@ -5188,7 +5204,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             ) : null}
 
             {/* CENTER 3D VIEWPORT PANEL */}
-            <section ref={viewportRef} className="flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative">
+            <section ref={viewportRef} className="flex-1 min-w-0 @container bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative">
               {/* Viewport Top Tab Bar: Shown on both mobile and desktop (only hidden in Env Mode) */}
               {!isEnvMode && (
                 <div className="h-9 px-2 sm:px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0 select-none">
@@ -5214,8 +5230,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                                 : "text-slate-500 hover:text-slate-800"
                             }`}
                           >
-                            <Icon className="w-3.5 h-3.5" />
-                            <span>{tab.id}</span>
+                            <Icon className="w-3.5 h-3.5 shrink-0" />
+                            <span className="@max-[600px]:hidden">{tab.id}</span>
                           </button>
                         );
                       })
@@ -6059,10 +6075,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     onClick={() => setBottomLeftOpen(false)}
                   />
                 )}
-                <section className={`${isMobile ? "fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-2xl shadow-2xl" : "flex-[1.65] rounded-xl"} bg-white/95 border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden`}>
+                <section className={`${isMobile ? "fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-2xl shadow-2xl" : "flex-[1.65] rounded-xl"} @container min-w-0 bg-white/95 border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden`}>
               {/* Top Tabs + Action Buttons */}
-              <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-1">
+              <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
+                <div className="flex items-center gap-1 min-w-0">
                   {[
                     { id: "Content Browser", icon: Folder },
                     { id: "Build Log", icon: FileText }
@@ -6079,8 +6095,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                             : "text-slate-500 hover:text-slate-800"
                         }`}
                       >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span>{t.id}</span>
+                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                        <span className="@max-[520px]:hidden">{t.id}</span>
                       </button>
                     );
                   })}
@@ -6090,37 +6106,37 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer text-slate-500 hover:text-slate-800"
                   >
                     <Terminal className="w-3.5 h-3.5" />
-                    <span>Console →</span>
+                    <span className="@max-[620px]:hidden">Console →</span>
                   </button>
                 </div>
 
                 {/* Search Assets */}
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/60 w-44">
-                    <Search className="w-3 h-3 text-slate-400" />
+                <div className="flex items-center gap-2 min-w-0 shrink">
+                  <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/60 w-44 min-w-[96px] shrink">
+                    <Search className="w-3 h-3 text-slate-400 shrink-0" />
                     <input
                       type="text"
                       placeholder="Search assets..."
                       value={assetSearch}
                       onChange={(e) => setAssetSearch(e.target.value)}
-                      className="bg-transparent text-[11px] w-full focus:outline-none text-slate-700"
+                      className="bg-transparent text-[11px] w-full min-w-0 focus:outline-none text-slate-700"
                     />
                   </div>
-                  <Grid className="w-3.5 h-3.5 text-slate-400" />
+                  <Grid className="w-3.5 h-3.5 text-slate-400 shrink-0 @max-[420px]:hidden" />
                   <button onClick={() => setBottomLeftOpen(false)} title="Hide panel (press B to reopen)" className="text-slate-400 hover:text-slate-700 text-xs cursor-pointer px-1 rounded hover:bg-slate-100">×</button>
                 </div>
               </div>
 
               {/* Action Sub-bar */}
-              <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between text-[11px] bg-slate-50/40 shrink-0">
-                <div className="flex items-center gap-1.5">
+              <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between gap-2 text-[11px] bg-slate-50/40 shrink-0">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <button
                     onClick={() => handleSpawnAsset({ name: "Box", mesh: "box", category: "Primitive", tint: "#6366f1" })}
                     title={`Spawn 3D Box primitive into ${sceneLabel}`}
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-md border border-slate-200 shadow-2xs cursor-pointer"
                   >
                     <Plus className="w-3 h-3 text-indigo-600" />
-                    <span>Add Shape</span>
+                    <span className="@max-[560px]:hidden">Add Shape</span>
                   </button>
                   <button
                     onClick={() => importFileRef.current?.click()}
@@ -6128,7 +6144,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-md border border-slate-200 shadow-2xs cursor-pointer"
                   >
                     <Download className="w-3 h-3 text-slate-500" />
-                    <span>Import</span>
+                    <span className="@max-[560px]:hidden">Import</span>
                   </button>
                   <button
                     onClick={() => { folderModeRef.current = "import"; folderInputRef.current?.click(); }}
@@ -6136,7 +6152,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-md border border-slate-200 shadow-2xs cursor-pointer"
                   >
                     <FolderOpen className="w-3 h-3 text-indigo-500" />
-                    <span>Folder</span>
+                    <span className="@max-[560px]:hidden">Folder</span>
                   </button>
                   <input ref={folderInputRef} type="file" className="hidden" onChange={(e) => { handleImportFolder(e.target.files); e.target.value = ""; }} />
                   <button
@@ -6145,17 +6161,17 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-semibold rounded-md border border-slate-200 shadow-2xs cursor-pointer"
                   >
                     <Save className="w-3 h-3 text-slate-500" />
-                    <span>Save All</span>
+                    <span className="@max-[560px]:hidden">Save All</span>
                   </button>
 
                   {/* Breadcrumbs */}
-                  <div className="flex items-center gap-1 text-slate-500 ml-3 font-medium">
+                  <div className="flex items-center gap-1 text-slate-500 ml-3 font-medium whitespace-nowrap @max-[640px]:hidden">
                     <span>Assets</span>
                     <ChevronRight className="w-3 h-3" />
                     <span className="text-slate-800 font-semibold">{activeFolder}</span>
                   </div>
                 </div>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[10px] text-slate-400 whitespace-nowrap truncate min-w-0 @max-[820px]:hidden">
                   Click any asset to spawn into {sceneLabel}
                 </span>
               </div>
@@ -6350,14 +6366,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
             {/* CONSOLE LOGGER PANEL */}
             {consoleOpen ? (
-            <section className="flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden">
-              <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <section className="flex-1 @container min-w-0 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden">
+              <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200/60">
                   <Terminal className="w-3.5 h-3.5" />
-                  <span>Console</span>
+                  <span className="@max-[230px]:hidden">Console</span>
                 </div>
 
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <select
                     value={consoleFilter}
                     onChange={(e) => setConsoleFilter(e.target.value)}
@@ -6418,10 +6434,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <input
                   ref={consoleInputRef}
                   type="text"
-                  placeholder="Enter command... (e.g. help, spawn castle, stat fps, time 15)"
+                  placeholder="Command (try: help)"
                   value={consoleInput}
                   onChange={(e) => setConsoleInput(e.target.value)}
-                  className="flex-1 text-[11px] px-2.5 py-1 bg-slate-100/80 rounded-lg border border-slate-200/70 focus:outline-none focus:border-indigo-400"
+                  className="flex-1 min-w-0 text-[11px] px-2.5 py-1 bg-slate-100/80 rounded-lg border border-slate-200/70 focus:outline-none focus:border-indigo-400"
                 />
                 <button
                   type="submit"
@@ -6526,7 +6542,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
           </div>
 
           {rightTab === "Inspector" && selectedNode ? (
-            <fieldset disabled={isPlaying} className="flex-1 overflow-y-auto p-3 space-y-3 text-xs min-w-0">
+            <fieldset disabled={isPlaying} className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-3 text-xs min-w-0">
               {isPlaying && (
                 <div className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
                   Locked in Play — Stop to edit. Click objects to inspect.

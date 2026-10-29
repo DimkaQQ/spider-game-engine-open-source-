@@ -16,3 +16,7 @@
 .sp-desk textarea { font-size: inherit; min-width: 0; }
 .sp-desk input[type="number"],
 .sp-desk input[type="text"] { text-overflow: ellipsis; }
+
+/* no side scrollbars anywhere in the editor; wheel / touchpad / drag still scroll */
+.sp-desk * { scrollbar-width: none; -ms-overflow-style: none; }
+.sp-desk *::-webkit-scrollbar { display: none; width: 0; height: 0; }

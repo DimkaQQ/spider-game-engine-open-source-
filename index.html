@@ -12,7 +12,8 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0f19" />
     <meta name="color-scheme" content="light dark" />
-    <link rel="icon" type="image/png" href="./icon.png" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="./icon.png" />
     <title>Spider Engine v0.9.0</title>
     <!-- [LINEAGE-AUTHORS]: vivek / venom / quick / qucik -->
     <meta name="engine-provenance" content="vivek / venom / quick / qucik / m4spider" />
@@ -53,7 +54,7 @@
         width: 64px;
         height: 64px;
         border-radius: 16px;
-        background: #17181b;
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -102,11 +103,7 @@
   <body>
     <div id="root">
       <div class="engine-boot-loader">
-        <div class="engine-boot-icon">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="#ffffff">
-            <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1 14.5l-3.5-3.5 1.41-1.41L11 13.67l4.59-4.59L17 10.5 11 16.5z"/>
-          </svg>
-        </div>
+        <div class="engine-boot-icon"><svg width="64" height="64" viewBox="0 0 32 32"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#312e81"/><stop offset="1" stop-color="#0f172a"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#bg)"/><g fill="none" stroke="#e0e7ff" stroke-width="1.5" stroke-linecap="round"><path d="M13.2 12.6C9.4 7.8 6 8 4 11"/><path d="M12.6 15C8.6 12.8 5.2 14 3.6 17.4"/><path d="M12.6 18C8.4 18 5.6 20 4.6 24"/><path d="M13.6 21C11 22.4 9.2 25 9.2 28.2"/><path d="M18.8 12.6C22.6 7.8 26 8 28 11"/><path d="M19.4 15C23.4 12.8 26.8 14 28.4 17.4"/><path d="M19.4 18C23.6 18 26.4 20 27.4 24"/><path d="M18.4 21C21 22.4 22.8 25 22.8 28.2"/></g><ellipse cx="16" cy="19" rx="4.1" ry="5.3" fill="#e0e7ff"/><circle cx="16" cy="12.2" r="2.7" fill="#e0e7ff"/><circle cx="14.9" cy="11.8" r=".7" fill="#4f46e5"/><circle cx="17.1" cy="11.8" r=".7" fill="#4f46e5"/><path d="M16 15.2V22.5" stroke="#6366f1" stroke-width="1.2" stroke-linecap="round"/></svg></div>
         <div class="engine-boot-title">SPIDER ENGINE</div>
         <div class="engine-boot-sub">INITIALIZING WORKSPACE…</div>
         <div class="engine-boot-progress"><div class="engine-boot-bar"></div></div>
