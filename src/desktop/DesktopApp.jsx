@@ -1110,7 +1110,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     currentGoalRef.current = raw;
     if (!metaKeyRef.current) {
       setAiThinking(false);
-      say("Spider AI requires a Meta API key. Please enter your API key in Settings > AI & Keys.", false);
+      say("The AI assistant requires a Meta API key. Please enter your API key in Settings > AI & Keys.", false);
       setAiPrompt("");
       return;
     }
@@ -1327,7 +1327,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const [activeQuery, setActiveQuery] = useState("");
   const say = (t, ok = true, extra = {}) => {
     setAiAnswer(t);
-    const qText = activeQuery || currentGoalRef.current || "Spider AI";
+    const qText = activeQuery || currentGoalRef.current || "AI";
     pushMsg(qText, t, ok, extra);
     setActiveQuery("");
     setAiThinking(false);
@@ -1556,7 +1556,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       metaKeyRef.current = v;
       setMetaKeyInput("");
       setMetaKeySet(true);
-      appendLog("Success", "Meta API key stored securely — Spider AI chat unlocked");
+      appendLog("Success", "Meta API key stored securely — AI chat unlocked");
       fetchMetaModels(v).then((ids) => {
         if (ids.length > 0) appendLog("Success", `Meta key supports ${ids.length} model${ids.length > 1 ? "s" : ""} — swap anytime in Ask AI or AI & Keys`);
         else appendLog("Warning", "Meta key saved, but model list fetch failed — check key, model field stays manual");
@@ -1581,7 +1581,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const turns = msgs.map((m) => ({ q: String(m.q).replace(/^📎 /, ""), a: String(m.a) }));
     let historyBlock = "";
     for (const t of turns) {
-      historyBlock += `User: ${t.q}\nSpider AI: ${t.a}\n`;
+      historyBlock += `User: ${t.q}\nAssistant: ${t.a}\n`;
     }
     const actors = (sceneGroups || []).flatMap((g) => g?.children || []);
     const live = `LIVE SCENE: ${actors.length} actors; selected=${selectedNodeId}; score=${score}; coinsLeft=${coins.filter((c) => !c.taken).length}; time=${timeOfDay.toFixed(1)}h; playing=${isPlaying}.`;
@@ -1613,7 +1613,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     }, 0);
     if (total <= maxChars) return list;
 
-    const sys = list.find((m) => m.role === "system") || { role: "system", content: "You are Spider AI." };
+    const sys = list.find((m) => m.role === "system") || { role: "system", content: "You are a game-building assistant." };
     const firstUser = list.find((m) => m.role === "user") || { role: "user", content: "Build game." };
     const rest = list.filter((m) => m !== sys && m !== firstUser);
 
@@ -1633,7 +1633,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const key = sanitizeKey(metaKeyRef.current);
     if (!key) return null;
     let chosenModel = opts.model || metaModel || modelChoices[0] || "muse-spark-1.3";
-    const sys = opts.system || `You are Spider AI, the master game architect and developer inside Spider Engine (React + Three.js). The current project is "${sceneLabel}"${currentProject?.root ? ` located at ${currentProject.root}` : ""}. You have complete capability to write multiple modular JavaScript game code files, compose rich 3D scenes, orchestrate physics, design mechanics, and build entire games. Be thorough, creative, and write real production code without artificial limits.`;
+    const sys = opts.system || `You are the master game architect and developer inside Spider Engine (React + Three.js). The current project is "${sceneLabel}"${currentProject?.root ? ` located at ${currentProject.root}` : ""}. You have complete capability to write multiple modular JavaScript game code files, compose rich 3D scenes, orchestrate physics, design mechanics, and build entire games. Be thorough, creative, and write real production code without artificial limits.`;
     const { historyBlock, live } = buildLlamaContext();
     const rawMessages = opts.messages || [
       { role: "system", content: `${sys}\n\n${(historyBlock ? historyBlock + "\n" : "") + live}` },
@@ -1878,10 +1878,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     }
   };
   const buildSnakesGame = () => {
-    appendLog("Info", "Prebuilt snakes game disabled. Ask Muse / Spider AI to create a custom 3D game!");
+    appendLog("Info", "Prebuilt snakes game disabled. Ask the AI to create a custom 3D game!");
   };
   const buildChessGame = (force = true) => {
-    appendLog("Info", "Prebuilt chess game disabled. Ask Muse / Spider AI to create a custom 3D game!");
+    appendLog("Info", "Prebuilt chess game disabled. Ask the AI to create a custom 3D game!");
   };
 
   const chessMoveHighlights = { targets: [], captures: [] };
@@ -5885,7 +5885,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   <button
                     onClick={() => setOpenMenu("AskAI")}
                     className={`absolute ${(isPlaying || activeJsxCode) ? "bottom-24" : "bottom-6"} right-5 z-40 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:brightness-110 text-white font-bold px-4 py-3 rounded-full shadow-2xl shadow-emerald-500/50 flex items-center gap-2 active:scale-95 transition border border-white/30 cursor-pointer select-none`}
-                    title="Open Spider AI Chat"
+                    title="Open AI Chat"
                   >
                     <Sparkles className="w-4 h-4 text-yellow-300" />
                     <span className="text-xs font-extrabold tracking-wide">Ask AI</span>
@@ -7063,7 +7063,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <button onClick={newChat} title="New chat" className="p-1 rounded text-slate-400 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer">
                   <Plus className="w-3.5 h-3.5" />
                 </button>
-                <span className="font-extrabold text-[13px]">Spider AI</span>
+                <span className="font-extrabold text-[13px]">AI Assistant</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {isMobile && (
@@ -7714,7 +7714,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   <div className="max-w-md space-y-3 text-slate-600">
                     <div>Ask AI router: <span className="font-semibold text-emerald-700">Auto</span> — answers, acts, asks before delete.</div>
                     <div className="rounded-xl border border-slate-200 p-3 space-y-2 bg-slate-50/60">
-                      <div className="font-bold text-slate-800 text-[12px]">Meta API key — encrypted, chat with Spider AI</div>
+                      <div className="font-bold text-slate-800 text-[12px]">Meta API key — encrypted, chat with the AI assistant</div>
                       {metaKeySet ? (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-[11px]">

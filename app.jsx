@@ -9,7 +9,7 @@
  * The full engine, reshaped for one hand and a thumb:
  *   Studio  live viewport, transform tools, play with a virtual stick
  *   Scene   hierarchy + asset library, search, per-object actions
- *   AI      Spider AI agent (Meta Model API), steerable mid-run
+ *   AI      game-building agent on the Meta Model API, steerable mid-run
  *   Code    multi-file editor with a code-key row, render to viewport
  *   More    projects, console, settings, licenses
  * Inspector and View live in bottom sheets so the viewport never gets covered

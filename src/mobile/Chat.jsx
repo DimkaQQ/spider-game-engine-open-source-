@@ -116,7 +116,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
               <Bot size={26} />
             </span>
             <h2>What are we building?</h2>
-            <p>Describe a game. Spider AI writes the code, mounts it in the viewport and checks it for errors.</p>
+            <p>Describe a game. The assistant writes the code, mounts it in the viewport and checks it for errors.</p>
             {!metaKey && (
               <button type="button" className="sp-keycard" onClick={onOpenSettings}>
                 <KeyRound size={18} />

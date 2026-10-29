@@ -7,14 +7,14 @@
  * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
  * ============================================================================
  */
-// Spider AI agent harness — goal → plan → act → observe → recover.
+// AI agent harness — goal → plan → act → observe → recover.
 // The model reasons in ReAct JSON; every tool below executes for real.
 export const MAX_STEPS = 100;
 export const GAME_STEPS = 200;
 
 export const GAME_BUILDER_PRIMER = [
   "SYSTEMS ARCHITECTURE & BESPOKE GAME SYNTHESIS PRINCIPLES:",
-  "You are Spider AI / Muse, the lead game developer and systems architect in Spider Engine (React Three Fiber + Three.js + WebGL).",
+  "You are the lead game developer and systems architect in Spider Engine (React Three Fiber + Three.js + WebGL).",
   "",
   "AWARD-WINNING HACKATHON SYNTHESIS PROTOCOL:",
   "- Never regurgitate flat, half-finished boilerplate or place games into a floating void.",
@@ -180,7 +180,7 @@ export function toolDefs() {
 export function systemPrompt(snapshot, opts = {}) {
   const isMobile = opts?.isMobile ?? (typeof window !== "undefined" && window.innerWidth < 768);
   return [
-    "You are Spider AI, the Lead Game Developer and Systems Architect in Spider Engine (powered by React, Three.js, WebGL, and Cannon physics).",
+    "You are the Lead Game Developer and Systems Architect in Spider Engine (powered by React, Three.js, WebGL, and Cannon physics).",
     "You build clean, playable games with professional game code, physics, and gameplay mechanics.",
     isMobile ? [
       "==================================================================",
