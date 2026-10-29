@@ -3538,13 +3538,13 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const DEFAULT_UI = { hierarchyOpen: true, inspectorOpen: true, bottomLeftOpen: true, consoleOpen: true, viewportTab: "Title Menu", bottomTab: "Content Browser", rightTab: "Inspector" };
   const applyUi = (ui) => {
     const u = { ...DEFAULT_UI, ...(ui || {}) };
-    setHierarchyOpen(u.hierarchyOpen);
-    setInspectorOpen(u.inspectorOpen);
-    setBottomLeftOpen(u.bottomLeftOpen);
-    setConsoleOpen(u.consoleOpen);
-    setViewportTab(u.viewportTab);
-    setBottomTab(u.bottomTab);
-    setRightTab(u.rightTab);
+    setHierarchyOpen(true);
+    setInspectorOpen(true);
+    setBottomLeftOpen(true);
+    setConsoleOpen(true);
+    setViewportTab(u.viewportTab || "Title Menu");
+    setBottomTab(u.bottomTab || "Content Browser");
+    setRightTab(u.rightTab || "Inspector");
   };
   // Persist the live layout into the current project only (others untouched)
   useEffect(() => {
@@ -5209,9 +5209,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     {!isMobile ? (
                       [
                         { id: "Viewport", icon: Box },
+                        { id: "Cinematic", icon: Film },
                         { id: "Game View", icon: Gamepad2 },
-                        { id: "Title Menu", icon: Sparkles },
-                        { id: "Cinematic", icon: Film }
+                        { id: "Title Menu", icon: Sparkles }
                       ].map((tab) => {
                         const Icon = tab.icon;
                         const active = viewportTab === tab.id;
@@ -5530,7 +5530,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 )}
 
                 {viewportTab === "Title Menu" && (
-                  <div className="absolute inset-0 z-30 bg-black">
+                  <div className="absolute inset-0 z-30 bg-black overflow-hidden">
                     <GameMainMenu
                       onLaunchGame={() => {
                         setViewportTab("Game View");

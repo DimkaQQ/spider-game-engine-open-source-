@@ -208,25 +208,35 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
     let animationFrameId;
     let startTime = performance.now();
 
-    const handleResize = () => {
+    const updateSize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = canvas.parentElement ? canvas.parentElement.clientWidth : window.innerWidth;
-      const h = canvas.parentElement ? canvas.parentElement.clientHeight : window.innerHeight;
-      canvas.width = w * dpr;
-      canvas.height = h * dpr;
-      ctx.scale(dpr, dpr);
+      const parent = canvas.parentElement;
+      const w = parent ? parent.clientWidth : 640;
+      const h = parent ? parent.clientHeight : 360;
+      if (w > 0 && h > 0) {
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
     };
 
-    handleResize();
-    window.addEventListener('resize', handleResize);
+    updateSize();
+    window.addEventListener('resize', updateSize);
+
+    let resizeObs;
+    if (typeof ResizeObserver !== 'undefined' && canvas.parentElement) {
+      resizeObs = new ResizeObserver(updateSize);
+      resizeObs.observe(canvas.parentElement);
+    }
 
     const render = (now) => {
       const elapsed = (now - startTime) * 0.001;
-      const w = canvas.parentElement ? canvas.parentElement.clientWidth : window.innerWidth;
-      const h = canvas.parentElement ? canvas.parentElement.clientHeight : window.innerHeight;
+      const parent = canvas.parentElement;
+      const w = parent ? parent.clientWidth : 640;
+      const h = parent ? parent.clientHeight : 360;
       const data = sceneDataRef.current;
 
-      if (!data) {
+      if (!data || w <= 0 || h <= 0) {
         animationFrameId = requestAnimationFrame(render);
         return;
       }
@@ -693,12 +703,13 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
     animationFrameId = requestAnimationFrame(render);
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', updateSize);
+      if (resizeObs) resizeObs.disconnect();
     };
   }, [mousePos, bokehIntensity]);
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
       <canvas ref={canvasRef} className="w-full h-full block" />
       {customBgUrl && (
         <div
@@ -721,14 +732,14 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
 
 // Glowing 4-Pointed Star Diamond Indicator next to active menu item
 const ActiveStarIndicator = () => (
-  <div className="relative flex items-center justify-center w-6 h-6 mr-3 shrink-0">
+  <div className="relative flex items-center justify-center w-4 h-4 mr-2 shrink-0">
     {/* Outer warm flare */}
-    <div className="absolute w-7 h-7 rounded-full bg-amber-300/35 blur-md animate-pulse" />
+    <div className="absolute w-5 h-5 rounded-full bg-amber-300/35 blur-md animate-pulse" />
     {/* Horizontal & vertical light rays */}
-    <div className="absolute w-7 h-[1.5px] bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
-    <div className="absolute h-7 w-[1.5px] bg-gradient-to-b from-transparent via-amber-200 to-transparent" />
+    <div className="absolute w-5 h-[1.2px] bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
+    <div className="absolute h-5 w-[1.2px] bg-gradient-to-b from-transparent via-amber-200 to-transparent" />
     {/* Crisp 4-point diamond star SVG */}
-    <svg viewBox="0 0 24 24" className="w-4 h-4 relative z-10 drop-shadow-[0_0_6px_rgba(255,220,130,0.95)]">
+    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 relative z-10 drop-shadow-[0_0_6px_rgba(255,220,130,0.95)]">
       <path
         d="M12 1 L14.8 9.2 L23 12 L14.8 14.8 L12 23 L9.2 14.8 L1 12 L9.2 9.2 Z"
         fill="#fffbeb"
@@ -987,7 +998,7 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
   return (
     <div
       onMouseMove={handleMouseMove}
-      className="relative w-full h-full min-h-[500px] overflow-hidden bg-[#03070e] text-stone-100 select-none font-sans"
+      className="relative w-full h-full min-h-0 overflow-hidden bg-[#03070e] text-stone-100 select-none font-sans"
     >
       {/* Google Fonts Injection for authentic distressed title & classic serif UI typography */}
       <style>{`
@@ -1031,38 +1042,38 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
       {/* 2. MAIN HUD OVERLAY (Hidden smoothly when inside Photo Mode) */}
       <div
         style={{ opacity: isPhotoMode ? 0 : settings.hudOpacity / 100 }}
-        className={`relative z-10 w-full h-full flex flex-col justify-between px-7 py-6 sm:px-14 sm:py-10 transition-all duration-500 ${
+        className={`relative z-10 w-full h-full flex flex-col justify-between p-2 sm:p-3 transition-all duration-500 overflow-hidden ${
           isPhotoMode ? 'pointer-events-none scale-105' : 'scale-100'
         }`}
       >
         {/* TOP BAR: Sound Toggle & Top-Right Player Profile Badge ("Wayfarer Level 12") */}
-        <div className="flex items-start justify-between w-full">
+        <div className="flex items-start justify-between w-full shrink-0">
           {/* Subtle Audio/Custom BG Quick Bar */}
-          <div className="flex items-center space-x-3 opacity-60 hover:opacity-100 transition-opacity">
+          <div className="flex items-center space-x-2 opacity-75 hover:opacity-100 transition-opacity">
             <button
               onClick={toggleMute}
               title={soundMuted ? 'Unmute UI Audio' : 'Mute UI Audio'}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-black/40 border border-white/10 text-xs text-stone-300 hover:border-[#d4af37]/60 hover:text-white transition"
+              className="flex items-center space-x-1.5 px-2 py-0.5 rounded bg-black/50 border border-white/10 text-[10px] text-stone-300 hover:border-[#d4af37]/60 hover:text-white transition cursor-pointer"
             >
-              {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-amber-400" /> : <Volume2 className="w-3.5 h-3.5 text-amber-400" />}
-              <span className="aaa-serif tracking-wider text-[10px] uppercase">{soundMuted ? 'Audio Muted' : 'UI SFX On'}</span>
+              {soundMuted ? <VolumeX className="w-3 h-3 text-amber-400" /> : <Volume2 className="w-3 h-3 text-amber-400" />}
+              <span className="aaa-serif tracking-wider text-[9px] uppercase">{soundMuted ? 'Muted' : 'SFX On'}</span>
             </button>
           </div>
 
-          {/* TOP-RIGHT PLAYER BADGE (Exact match to reference image) */}
+          {/* TOP-RIGHT PLAYER BADGE */}
           <div
             onClick={() => {
               sfx.playSelect();
               showToast('Wayfarer Profile • 34h 18m Played • Knowledge Park District');
             }}
-            className="cursor-pointer group flex items-center space-x-3.5 px-4 py-2 bg-gradient-to-r from-[#090d14]/90 via-[#0d131d]/90 to-[#090d14]/75 border border-white/10 hover:border-[#d4af37]/50 rounded-sm shadow-[0_8px_30px_rgba(0,0,0,0.8)] backdrop-blur-md transition-all"
+            className="cursor-pointer group flex items-center space-x-2 px-2.5 py-1 bg-gradient-to-r from-[#090d14]/90 via-[#0d131d]/90 to-[#090d14]/75 border border-white/10 hover:border-[#d4af37]/50 rounded-sm shadow-md backdrop-blur-md transition-all"
           >
             <WayfarerCrestSVG />
-            <div className="flex flex-col pr-3">
-              <span className="aaa-body-serif text-stone-100 font-semibold text-base sm:text-lg leading-tight tracking-wide group-hover:text-amber-200 transition-colors">
+            <div className="flex flex-col pr-0.5">
+              <span className="aaa-body-serif text-stone-100 font-semibold text-xs leading-tight tracking-wide group-hover:text-amber-200 transition-colors">
                 Wayfarer
               </span>
-              <span className="aaa-body-serif text-[#d4a953] text-xs sm:text-sm tracking-wider font-medium">
+              <span className="aaa-body-serif text-[#d4a953] text-[9px] tracking-wider font-medium">
                 Level 12
               </span>
             </div>
@@ -1070,27 +1081,29 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
         </div>
 
         {/* CENTER-LEFT TITLE & MENU NAVIGATION */}
-        <div className="flex flex-col justify-center my-auto max-w-xl pl-1 sm:pl-4">
+        <div className="flex flex-col justify-center my-auto max-w-xs pl-1 sm:pl-2">
           {/* DISTRESSED BLOCK TITLE: "TRY UR BEST" */}
           <div className="select-none">
             <h1
-              style={{ filter: 'url(#grunge-roughness) drop-shadow(0 8px 24px rgba(0,0,0,0.95))' }}
-              className="aaa-title-distressed text-5xl sm:text-7xl md:text-[5.1rem] font-bold uppercase leading-none tracking-tight"
+              style={{ filter: 'url(#grunge-roughness) drop-shadow(0 4px 12px rgba(0,0,0,0.95))' }}
+              className="aaa-title-distressed text-xl sm:text-2xl font-bold uppercase leading-none tracking-tight"
             >
               TRY UR BEST
             </h1>
 
             {/* Ornate Center Star Line Divider */}
-            <TitleOrnateDivider />
+            <div className="my-0.5 scale-75 origin-left">
+              <TitleOrnateDivider />
+            </div>
 
             {/* Subtitle: "AN OPEN WORLD ADVENTURE" */}
-            <p className="aaa-serif text-[#c7a667] text-xs sm:text-[13.5px] tracking-[0.26em] uppercase font-medium pl-1 mb-7 drop-shadow">
+            <p className="aaa-serif text-[#c7a667] text-[8.5px] sm:text-[9.5px] tracking-[0.2em] uppercase font-medium pl-0.5 mb-1 drop-shadow">
               AN OPEN WORLD ADVENTURE
             </p>
           </div>
 
           {/* VERTICAL MENU ITEMS */}
-          <nav aria-label="Main Game Menu" className="flex flex-col space-y-1.5 w-full max-w-[340px]">
+          <nav aria-label="Main Game Menu" className="flex flex-col space-y-0.5 w-full max-w-[220px] sm:max-w-[250px]">
             {menuItems.map((item, idx) => {
               const isSelected = selectedIndex === idx;
               return (
@@ -1103,30 +1116,27 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
                     }
                   }}
                   onClick={() => handleTriggerItem(idx)}
-                  className={`group relative flex items-center text-left py-2.5 px-3 transition-all duration-200 focus:outline-none ${
-                    isSelected ? 'pl-2' : 'pl-6 hover:pl-7'
+                  className={`group relative flex items-center text-left py-0.5 px-2 transition-all duration-150 focus:outline-none cursor-pointer ${
+                    isSelected ? 'pl-1.5' : 'pl-3.5 hover:pl-4'
                   }`}
                 >
-                  {/* Active Golden Horizontal Gradient Highlight Banner with Top & Bottom Hairline Borders */}
+                  {/* Active Golden Horizontal Gradient Highlight Banner */}
                   {isSelected && (
                     <div className="absolute inset-0 pointer-events-none">
-                      {/* Soft warm background sweep */}
                       <div className="w-full h-full bg-gradient-to-r from-[#d4a94e]/25 via-[#b58932]/12 to-transparent" />
-                      {/* Top gold gradient hairline */}
                       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#f3d285]/70 to-transparent" />
-                      {/* Bottom gold gradient hairline */}
                       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#f3d285]/70 to-transparent" />
                     </div>
                   )}
 
-                  {/* Glowing 4-Pointed Star Indicator on Active Item */}
+                  {/* Glowing 4-Pointed Star Indicator */}
                   {isSelected && <ActiveStarIndicator />}
 
                   {/* Menu Item Text */}
                   <span
-                    className={`aaa-serif relative z-10 text-sm sm:text-[15.5px] tracking-[0.16em] uppercase transition-all duration-200 ${
+                    className={`aaa-serif relative z-10 text-[10.5px] sm:text-[11.5px] tracking-[0.12em] uppercase transition-all duration-150 ${
                       isSelected
-                        ? 'text-[#fff8e7] font-semibold drop-shadow-[0_0_10px_rgba(255,215,130,0.6)]'
+                        ? 'text-[#fff8e7] font-semibold drop-shadow-[0_0_8px_rgba(255,215,130,0.6)]'
                         : 'text-stone-300/80 font-normal group-hover:text-stone-100'
                     }`}
                   >
@@ -1138,77 +1148,79 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
           </nav>
 
           {/* Bottom-Left Delicate Gold Filigree Lines */}
-          <BottomGoldFiligree />
+          <div className="mt-0.5 scale-65 origin-left">
+            <BottomGoldFiligree />
+          </div>
         </div>
 
-        {/* BOTTOM BAR: Welcome Adventurer Card & [ESC] BACK Prompt */}
-        <div className="flex flex-col items-end justify-end ml-auto space-y-3.5 mt-4">
-          {/* WELCOME, ADVENTURER CARD */}
-          <div
-            onClick={() => {
-              sfx.playSelect();
-              showToast('Thank you for playing Try Ur Best: Open World Edition!');
-            }}
-            className="group relative cursor-pointer flex items-center justify-between w-full sm:w-[390px] px-6 py-4 bg-gradient-to-r from-[#080d15]/95 via-[#0d1624]/90 to-[#111c2d]/90 border border-white/10 hover:border-[#d4af37]/45 rounded-sm shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-md transition-all"
-          >
-            {/* Left Content */}
-            <div className="flex flex-col pr-4 space-y-1">
-              <h3 className="aaa-serif text-[#d8b162] text-xs sm:text-[13px] tracking-[0.14em] uppercase font-semibold">
-                WELCOME, ADVENTURER
-              </h3>
-              <p className="aaa-body-serif text-stone-300/90 text-sm sm:text-[15px] leading-snug">
-                Thank you for being part of our journey. Your legend begins now.
-              </p>
-            </div>
-
-            {/* Right Compass Rose Emblem */}
-            <CompassRoseSVG />
-
-            {/* Bottom Center Gold Diamond Accent on Card Border */}
-            <div className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-40 h-[1px] bg-gradient-to-r from-transparent via-[#e2bf75] to-transparent flex items-center justify-center">
-              <span className="w-1.5 h-1.5 rotate-45 bg-[#f7dfa4] shadow-[0_0_6px_#f7dfa4]" />
-            </div>
+        {/* BOTTOM BAR: Welcome Adventurer Card & [ESC] Prompt */}
+        <div className="flex items-end justify-between w-full mt-auto shrink-0 pt-1">
+          <div className="text-[9px] text-stone-500 font-mono tracking-wider">
+            [W/S/↑↓] NAVIGATE • [ENTER] SELECT
           </div>
 
-          {/* [ESC] BACK PROMPT */}
-          <button
-            onClick={() => {
-              sfx.playBack();
-              if (activeModal) {
-                setActiveModal(null);
-              } else {
-                showToast('Already at the Main Title Screen.');
-              }
-            }}
-            className="group flex items-center space-x-2.5 text-stone-300 hover:text-white transition"
-          >
-            <span className="px-2 py-0.5 text-[11px] font-medium tracking-wider uppercase bg-white/5 border border-stone-400/40 rounded-[3px] text-stone-200 group-hover:border-amber-300/70 group-hover:text-amber-200 transition">
-              ESC
-            </span>
-            <span className="aaa-serif text-xs tracking-[0.18em] text-stone-300 group-hover:text-white uppercase">
-              BACK
-            </span>
-          </button>
+          <div className="flex flex-col items-end space-y-1">
+            {/* WELCOME, ADVENTURER CARD (shown on larger viewport heights) */}
+            <div
+              onClick={() => {
+                sfx.playSelect();
+                showToast('Thank you for playing Try Ur Best: Open World Edition!');
+              }}
+              className="group relative cursor-pointer hidden xl:flex items-center justify-between max-w-[260px] px-3 py-1.5 bg-gradient-to-r from-[#080d15]/95 via-[#0d1624]/90 to-[#111c2d]/90 border border-white/10 hover:border-[#d4af37]/45 rounded-sm shadow-md backdrop-blur-md transition-all"
+            >
+              <div className="flex flex-col pr-2 space-y-0.5">
+                <h3 className="aaa-serif text-[#d8b162] text-[10px] tracking-[0.12em] uppercase font-semibold">
+                  WELCOME, ADVENTURER
+                </h3>
+                <p className="aaa-body-serif text-stone-300/90 text-[11px] leading-snug">
+                  Your legend begins now in Knowledge Park.
+                </p>
+              </div>
+              <div className="shrink-0 w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity">
+                <CompassRoseSVG />
+              </div>
+            </div>
+
+            {/* [ESC] BACK PROMPT */}
+            <button
+              onClick={() => {
+                sfx.playBack();
+                if (activeModal) {
+                  setActiveModal(null);
+                } else {
+                  showToast('Already at the Main Title Screen.');
+                }
+              }}
+              className="group flex items-center space-x-1.5 text-stone-400 hover:text-white transition cursor-pointer pt-0.5"
+            >
+              <span className="px-1 py-0.2 text-[8px] font-medium tracking-wider uppercase bg-white/5 border border-stone-400/40 rounded-[2px] text-stone-300 group-hover:border-amber-300/70 group-hover:text-amber-200 transition">
+                ESC
+              </span>
+              <span className="aaa-serif text-[9px] tracking-[0.16em] text-stone-400 group-hover:text-white uppercase">
+                BACK
+              </span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* 3. PHOTO MODE FLOATING HUD */}
       {isPhotoMode && (
-        <div className="fixed inset-x-0 bottom-6 z-30 flex flex-col items-center justify-center pointer-events-auto px-4 animate-fadeIn">
-          <div className="flex flex-wrap items-center justify-center gap-4 px-6 py-3.5 bg-[#070c14]/90 border border-[#d4af37]/40 rounded-sm shadow-2xl backdrop-blur-md">
+        <div className="absolute inset-x-0 bottom-4 z-40 flex flex-col items-center justify-center pointer-events-auto px-4 animate-fadeIn">
+          <div className="flex flex-wrap items-center justify-center gap-3 px-4 py-2 bg-[#070c14]/90 border border-[#d4af37]/40 rounded-sm shadow-2xl backdrop-blur-md">
             <div className="flex items-center space-x-2 pr-3 border-r border-white/10">
-              <Camera className="w-4 h-4 text-[#d8b162]" />
-              <span className="aaa-serif text-xs tracking-[0.2em] text-[#f3dca2] uppercase">
+              <Camera className="w-3.5 h-3.5 text-[#d8b162]" />
+              <span className="aaa-serif text-[11px] tracking-[0.18em] text-[#f3dca2] uppercase">
                 PHOTO MODE ACTIVE
               </span>
             </div>
-            <p className="text-xs text-stone-300">Move your mouse to pan the camera across Knowledge Park.</p>
+            <p className="text-[11px] text-stone-300">Move mouse to pan camera.</p>
             <button
               onClick={() => {
                 sfx.playBack();
                 setActiveModal(null);
               }}
-              className="px-3 py-1 bg-[#d4af37]/20 hover:bg-[#d4af37]/35 border border-[#d4af37]/60 text-amber-200 text-xs aaa-serif tracking-widest uppercase transition"
+              className="px-2.5 py-1 bg-[#d4af37]/20 hover:bg-[#d4af37]/35 border border-[#d4af37]/60 text-amber-200 text-[10px] aaa-serif tracking-widest uppercase transition cursor-pointer"
             >
               [ESC] Exit Photo Mode
             </button>
@@ -1218,7 +1230,7 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
 
       {/* 4. INTERACTIVE AAA SUB-MODALS (Continue, New Game, Load Game, Settings, Credits, Exit) */}
       {activeModal && !isPhotoMode && (
-        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-fadeIn">
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/75 backdrop-blur-md p-3 sm:p-4 animate-fadeIn">
           <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#0b1320]/95 to-[#060a12]/98 border border-[#d4af37]/40 shadow-[0_25px_70px_rgba(0,0,0,0.95)] p-6 sm:p-9 text-stone-100">
             {/* Top gold accent bar */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-[1px] bg-gradient-to-r from-transparent via-[#f3d285] to-transparent" />
@@ -1594,7 +1606,7 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
 
       {/* 5. CINEMATIC TOAST NOTIFICATION BANNER */}
       {notification && (
-        <div className="fixed top-7 left-1/2 -translate-x-1/2 z-50 flex items-center space-x-3 px-5 py-2.5 bg-[#09101b]/95 border border-[#d4af37]/60 shadow-[0_10px_30px_rgba(0,0,0,0.9)] backdrop-blur-md animate-bounce">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex items-center space-x-3 px-4 py-2 bg-[#09101b]/95 border border-[#d4af37]/60 shadow-[0_10px_30px_rgba(0,0,0,0.9)] backdrop-blur-md animate-bounce">
           <Sparkles className="w-4 h-4 text-[#f3d285]" />
           <span className="aaa-serif text-xs tracking-[0.16em] text-amber-100 uppercase">
             {notification}
