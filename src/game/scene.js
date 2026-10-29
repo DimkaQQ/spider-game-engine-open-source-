@@ -16,184 +16,55 @@ export const GAME_WORLD = [
     "children": [
       {
         "id": "terrain",
-        "name": "Terrain",
+        "name": "Wet Asphalt Boulevard",
         "type": "mesh",
-        "color": "#4ade80",
+        "color": "#060b14",
         "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 100,
-          "y": 1,
-          "z": 100
-        },
+        "pos": { "x": 0, "y": 0, "z": 0 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 200, "y": 1, "z": 200 },
         "tag": "Terrain",
         "layer": "Default",
-        "mesh": "SM_AlpineValley_01",
-        "mat0": "M_Alpine_RockGrass",
-        "mat1": "M_SnowPeak_Blend",
+        "mesh": "plane",
+        "mat0": "M_WetAsphalt_Reflective",
+        "mat1": "M_RainPuddle_Blend",
         "anim": "None",
         "physics": false,
         "mass": 0,
-        "collision": "BlockAll"
-      },
-      {
-        "id": "water",
-        "name": "Water",
-        "type": "mesh",
-        "color": "#38bdf8",
-        "visible": true,
-        "pos": {
-          "x": 12.5,
-          "y": -4,
-          "z": 45
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 50,
-          "y": 1,
-          "z": 80
-        },
-        "tag": "Water",
-        "layer": "Water",
-        "mesh": "SM_RiverPlane_HQ",
-        "mat0": "M_Water_Ocean_SSR",
-        "mat1": "M_Water_Foam",
-        "anim": "ABP_WaveSim",
-        "physics": false,
-        "mass": 0,
-        "collision": "OverlapAll"
-      },
-      {
-        "id": "trees",
-        "name": "Trees",
-        "type": "mesh",
-        "color": "#4f46e5",
-        "visible": true,
-        "pos": {
-          "x": -18,
-          "y": 2,
-          "z": 22
-        },
-        "rot": {
-          "x": 0,
-          "y": 45,
-          "z": 0
-        },
-        "scale": {
-          "x": 1.2,
-          "y": 1.2,
-          "z": 1.2
-        },
-        "tag": "Foliage",
-        "layer": "Foliage",
-        "mesh": "SM_PineCluster_Inst",
-        "mat0": "M_PineNeedles_Subsurface",
-        "mat1": "M_Bark_Pine",
-        "anim": "ABP_WindSway",
-        "physics": false,
-        "mass": 500,
-        "collision": "Foliage"
-      },
-      {
-        "id": "rocks",
-        "name": "Rocks",
-        "type": "mesh",
-        "color": "#a855f7",
-        "visible": true,
-        "pos": {
-          "x": -5.4,
-          "y": 0,
-          "z": 8.2
-        },
-        "rot": {
-          "x": 4,
-          "y": 112,
-          "z": 0
-        },
-        "scale": {
-          "x": 1.5,
-          "y": 1.5,
-          "z": 1.5
-        },
-        "tag": "Prop",
-        "layer": "Default",
-        "mesh": "SM_CliffOutcrop_04",
-        "mat0": "M_Granite_Mossy",
-        "mat1": "M_Detail_Rock",
-        "anim": "None",
-        "physics": false,
-        "mass": 1200,
         "collision": "BlockAll"
       },
       {
         "id": "sky",
-        "name": "Sky",
+        "name": "Night Sky Dome",
         "type": "sky",
-        "color": "#ec4899",
+        "color": "#040a14",
         "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 500,
-          "z": 0
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
+        "pos": { "x": 0, "y": 500, "z": 0 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 1, "y": 1, "z": 1 },
         "tag": "Sky",
         "layer": "Skybox",
         "mesh": "BP_VolumetricSkyDome",
-        "mat0": "M_Sky_Rayleigh",
-        "mat1": "M_Clouds_Volumetric",
-        "anim": "ABP_DayNightCycle",
+        "mat0": "M_Sky_Midnight",
+        "mat1": "M_Stars_Twinkle",
+        "anim": "None",
         "physics": false,
         "mass": 0,
         "collision": "NoCollision"
       },
       {
         "id": "lighting",
-        "name": "Lighting",
+        "name": "City Night Lights",
         "type": "sun",
-        "color": "#f59e0b",
+        "color": "#38bdf8",
         "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 300,
-          "z": -200
-        },
-        "rot": {
-          "x": 35,
-          "y": -42,
-          "z": 12
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
+        "pos": { "x": 30, "y": 65, "z": -35 },
+        "rot": { "x": 45, "y": -35, "z": 0 },
+        "scale": { "x": 1, "y": 1, "z": 1 },
         "tag": "Light",
         "layer": "Lighting",
-        "mesh": "DirectionalLight_Sun",
-        "mat0": "LightFunction_Clouds",
+        "mesh": "DirectionalLight_Night",
+        "mat0": "None",
         "mat1": "None",
         "anim": "None",
         "physics": false,
@@ -202,65 +73,198 @@ export const GAME_WORLD = [
       },
       {
         "id": "fog",
-        "name": "Fog",
+        "name": "Rain Mist Fog",
         "type": "cloud",
-        "color": "#94a3b8",
+        "color": "#060e1d",
         "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 15,
-          "z": 50
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
+        "pos": { "x": 0, "y": 10, "z": 0 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 1, "y": 1, "z": 1 },
         "tag": "Atmosphere",
         "layer": "Default",
         "mesh": "ExponentialHeightFog",
-        "mat0": "M_VolumetricFog_GodRays",
+        "mat0": "M_VolumetricRainFog",
         "mat1": "None",
         "anim": "None",
         "physics": false,
         "mass": 0,
         "collision": "NoCollision"
-      },
+      }
+    ]
+  },
+  {
+    "id": "architecture-group",
+    "name": "Knowledge Park Architecture",
+    "type": "folder",
+    "expanded": true,
+    "children": [
       {
-        "id": "postprocess",
-        "name": "Post Process",
-        "type": "fx",
-        "color": "#64748b",
+        "id": "knowledge-spire",
+        "name": "Knowledge Spire Tower",
+        "type": "mesh",
+        "color": "#081426",
         "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "PostProcess",
+        "pos": { "x": 0, "y": 50, "z": -58 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 7.5, "y": 10, "z": 3.2 },
+        "tag": "Architecture",
         "layer": "Default",
-        "mesh": "PostProcessVolume_Global",
-        "mat0": "LUT_FantasyCinematic",
-        "mat1": "M_Bloom_ACES",
+        "mesh": "keep",
+        "mat0": "M_GlassCurtain_Cyan",
+        "mat1": "M_OfficeWindow_Grid",
         "anim": "None",
         "physics": false,
-        "mass": 0,
-        "collision": "NoCollision"
+        "mass": 50000,
+        "collision": "BlockAll"
+      },
+      {
+        "id": "amber-tower",
+        "name": "Amber Cylindrical Tower",
+        "type": "mesh",
+        "color": "#0b1728",
+        "visible": true,
+        "pos": { "x": -44, "y": 48, "z": -28 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 3.2, "y": 9.6, "z": 3.2 },
+        "tag": "Architecture",
+        "layer": "Default",
+        "mesh": "cylinder",
+        "mat0": "M_AmberWindow_Rings",
+        "mat1": "None",
+        "anim": "None",
+        "physics": false,
+        "mass": 40000,
+        "collision": "BlockAll"
+      },
+      {
+        "id": "skybridge",
+        "name": "Pedestrian Skybridge",
+        "type": "mesh",
+        "color": "#0a1a30",
+        "visible": true,
+        "pos": { "x": 0, "y": 16, "z": -44 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 6.5, "y": 0.8, "z": 1.2 },
+        "tag": "Architecture",
+        "layer": "Default",
+        "mesh": "bridge",
+        "mat0": "M_GlassPedestrian_Promenade",
+        "mat1": "None",
+        "anim": "None",
+        "physics": false,
+        "mass": 10000,
+        "collision": "BlockAll"
+      }
+    ]
+  },
+  {
+    "id": "vehicles-group",
+    "name": "Vehicles",
+    "type": "folder",
+    "expanded": true,
+    "children": [
+      {
+        "id": "sports-car",
+        "name": "Black Sports Coupe (Red LEDs)",
+        "type": "mesh",
+        "color": "#030712",
+        "visible": true,
+        "pos": { "x": 12, "y": 0.65, "z": -8 },
+        "rot": { "x": 0, "y": -8, "z": 0 },
+        "scale": { "x": 2.2, "y": 1.1, "z": 4.6 },
+        "tag": "Vehicle",
+        "layer": "Vehicles",
+        "mesh": "box",
+        "mat0": "M_ObsidianGloss_Carbon",
+        "mat1": "M_RedLED_TailStrip",
+        "anim": "None",
+        "physics": true,
+        "mass": 1600,
+        "collision": "BlockAll"
+      }
+    ]
+  },
+  {
+    "id": "props-group",
+    "name": "Street Props & Lighting",
+    "type": "folder",
+    "expanded": true,
+    "children": [
+      {
+        "id": "bollard-1",
+        "name": "Amber Lantern Bollard (Left)",
+        "type": "mesh",
+        "color": "#fbbf24",
+        "visible": true,
+        "pos": { "x": -7, "y": 0.5, "z": -10 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 0.38, "y": 1.0, "z": 0.38 },
+        "tag": "Prop",
+        "layer": "Default",
+        "mesh": "cylinder",
+        "mat0": "M_AmberLantern_Glow",
+        "mat1": "None",
+        "anim": "None",
+        "physics": false,
+        "mass": 50,
+        "collision": "BlockAll"
+      },
+      {
+        "id": "bollard-2",
+        "name": "Amber Lantern Bollard (Right)",
+        "type": "mesh",
+        "color": "#fbbf24",
+        "visible": true,
+        "pos": { "x": 7, "y": 0.5, "z": -10 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 0.38, "y": 1.0, "z": 0.38 },
+        "tag": "Prop",
+        "layer": "Default",
+        "mesh": "cylinder",
+        "mat0": "M_AmberLantern_Glow",
+        "mat1": "None",
+        "anim": "None",
+        "physics": false,
+        "mass": 50,
+        "collision": "BlockAll"
+      },
+      {
+        "id": "fairy-tree-1",
+        "name": "Boulevard Fairy Tree (Left)",
+        "type": "mesh",
+        "color": "#fbbf24",
+        "visible": true,
+        "pos": { "x": -14, "y": 2.2, "z": -10 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 1.2, "y": 1.2, "z": 1.2 },
+        "tag": "Foliage",
+        "layer": "Foliage",
+        "mesh": "tree",
+        "mat0": "M_DarkBark",
+        "mat1": "M_FairyLights_Warm",
+        "anim": "None",
+        "physics": false,
+        "mass": 500,
+        "collision": "BlockAll"
+      },
+      {
+        "id": "fairy-tree-2",
+        "name": "Boulevard Fairy Tree (Right)",
+        "type": "mesh",
+        "color": "#fbbf24",
+        "visible": true,
+        "pos": { "x": 14, "y": 2.2, "z": -10 },
+        "rot": { "x": 0, "y": 0, "z": 0 },
+        "scale": { "x": 1.2, "y": 1.2, "z": 1.2 },
+        "tag": "Foliage",
+        "layer": "Foliage",
+        "mesh": "tree",
+        "mat0": "M_DarkBark",
+        "mat1": "M_FairyLights_Warm",
+        "anim": "None",
+        "physics": false,
+        "mass": 500,
+        "collision": "BlockAll"
       }
     ]
   },
@@ -272,298 +276,41 @@ export const GAME_WORLD = [
     "children": [
       {
         "id": "player",
-        "name": "PlayerCharacter",
+        "name": "Wayfarer (Player)",
         "type": "character",
-        "color": "#3b82f6",
+        "color": "#38bdf8",
         "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "rot": {
-          "x": 0,
-          "y": 180,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
+        "pos": { "x": 0, "y": 0, "z": 12 },
+        "rot": { "x": 0, "y": 180, "z": 0 },
+        "scale": { "x": 1, "y": 1, "z": 1 },
         "tag": "Player",
         "layer": "Default",
-        "mesh": "SK_Player",
-        "mat0": "M_Player_Body",
-        "mat1": "M_Player_Cloth",
-        "anim": "ABP_Player",
+        "mesh": "SK_Wayfarer",
+        "mat0": "M_DarkTrenchcoat",
+        "mat1": "M_TacticalHarness_Backpack",
+        "anim": "ABP_WayfarerLocomotion",
         "physics": true,
-        "mass": 70,
+        "mass": 78,
         "collision": "Character"
       },
       {
         "id": "camera",
-        "name": "Camera",
+        "name": "Chase Camera",
         "type": "camera",
         "color": "#3b82f6",
         "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 2.2,
-          "z": -4.5
-        },
-        "rot": {
-          "x": 10,
-          "y": 180,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
+        "pos": { "x": 0, "y": 2.4, "z": 5 },
+        "rot": { "x": 8, "y": 180, "z": 0 },
+        "scale": { "x": 1, "y": 1, "z": 1 },
         "tag": "MainCamera",
         "layer": "Default",
         "mesh": "CineCameraActor",
-        "mat0": "Lens_35mm_Prime",
+        "mat0": "Lens_35mm_Anamorphic",
         "mat1": "None",
         "anim": "ABP_CameraFollow",
         "physics": false,
         "mass": 1,
         "collision": "Camera"
-      },
-      {
-        "id": "weapon",
-        "name": "Weapon",
-        "type": "weapon",
-        "color": "#6366f1",
-        "visible": true,
-        "pos": {
-          "x": 0.35,
-          "y": 1.1,
-          "z": 0.15
-        },
-        "rot": {
-          "x": 0,
-          "y": 90,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "Weapon",
-        "layer": "Equipment",
-        "mesh": "SK_TacticalRifle_MK2",
-        "mat0": "M_Weapon_Carbon",
-        "mat1": "M_Weapon_Optics",
-        "anim": "ABP_WeaponRecoil",
-        "physics": false,
-        "mass": 4.5,
-        "collision": "NoCollision"
-      }
-    ]
-  },
-  {
-    "id": "props-group",
-    "name": "Props",
-    "type": "folder",
-    "expanded": true,
-    "children": [
-      {
-        "id": "buildings",
-        "name": "Buildings",
-        "type": "sub-folder",
-        "color": "#f59e0b",
-        "visible": true,
-        "pos": {
-          "x": 140,
-          "y": 42,
-          "z": 280
-        },
-        "rot": {
-          "x": 0,
-          "y": -25,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "Architecture",
-        "layer": "Default",
-        "mesh": "SM_HighlandCitadel_Full",
-        "mat0": "M_CastleWall_Limestone",
-        "mat1": "M_SlateRoof_Blue",
-        "anim": "None",
-        "physics": false,
-        "mass": 50000,
-        "collision": "BlockAll"
-      },
-      {
-        "id": "vehicles",
-        "name": "Vehicles",
-        "type": "sub-folder",
-        "color": "#f59e0b",
-        "visible": true,
-        "pos": {
-          "x": 24,
-          "y": -3.8,
-          "z": 60
-        },
-        "rot": {
-          "x": 0,
-          "y": 15,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "Vehicle",
-        "layer": "Vehicles",
-        "mesh": "SK_WoodenSkiff_01",
-        "mat0": "M_AgedOak_Planks",
-        "mat1": "M_Canvas_Sail",
-        "anim": "ABP_BoatBuoyancy",
-        "physics": true,
-        "mass": 350,
-        "collision": "Vehicle"
-      },
-      {
-        "id": "npcs",
-        "name": "NPCs",
-        "type": "sub-folder",
-        "color": "#f59e0b",
-        "visible": true,
-        "pos": {
-          "x": 115,
-          "y": 38,
-          "z": 240
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "AI",
-        "layer": "Characters",
-        "mesh": "SK_CitadelGuard_Patrol",
-        "mat0": "M_PlateArmor_Silver",
-        "mat1": "M_RoyalCape",
-        "anim": "ABP_GuardPatrol",
-        "physics": true,
-        "mass": 80,
-        "collision": "Character"
-      }
-    ]
-  },
-  {
-    "id": "lights-group",
-    "name": "Lights",
-    "type": "folder",
-    "expanded": true,
-    "children": [
-      {
-        "id": "dir-light",
-        "name": "Directional Light",
-        "type": "sub-folder",
-        "color": "#eab308",
-        "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 500,
-          "z": 0
-        },
-        "rot": {
-          "x": 40,
-          "y": -30,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "Light",
-        "layer": "Lighting",
-        "mesh": "Light_Sun_Primary",
-        "mat0": "None",
-        "mat1": "None",
-        "anim": "None",
-        "physics": false,
-        "mass": 0,
-        "collision": "NoCollision"
-      },
-      {
-        "id": "sky-light",
-        "name": "Sky Light",
-        "type": "sub-folder",
-        "color": "#eab308",
-        "visible": true,
-        "pos": {
-          "x": 0,
-          "y": 200,
-          "z": 0
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "Light",
-        "layer": "Lighting",
-        "mesh": "SkyLight_HDRI_Capture",
-        "mat0": "HDRI_AlpineMorning_8K",
-        "mat1": "None",
-        "anim": "None",
-        "physics": false,
-        "mass": 0,
-        "collision": "NoCollision"
-      },
-      {
-        "id": "point-lights",
-        "name": "Point Lights",
-        "type": "sub-folder",
-        "color": "#eab308",
-        "visible": true,
-        "pos": {
-          "x": 135,
-          "y": 44,
-          "z": 275
-        },
-        "rot": {
-          "x": 0,
-          "y": 0,
-          "z": 0
-        },
-        "scale": {
-          "x": 1,
-          "y": 1,
-          "z": 1
-        },
-        "tag": "Light",
-        "layer": "Lighting",
-        "mesh": "PointLight_CastleTorches",
-        "mat0": "None",
-        "mat1": "None",
-        "anim": "ABP_TorchFlicker",
-        "physics": false,
-        "mass": 0,
-        "collision": "NoCollision"
       }
     ]
   }

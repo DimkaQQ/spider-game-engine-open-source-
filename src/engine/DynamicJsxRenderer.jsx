@@ -357,7 +357,19 @@ export default function DynamicJsxRenderer({
   return (
     <JsxErrorBoundary code={code} onError={onError}>
       {isDomApp ? (
-        <Drei.Html fullscreen zIndexRange={[100, 0]} style={{ pointerEvents: 'auto', width: '100vw', height: '100vh', inset: 0 }}>
+        <Drei.Html
+          fullscreen
+          calculatePosition={() => [0, 0]}
+          zIndexRange={[100, 0]}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'auto'
+          }}
+        >
           <ComponentToRender />
         </Drei.Html>
       ) : (

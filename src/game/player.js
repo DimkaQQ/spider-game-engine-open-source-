@@ -7,15 +7,16 @@
  * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
  * ============================================================================
  */
-// Demo game hero tuning — WASD speed, jump, world bounds (editor units).
+// Open World hero tuning — WASD speed, Sprint, jump, world bounds (editor units).
 // The Play-mode loop in app.jsx + Hero animation in GameViewport.jsx read this.
 export const PLAYER = {
   id: "player",
-  moveStep: 0.6, // per tick at 60ms
-  jumpImpulse: 9,
+  moveStep: 0.7, // base walk per tick at 60ms (~12 units/sec)
+  sprintMult: 2.5, // athletic sprint multiplier (~30 units/sec)
+  jumpImpulse: 11,
   gravity: 0.85,
   groundY: 0,
-  bounds: { minX: -25, maxX: 25, minZ: -15, maxZ: 35 }
+  bounds: { minX: -180, maxX: 180, minZ: -180, maxZ: 180 }
 };
 
 /* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */

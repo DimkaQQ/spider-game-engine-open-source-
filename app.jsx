@@ -5429,8 +5429,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
             {/* CENTER 3D VIEWPORT PANEL */}
             <section ref={viewportRef} className="flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative">
-              {/* Viewport Top Tab Bar: Shown on both mobile and desktop (only hidden in Env Mode) */}
-              {!isEnvMode && (
+              {/* Viewport Top Tab Bar: Shown on both mobile and desktop (only hidden in Env Mode or Fullscreen) */}
+              {!isEnvMode && !isArtifactFullscreen && (
                 <div className="h-9 px-2 sm:px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0 select-none">
                   <div className="flex items-center gap-1">
                     {!isMobile ? (
@@ -5761,7 +5761,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     <GameMainMenu
                       onLaunchGame={async () => {
                         try {
-                          if (window.spiderShell?.readProjectFile && currentProject?.root) {
+                          if (window.spiderShell?.readProjectFile) {
                             const res = await window.spiderShell.readProjectFile("src/game", "GameComponent.jsx");
                             if (res && res.ok && res.content) {
                               setActiveJsxCode(res.content);
@@ -5814,8 +5814,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   all3dActive={selectedScriptNames.size > 1}
                   projectFiles={projectScriptFiles}
                 />
-                {/* Timeline scrub — drives solar time live (Desktop only, hidden on mobile & env mode) */}
-                {!isMobile && !isEnvMode && (
+                {/* Timeline scrub — drives solar time live (Desktop only, hidden on mobile, env mode, fullscreen or when running custom game) */}
+                {!isMobile && !isEnvMode && !isArtifactFullscreen && viewportTab !== "Game View" && !activeJsxCode && (
                   <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-xl shadow-md border border-white/50 z-20 text-[11px] font-semibold text-slate-700">
                     <button
                       onClick={() => setTimelinePlaying((p) => !p)}
@@ -6127,8 +6127,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </button>
                 )}
 
-                {/* --- DESKTOP VIEWPORT FLOATING OVERLAYS (Hidden on Mobile & Env Mode) --- */}
-                {!isMobile && !isEnvMode && (
+                {/* --- DESKTOP VIEWPORT FLOATING OVERLAYS (Hidden on Mobile, Env Mode, Fullscreen or when playing custom game) --- */}
+                {!isMobile && !isEnvMode && !isArtifactFullscreen && viewportTab !== "Game View" && !activeJsxCode && (
                   <>
                     {/* Top-Left Camera / Shading Pills */}
                     <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20">
@@ -6331,7 +6331,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 {isArtifactFullscreen && (
                   <button
                     onClick={() => setIsArtifactFullscreen(false)}
-                    className="absolute top-4 right-4 bg-black/80 hover:bg-black text-white px-3 py-1.5 rounded-full backdrop-blur-sm text-xs border border-white/20 transition z-50 cursor-pointer flex items-center gap-1.5"
+                    className="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white px-3 py-1 rounded-full backdrop-blur-md text-xs border border-slate-700/60 transition z-50 cursor-pointer flex items-center gap-1.5 shadow-lg"
+                    title="Exit Fullscreen Mode"
                   >
                     <Minimize2 className="w-3.5 h-3.5" />
                     <span>Exit Fullscreen</span>

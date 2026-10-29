@@ -13,7 +13,16 @@ import { OrbitControls, Sky, Stars, Grid, TransformControls, GizmoHelper, GizmoV
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import DynamicJsxRenderer from "./DynamicJsxRenderer.jsx";
+import DynamicJsxRenderer, { compileJsxComponent } from "./DynamicJsxRenderer.jsx";
+
+function DomGameRenderer({ code, name, projectFiles }) {
+  const ComponentToRender = useMemo(() => {
+    return compileJsxComponent(code, {}, null, projectFiles);
+  }, [code, projectFiles]);
+
+  if (!ComponentToRender) return null;
+  return <ComponentToRender />;
+}
 
 // 1 engine unit = 1m. App mock numbers are large, so static scenery uses WORLD scale.
 const WORLD = 0.12;
@@ -1222,6 +1231,10 @@ export default function GameViewport({
     return (sceneGroups || []).some((g) => (g?.children || []).some((c) => c && String(c.id).startsWith("spawn-chess-")));
   }, [sceneGroups]);
   const hasCustomJsx = Boolean(activeJsxCode && activeJsxCode.trim());
+  const isDomApp = hasCustomJsx && (
+    (activeJsxCode.includes("<div") || activeJsxCode.includes("<canvas") || activeJsxCode.includes("ProceduralNightCityCanvas")) &&
+    !activeJsxCode.includes("<mesh") && !activeJsxCode.includes("<group") && !activeJsxCode.includes("<ambientLight")
+  );
   const isBoardGame = hasChess || snakesActive;
   const isolateCustomGame = hasCustomJsx || isBoardGame;
 
@@ -1479,7 +1492,7 @@ export default function GameViewport({
         )}
 
         {/* Dynamic 3D Game / Component Staging — Powered by Muse / Spider AI */}
-        {activeJsxCode && activeJsxCode.trim() ? (
+        {hasCustomJsx && !isDomApp ? (
           <DynamicJsxRenderer code={activeJsxCode} name={activeJsxName} projectFiles={projectFiles} />
         ) : null}
 
@@ -1521,6 +1534,13 @@ export default function GameViewport({
           <ShootHandler registry={registry} isPlaying={isPlaying} onShoot={onShoot} hasChess={isBoardGame} />
         )}
       </Canvas>
+
+      {/* Native Fullscreen DOM Overlay for Canvas/2D interactive games */}
+      {hasCustomJsx && isDomApp && (
+        <div className="absolute inset-0 z-20 overflow-hidden pointer-events-auto">
+          <DomGameRenderer code={activeJsxCode} name={activeJsxName} projectFiles={projectFiles} />
+        </div>
+      )}
     </div>
   );
 }
