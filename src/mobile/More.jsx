@@ -234,7 +234,12 @@ function Settings({ s, onBack, notify }) {
       <div className="sp-scroll sp-stack">
         <section className="sp-card sp-stack-sm">
           <h3 className="sp-h3"><Palette size={16} /> Appearance</h3>
-          <Segmented label="Theme" value={settings.theme} onChange={(theme) => setSettings({ theme })} options={[{ value: "system", label: "System" }, { value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} />
+          <Toggle
+            checked={settings.theme === "dark" || (settings.theme === "system" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches)}
+            onChange={(on) => setSettings({ theme: on ? "dark" : "light" })}
+            label="Dark theme"
+            hint="Off = light theme"
+          />
           <Toggle checked={settings.haptics} onChange={(haptics) => setSettings({ haptics })} label="Haptics" hint="Light vibration on taps and pickups" />
         </section>
 
