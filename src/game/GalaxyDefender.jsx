@@ -7,6 +7,11 @@
  * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
  * ============================================================================
  */
+import React, { useRef, useState, useEffect } from 'react';
+import { Html } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+
 function GameComponent(){
   const keys = useRef({});
   const mouseFire = useRef(false);
@@ -39,8 +44,6 @@ function GameComponent(){
     const up=(e)=>{ keys.current[e.code]=false; if(e.key) keys.current[e.key.toLowerCase()]=false; };
     const md=()=>{ mouseFire.current=true; };
     const mu=()=>{ mouseFire.current=false; };
-    // Touch: drag steers the ship (relative), touching also auto-fires.
-    // Touches starting on real controls (buttons) are left alone.
     const onTs=(e)=>{
       if (e.target && e.target.closest && e.target.closest('button, a, input, select, textarea, [role="button"]')) return;
       const t=e.touches[0];
@@ -69,7 +72,7 @@ function GameComponent(){
       const p=partData.current[i];
       if(!p.active){
         p.active=true; p.x=x; p.y=y; p.z=z;
-        const a=Math.random()*Math.PI*2; const b=Math.random()*2-1;
+        const a=Math.random()*Math.PI*2;
         const sp=3+Math.random()*5;
         p.vx=Math.cos(a)*sp; p.vz=Math.sin(a)*sp; p.vy=Math.random()*4+1;
         p.life=p.max=0.6+Math.random()*0.5;
@@ -96,14 +99,11 @@ function GameComponent(){
   useFrame((state, rawDelta)=>{
     const dt=Math.min(rawDelta||0.016,0.05);
     const k=keys.current;
-    // CAMERA LOCK EVERY FRAME (pulls back on narrow phone screens
-    // so the ship + incoming enemies stay inside the frame).
     const narrow = typeof window !== "undefined" && window.innerWidth < 560;
     const camDist = narrow ? 14.6 : 11.2;
     const camH = narrow ? 6.0 : 4.6;
     state.camera.position.set(playerPos.current.x*0.45, camH, camDist);
     state.camera.lookAt(playerPos.current.x*0.5, 1.6, -6);
-    // stars drift always
     for(let i=0;i<starData.current.length;i++){
       const s=starData.current[i]; const m=starRefs.current[i];
       if(!m) continue;
@@ -111,7 +111,6 @@ function GameComponent(){
       if(s.z>7){ s.z=-36; s.x=(Math.random()-0.5)*32; s.y=Math.random()*11-0.5; }
       m.position.set(s.x,s.y,s.z);
     }
-    // particles always update
     for(let i=0;i<partData.current.length;i++){
       const p=partData.current[i]; const m=partRefs.current[i];
       if(!p.active||!m) continue;
@@ -130,7 +129,6 @@ function GameComponent(){
     elapsed.current+=dt;
     if(invuln.current>0) invuln.current-=dt;
     if(fireCd.current>0) fireCd.current-=dt;
-    // MOVEMENT
     let dx=0, dy=0;
     if(k['KeyA']||k['a']||k['ArrowLeft']||k['TouchLeft']) dx-=1;
     if(k['KeyD']||k['d']||k['ArrowRight']||k['TouchRight']) dx+=1;
@@ -148,11 +146,9 @@ function GameComponent(){
         tiltRef.current.rotation.z=THREE.MathUtils.lerp(tiltRef.current.rotation.z,-vel.current.x*0.045,0.2);
         tiltRef.current.rotation.x=THREE.MathUtils.lerp(tiltRef.current.rotation.x,vel.current.y*0.03,0.2);
       }
-      // invuln flicker
       const vis=invuln.current>0 ? (Math.floor(elapsed.current*12)%2===0) : true;
       shipRef.current.visible=vis;
     }
-    // FIRING
     const wantFire=(k['Space']||k[' ']||mouseFire.current);
     if(wantFire&&fireCd.current<=0){
       for(let i=0;i<laserData.current.length;i++){
@@ -165,7 +161,6 @@ function GameComponent(){
         }
       }
     }
-    // LASERS
     for(let i=0;i<laserData.current.length;i++){
       const L=laserData.current[i]; const m=laserRefs.current[i];
       if(!L.active||!m) continue;
@@ -173,7 +168,6 @@ function GameComponent(){
       if(L.z<-26){ L.active=false; m.visible=false; continue; }
       m.position.set(L.x,L.y,L.z);
     }
-    // SPAWN ENEMIES
     spawnT.current-=dt;
     if(spawnT.current<=0){
       const diff=Math.min(1,elapsed.current/75);
@@ -193,13 +187,6 @@ function GameComponent(){
         }
       }
     }
-
-/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
-const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
-if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
-if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
-
-    // ENEMIES MOVE
     for(let i=0;i<enemyData.current.length;i++){
       const E=enemyData.current[i]; const m=enemyRefs.current[i];
       if(!E.active||!m) continue;
@@ -210,7 +197,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       m.rotation.y+=dt*E.spin*1.5;
       if(E.z>8.5){ E.active=false; m.visible=false; continue; }
     }
-    // LASER vs ENEMY
     for(let li=0;li<laserData.current.length;li++){
       const L=laserData.current[li];
       if(!L.active) continue;
@@ -232,7 +218,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         }
       }
     }
-    // ENEMY vs PLAYER
     if(invuln.current<=0){
       for(let i=0;i<enemyData.current.length;i++){
         const E=enemyData.current[i];
@@ -263,14 +248,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       <meshStandardMaterial color="#0a1226" roughness={0.9} metalness={0.1} />
     </mesh>
     <gridHelper args={[44,22,'#38bdf8','#1b2a4a']} position={[0,-0.5,-8]} />
-    {/* STARS */}
     {starData.current.map((s,i)=>(
       <mesh key={'s'+i} ref={(el)=>{starRefs.current[i]=el;}} position={[s.x,s.y,s.z]}>
         <sphereGeometry args={[s.s,6,6]} />
         <meshBasicMaterial color={i%5===0?'#38bdf8':'#ffffff'} />
       </mesh>
     ))}
-    {/* PLAYER SHIP composite */}
     <group ref={shipRef} position={[0,1.2,4]}>
       <group ref={tiltRef}>
         <mesh rotation-x={-Math.PI/2} position={[0,0,-0.2]}>
@@ -311,14 +294,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         </mesh>
       </group>
     </group>
-    {/* LASER POOL */}
     {laserData.current.map((l,i)=>(
       <mesh key={'l'+i} ref={(el)=>{laserRefs.current[i]=el;}} visible={false}>
         <boxGeometry args={[0.18,0.18,1.5]} />
         <meshBasicMaterial color="#4ade80" />
       </mesh>
     ))}
-    {/* ENEMY POOL - drones */}
     {enemyData.current.map((e,i)=>(
       <group key={'e'+i} ref={(el)=>{enemyRefs.current[i]=el;}} visible={false}>
         <mesh>
@@ -343,7 +324,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         </mesh>
       </group>
     ))}
-    {/* PARTICLE POOL */}
     {partData.current.map((p,i)=>(
       <mesh key={'p'+i} ref={(el)=>{partRefs.current[i]=el;}} visible={false}>
         <sphereGeometry args={[0.22,8,8]} />
@@ -369,3 +349,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     </Html>
   </>);
 }
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
+export default GameComponent;
