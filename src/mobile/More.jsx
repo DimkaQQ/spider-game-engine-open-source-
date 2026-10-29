@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ChevronLeft, ChevronRight, Download, Eye, EyeOff, FileText, FolderKanban, Gamepad2, Hammer, Info, KeyRound, Palette,
+  ChevronLeft, ChevronRight, Download, HelpCircle, Eye, EyeOff, FileText, FolderKanban, Gamepad2, Hammer, Info, KeyRound, Palette,
   Plus, Sparkles, Terminal, Trash2, Upload, Sun, CornerDownLeft, Settings as Cog, Check,
 } from "lucide-react";
 import { PLAYER, PRIMITIVE_SHAPES } from "../game/index.js";
@@ -356,7 +356,7 @@ function About({ onBack }) {
 }
 
 /* ----------------------------- Hub ----------------------------- */
-export default function More({ s, notify, onOpened, initialPage = null, onPageChange }) {
+export default function More({ s, notify, onTour, onOpened, initialPage = null, onPageChange }) {
   const [page, setPageState] = useState(initialPage);
   const setPage = (p) => {
     setPageState(p);
@@ -385,6 +385,7 @@ export default function More({ s, notify, onOpened, initialPage = null, onPageCh
               <Row icon={FolderKanban} title="Projects" hint={`${s.projects.length} on this device`} onClick={() => setPage("projects")} />
               <Row icon={Terminal} title="Console" hint={warnings ? `${warnings} warning${warnings > 1 ? "s" : ""}` : "Logs and commands"} onClick={() => setPage("console")} />
               <Row icon={Cog} title="Settings" hint="Appearance, rendering, AI keys" onClick={() => setPage("settings")} />
+              <Row icon={HelpCircle} title="Help" hint="Quick tour of the app" onClick={() => onTour?.()} />
               <Row icon={Info} title="About" hint="Version and licenses" onClick={() => setPage("about")} />
             </div>
           </div>

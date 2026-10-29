@@ -103,10 +103,11 @@ export function starterWorld() {
     type: "folder",
     expanded: true,
     children: [
-      prop("spawn-ground", "Ground", "platform", "#9ca3af", { x: 0, y: -0.5, z: 10 }, { x: 40, y: 1, z: 60 }),
-      prop("spawn-box-1", "Box", "box", "#6366f1", { x: 6, y: 0, z: 10 }),
-      prop("spawn-box-2", "Box", "box", "#f59e0b", { x: -6, y: 0, z: 18 }, { x: 1.5, y: 1.5, z: 1.5 }),
-      prop("spawn-ball-1", "Ball", "sphere", "#ef4444", { x: 0, y: 0, z: 24 }),
+      prop("spawn-ground", "Ground", "platform", "#5aa845", { x: 0, y: -1, z: 5 }, { x: 3.4, y: 1, z: 3.4 }),
+      prop("spawn-tree-1", "Tree", "tree", "#2f8f3a", { x: -16, y: 0, z: 14 }, { x: 0.8, y: 0.8, z: 0.8 }),
+      prop("spawn-tree-2", "Tree", "tree", "#3a9d45", { x: 18, y: 0, z: 22 }, { x: 0.7, y: 0.7, z: 0.7 }),
+      prop("spawn-rock-1", "Rock", "rock", "#8b8f98", { x: 13, y: 0, z: 6 }, { x: 0.5, y: 0.4, z: 0.5 }),
+      prop("spawn-crate-1", "Crate", "box", "#b9803f", { x: -9, y: 0, z: 7 }, { x: 0.6, y: 0.6, z: 0.6 }),
     ],
   };
   return [...groups, props];

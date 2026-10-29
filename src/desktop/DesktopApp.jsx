@@ -95,6 +95,8 @@ import { starterWorld } from "../mobile/store.js";
 import "./desktop.css";
 import { SpiderMark, M4Mark } from "./Logo.jsx";
 import AutoTooltips from "./Tooltips.jsx";
+import Tour from "./Tour.jsx";
+import { tourSeen, markTourSeen } from "../onboarding.js";
 
 // Default level is a plain starter scene (ground, a few shapes, hero, coins).
 // The full demo world (forest, rocks, water) stays available for the shooter/racing templates.
@@ -3461,6 +3463,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [showStartup, setShowStartup] = useState(!isStandaloneChess);
+  const [tourOpen, setTourOpen] = useState(() => !tourSeen());
+  const closeTour = () => { markTourSeen(); setTourOpen(false); };
   // (Native splash window now handles launch — see electron/splash.html)
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectTemplate, setNewProjectTemplate] = useState("normal");
@@ -4294,6 +4298,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     if (label === "Content Browser Tab") { setBottomTab("Content Browser"); setBottomLeftOpen(true); return close(); }
     if (label === "Build Log Tab") { setBottomTab("Build Log"); setBottomLeftOpen(true); return close(); }
     if (label === "Console Tab") { setConsoleOpen(true); consoleInputRef.current?.focus(); return close(); }
+    if (label === "Quick Tour") { setTourOpen(true); return close(); }
     if (label === "Console Commands") { appendLog("Info", "Commands: help, spawn <name>, wireframe 0|1, shadows 0|1, time <0-24>, play, stop"); return close(); }
     if (label === "About Spider Engine") { appendLog("Info", "Spider Engine 0.9.0 — React + Three.js real-time viewport, all JSX, no C++ in this build"); return close(); }
     appendLog("Info", `${menu} > ${label}`);
@@ -4392,6 +4397,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
   return (
     <div className="flex flex-col h-screen w-full bg-[#f0f2f8] text-slate-800 select-none font-sans overflow-hidden antialiased">
       <AutoTooltips />
+      <Tour open={tourOpen && !showStartup && !newProjectOpen} onClose={closeTour} />
       {/* Startup — small Unreal-style project picker dialog (same compact 560x360 size as splash) */}
       {showStartup && !newProjectOpen && (
         <div className="absolute inset-0 z-50 bg-slate-900/35 backdrop-blur-xs flex items-center justify-center p-3">
@@ -4509,7 +4515,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               { id: "Build", items: ["Build + Export scene.json"] },
               { id: "Tools", items: ["Screenshot PNG", "Clear Console"] },
               { id: "Window", items: ["Project Browser", "Content Browser Tab", "Inspector Tab", "World Settings Tab", "Build Log Tab", "Console Tab"] },
-              { id: "Help", items: ["Console Commands", "About Spider Engine"] }
+              { id: "Help", items: ["Quick Tour", "Console Commands", "About Spider Engine"] }
             ].map((menu) => (
               <div key={menu.id} className="relative">
                 <button

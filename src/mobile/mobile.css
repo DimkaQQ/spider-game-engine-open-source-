@@ -485,3 +485,12 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 
 
 .sp-boot { display: grid; place-items: center; height: 100dvh; background: var(--bg); color: var(--text-3); font: 13px system-ui, sans-serif; }
+
+/* ---------- first-run tour ---------- */
+.sp-tour { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
+.sp-tour-ico { width: 52px; height: 52px; border-radius: 16px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.sp-tour h3 { font-size: 20px; letter-spacing: -0.02em; }
+.sp-tour p { color: var(--text-2); font-size: 15px; min-height: 90px; }
+.sp-tour-dots { display: flex; gap: 6px; }
+.sp-tour-dots i { width: 6px; height: 6px; border-radius: 99px; background: var(--line-2); transition: width 200ms var(--ease), background-color 200ms; }
+.sp-tour-dots i.is-on { width: 20px; background: var(--accent); }

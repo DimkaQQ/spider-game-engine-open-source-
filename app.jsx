@@ -26,6 +26,8 @@ import Scene from "./src/mobile/Scene.jsx";
 import Chat from "./src/mobile/Chat.jsx";
 import Code from "./src/mobile/Code.jsx";
 import More from "./src/mobile/More.jsx";
+import TourSheet from "./src/mobile/Tour.jsx";
+import { tourSeen, markTourSeen } from "./src/onboarding.js";
 
 const DesktopApp = lazy(() => import("./src/desktop/DesktopApp.jsx"));
 
@@ -71,6 +73,8 @@ function MobileApp() {
   const [view, setView] = useState(false);
   const [morePage, setMorePage] = useState(null);
   const [toast, toastNode] = useToast();
+  const [tour, setTour] = useState(() => !tourSeen());
+  const closeTour = () => { markTourSeen(); setTour(false); };
   useTheme(s.settings.theme);
 
   const notify = useCallback((text, tone = "ok") => toast(text, tone), [toast]);
@@ -130,7 +134,7 @@ function MobileApp() {
       )}
       {eff === "more" && (
         <div className="sp-pane">
-          <More s={s} notify={notify} initialPage={morePage} onPageChange={setMorePage} onOpened={() => go("studio")} />
+          <More s={s} notify={notify} onTour={() => setTour(true)} initialPage={morePage} onPageChange={setMorePage} onOpened={() => go("studio")} />
         </div>
       )}
     </>
@@ -140,6 +144,7 @@ function MobileApp() {
     <>
       <InspectorSheet s={s} open={inspector} onClose={() => setInspector(false)} notify={notify} onFocusStudio={() => { setInspector(false); go("studio"); }} />
       <ViewSheet s={s} open={view} onClose={() => setView(false)} />
+      <TourSheet open={tour} onClose={closeTour} />
       <div className="sp-toast-wrap">{toastNode}</div>
     </>
   );
