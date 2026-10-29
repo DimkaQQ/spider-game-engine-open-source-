@@ -1,0 +1,18 @@
+/*
+ * SPIDER GAME ENGINE (OPEN SOURCE) — desktop editor polish
+ * Keeps the classic editor look; fixes wrapping, clipping and overlaps.
+ */
+.sp-desk { width: 100%; height: 100%; height: 100dvh; }
+
+/* labels, tabs and buttons never wrap into two lines */
+.sp-desk button,
+.sp-desk [role="tab"],
+.sp-desk label { white-space: nowrap; }
+.sp-desk button > span:only-child { overflow: hidden; text-overflow: ellipsis; }
+
+/* form fields keep editor-sized type on desktop */
+.sp-desk input,
+.sp-desk select,
+.sp-desk textarea { font-size: inherit; min-width: 0; }
+.sp-desk input[type="number"],
+.sp-desk input[type="text"] { text-overflow: ellipsis; }

@@ -16,16 +16,18 @@
  * by a panel; every target is 44px, the tab bar clears the home indicator.
  * ============================================================================
  */
-import React, { useCallback, useEffect, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { Boxes, Code2, Layers, MoreHorizontal, Play, MessageSquare, Square } from "lucide-react";
 import { useStudio } from "./src/mobile/useStudio.js";
-import { InspectorPanel, InspectorSheet, ViewSheet } from "./src/mobile/Sheets.jsx";
+import { InspectorSheet, ViewSheet } from "./src/mobile/Sheets.jsx";
 import { cx, useToast } from "./src/mobile/ui.jsx";
 import Studio from "./src/mobile/Studio.jsx";
 import Scene from "./src/mobile/Scene.jsx";
 import Chat from "./src/mobile/Chat.jsx";
 import Code from "./src/mobile/Code.jsx";
 import More from "./src/mobile/More.jsx";
+
+const DesktopApp = lazy(() => import("./src/desktop/DesktopApp.jsx"));
 
 /* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
 const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
@@ -43,8 +45,10 @@ const TABS = [
 /** Apply theme to <html> and keep the browser chrome (status bar) in step. */
 function useTheme(theme) {
   useEffect(() => {
+    document.documentElement.classList.add("sp-mobile");
     document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", theme === "dark" ? "#101114" : "#f4f4f1"));
+    return () => document.documentElement.classList.remove("sp-mobile");
   }, [theme]);
 }
 
@@ -60,7 +64,7 @@ function useMedia(query) {
   return on;
 }
 
-export default function App() {
+function MobileApp() {
   const s = useStudio();
   const [tab, setTab] = useState("studio");
   const [inspector, setInspector] = useState(false);
@@ -75,18 +79,16 @@ export default function App() {
     if (id === "more") setMorePage(page);
   }, []);
 
-  const desktop = useMedia("(min-width: 960px)");
-  const eff = desktop && tab === "scene" ? "studio" : tab;
+  const eff = tab;
   const onStudio = eff === "studio";
   const keepStudio = onStudio || s.busy;
   const hideChrome = onStudio && s.isPlaying;
-  const nav = desktop ? TABS.filter((t) => t.id !== "scene") : TABS;
+  const nav = TABS;
 
   // Opening the inspector from the viewport should not steal the tab.
   const openInspector = useCallback((force = true) => {
-    if (desktop) return;
     if (force || s.selectedId) setInspector(true);
-  }, [s.selectedId, desktop]);
+  }, [s.selectedId]);
 
   const playBtn = (
     <button
@@ -105,13 +107,13 @@ export default function App() {
 
   const studio = keepStudio && (
     <div className={cx("sp-pane", !onStudio && "is-parked")} aria-hidden={!onStudio}>
-      <Studio s={s} desktop={desktop} notify={notify} onOpenInspector={openInspector} onOpenView={() => setView(true)} onGoAI={() => go("ai")} />
+      <Studio s={s} notify={notify} onOpenInspector={openInspector} onOpenView={() => setView(true)} onGoAI={() => go("ai")} />
     </div>
   );
 
   const others = (
     <>
-      {!desktop && tab === "scene" && (
+      {tab === "scene" && (
         <div className="sp-pane">
           <Scene s={s} notify={notify} onOpenInspector={openInspector} onShowStudio={() => go("studio")} />
         </div>
@@ -136,51 +138,11 @@ export default function App() {
 
   const sheets = (
     <>
-      <InspectorSheet s={s} open={inspector && !desktop} onClose={() => setInspector(false)} notify={notify} onFocusStudio={() => { setInspector(false); go("studio"); }} />
+      <InspectorSheet s={s} open={inspector} onClose={() => setInspector(false)} notify={notify} onFocusStudio={() => { setInspector(false); go("studio"); }} />
       <ViewSheet s={s} open={view} onClose={() => setView(false)} />
       <div className="sp-toast-wrap">{toastNode}</div>
     </>
   );
-
-  if (desktop) {
-    return (
-      <div className={cx("sp-app is-desktop", hideChrome && "is-playing")}>
-        <aside className="sp-side">
-          <button type="button" className="sp-project-btn" onClick={() => go("more", "projects")} aria-label="Switch project">
-            <span className="sp-logo" aria-hidden="true">S</span>
-            <span className="sp-project-name">
-              <small>Spider Engine</small>
-              <b>{s.project.name}</b>
-            </span>
-          </button>
-          {playBtn}
-          <nav className="sp-side-nav" aria-label="Sections">
-            {nav.map((t) => (
-              <button key={t.id} type="button" className={cx("sp-side-item", eff === t.id && "is-on")} aria-current={eff === t.id ? "page" : undefined} onClick={() => go(t.id)}>
-                <t.icon size={18} />
-                <span>{t.label}</span>
-                {t.id === "ai" && s.busy && <i className="sp-live" title="Agent working" />}
-              </button>
-            ))}
-          </nav>
-          <div className="sp-side-foot">{s.fps > 0 ? `${s.fps} fps` : "v0.9.0"}</div>
-        </aside>
-        <main className={cx("sp-work", onStudio && "is-studio", `is-${eff}`)}>
-          {onStudio && !s.isPlaying && (
-            <aside className="sp-panel sp-panel-left" aria-label="Scene">
-              <Scene s={s} notify={notify} onOpenInspector={openInspector} onShowStudio={() => {}} />
-            </aside>
-          )}
-          <div className="sp-center">
-            {studio}
-            {!onStudio && others}
-          </div>
-          {onStudio && !s.isPlaying && <InspectorPanel s={s} notify={notify} />}
-        </main>
-        {sheets}
-      </div>
-    );
-  }
 
   return (
     <div className={cx("sp-app", hideChrome && "is-playing")}>
@@ -214,5 +176,21 @@ export default function App() {
       )}
       {sheets}
     </div>
+  );
+}
+
+const DESKTOP_QUERY = "(min-width: 960px) and (hover: hover) and (pointer: fine)";
+
+/** Desktop gets the full engine editor; phones and tablets get Pocket Studio. */
+export default function App() {
+  const desktop = useMedia(DESKTOP_QUERY);
+  return desktop ? (
+    <Suspense fallback={<div className="sp-boot">Loading editor…</div>}>
+      <div className="sp-desk">
+        <DesktopApp />
+      </div>
+    </Suspense>
+  ) : (
+    <MobileApp />
   );
 }

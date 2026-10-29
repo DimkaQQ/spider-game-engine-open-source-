@@ -92,7 +92,7 @@ const prop = (id, name, mesh, color, pos, scale = { x: 1, y: 1, z: 1 }) => ({
 });
 
 /** Plain starter level: flat ground, a few shapes, the hero, coins. No forest, rocks or water. */
-function starterWorld() {
+export function starterWorld() {
   const full = clone(GAME_WORLD);
   const groups = full
     .map((g) => ({ ...g, children: (g.children || []).filter((c) => !DROP_FROM_STARTER.has(c.id)) }))
