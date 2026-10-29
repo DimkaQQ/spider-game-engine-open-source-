@@ -1064,8 +1064,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         if (dataUrl) {
           setAiAttachedImage({ name: file.name, url: dataUrl });
           aiAttachedImageRef.current = { name: file.name, url: dataUrl };
-          push(true, `Image attached for Vision Analysis! Ask AI: "Analyze this image and build a 3D scene / game from it with sounds."`);
-          try { handleImportAssetFile(file); } catch {}
+          push(true, `Image attached for Vision Analysis! Ask AI to analyze this image.`);
         }
       };
       reader.readAsDataURL(file);
