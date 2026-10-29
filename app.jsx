@@ -84,6 +84,7 @@ import {
   RefreshCw,
   Minimize2,
   Edit3,
+  FolderKanban,
   X
 } from "lucide-react";
 
