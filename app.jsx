@@ -1136,6 +1136,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const currentImg = aiAttachedImageRef.current;
     if (!raw && !currentImg) return;
     setAiPrompt("");
+    if (aiTextareaRef.current) {
+      aiTextareaRef.current.style.height = "auto";
+    }
     setAiAttachedImage(null);
     aiAttachedImageRef.current = null;
 
@@ -1276,7 +1279,35 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   };
   const consoleInputRef = useRef(null);
   const [aiPrompt, setAiPrompt] = useState("");
+  const aiTextareaRef = useRef(null);
   const [aiAnswer, setAiAnswer] = useState("");
+
+  // Clipboard copy-paste image handler for Ask AI vision
+  const handlePasteToChat = useCallback((e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item && item.type && item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result;
+            if (dataUrl) {
+              const name = file.name && file.name !== "image.png" ? file.name : `clipboard-${Date.now()}.png`;
+              setAiAttachedImage({ name, url: dataUrl });
+              aiAttachedImageRef.current = { name, url: dataUrl };
+              appendLog("Success", `Pasted image "${name}" from clipboard for Vision Analysis`);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+        return;
+      }
+    }
+  }, []);
   // Recent chats — sessions with pins, persisted locally
   const [sessions, setSessions] = useState(() => {
     try {
@@ -7538,23 +7569,47 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             )}
 
-            <form onSubmit={handleAskAiSubmit} className="p-2 border-t-0 border-slate-100 flex items-center gap-1.5 bg-white">
+            <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-2 border-t-0 border-slate-100 flex items-end gap-1.5 bg-white">
               {/* + opens the file manager for ANY file — parser allowlists models/images/audio */}
-              <button type="button" onClick={() => aiFileRef.current?.click()} title="Attach any file — models, images, audio accepted" className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-base leading-none">+</button>
+              <button
+                type="button"
+                onClick={() => aiFileRef.current?.click()}
+                title="Attach any file — models, images, audio accepted (or paste image Ctrl+V)"
+                className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-base leading-none mb-1 shrink-0"
+              >
+                +
+              </button>
               <input ref={aiFileRef} type="file" accept="*/*" className="hidden" onChange={(e) => { handleAskFile(e.target.files?.[0]); e.target.value = ""; }} />
-              <input
-                autoFocus
-                type="text"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder={aiThinking ? "Agent is working... chat anytime without stopping stream" : "Type a message or / for skills"}
-                className="flex-1 text-[11px] px-2.5 py-2 bg-slate-100 rounded-full border border-transparent focus:outline-none focus:border-indigo-300"
-              />
+
+              <div className="flex-1 min-w-0 relative flex items-center">
+                <textarea
+                  ref={aiTextareaRef}
+                  autoFocus
+                  rows={1}
+                  value={aiPrompt}
+                  onPaste={handlePasteToChat}
+                  onChange={(e) => {
+                    setAiPrompt(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 34), 160)}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleAskAiSubmit(e);
+                    }
+                  }}
+                  placeholder={aiThinking ? "Agent working... Shift+Enter for newline" : "Type a message, paste image (Ctrl+V), or / for skills"}
+                  className="w-full text-[11px] px-3 py-2 bg-slate-100 rounded-2xl border border-transparent focus:outline-none focus:border-indigo-300 resize-none min-h-[34px] max-h-[160px] leading-relaxed scrollbar-thin"
+                  style={{ height: "auto" }}
+                />
+              </div>
+
               {/* Primary submit button is ALWAYS in the form so Enter never defaults to Stop button */}
               <button
                 type="submit"
-                className={`p-1.5 transition ${aiPrompt.trim() || aiAttachedImage ? "text-indigo-600 hover:text-indigo-700 cursor-pointer" : "text-slate-300 cursor-not-allowed"}`}
-                title={aiThinking ? "Queue follow-up" : "Send"}
+                className={`p-1.5 mb-1 transition shrink-0 ${aiPrompt.trim() || aiAttachedImage ? "text-indigo-600 hover:text-indigo-700 cursor-pointer" : "text-slate-300 cursor-not-allowed"}`}
+                title={aiThinking ? "Queue follow-up (Enter)" : "Send (Enter)"}
                 disabled={!aiPrompt.trim() && !aiAttachedImage}
               >
                 <Send className="w-3.5 h-3.5" />
@@ -7563,7 +7618,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); stopAgent(); }}
-                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
+                  className="p-1.5 mb-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
                   title="Stop agent execution"
                 >
                   <Square className="w-3 h-3 fill-rose-600" />
