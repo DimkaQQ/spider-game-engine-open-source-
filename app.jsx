@@ -2928,7 +2928,20 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     try {
       const raw = localStorage.getItem("spider-projects");
       const arr = raw ? JSON.parse(raw) : null;
-      if (Array.isArray(arr) && arr.length > 0) return arr;
+      if (Array.isArray(arr) && arr.length > 0) {
+        return arr.filter(Boolean).map((p) => ({
+          ...p,
+          id: p.id || `project-${Date.now()}`,
+          name: p.name || "Untitled",
+          groups: Array.isArray(p.groups)
+            ? p.groups.filter(Boolean).map((g) => ({
+                ...g,
+                children: Array.isArray(g.children) ? g.children : []
+              }))
+            : GAME_WORLD,
+          updatedAt: p.updatedAt || Date.now()
+        }));
+      }
     } catch {}
     return [{ id: "project-gameworld", name: "GameWorld", groups: GAME_WORLD, updatedAt: Date.now() }];
   });
@@ -3525,7 +3538,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     applyUi(p.ui);
     tutorialStats.current = { moved: false, jumped: false, shots: 0, spawned: 0, maxY: 0 };
     setTutorial(null);
-    appendLog("Success", `Project opened: "${p.name}" (${p.groups.flatMap((g) => g.children).length} actors)`);
+    appendLog("Success", `Project opened: "${p.name}" (${((p?.groups || []).flatMap((g) => (g && Array.isArray(g.children)) ? g.children : [])).length} actors)`);
     setOpenMenu(null);
   };
   const handleNewProject = (name, template, root) => {
@@ -4355,7 +4368,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             </div>
             <div className="px-4 py-2 space-y-2 overflow-y-auto flex-1">
-              {[...projects].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).map((p) => (
+              {[...projects].filter(Boolean).sort((a, b) => (b?.updatedAt || 0) - (a?.updatedAt || 0)).map((p) => (
                 deletingId === p.id ? (
                   <div key={p.id} className="p-3 rounded-xl border-2 border-rose-300 bg-rose-50/60">
                     <div className="text-[12px] font-bold text-rose-800">Delete “{p.name}”?</div>
@@ -4398,7 +4411,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   className={`group w-full text-left p-3 rounded-xl border-2 transition cursor-pointer bg-white ${p.id === currentProjectId ? "border-indigo-500 shadow-md shadow-indigo-100" : "border-slate-200 hover:border-slate-300"}`}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-[13px] font-bold text-slate-800 truncate">{p.name}</div>
+                    <div className="text-[13px] font-bold text-slate-800 truncate">{p.name || "Untitled"}</div>
                     <div className="flex items-center gap-1 shrink-0 ml-2">
                       {p.id === currentProjectId && <span className="text-[10px] font-bold text-indigo-600">LAST OPEN</span>}
                       {projects.length > 1 && (
@@ -4413,7 +4426,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     </div>
                   </div>
                   <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-                    {p.groups.flatMap((g) => g.children).length} actors
+                    {((p.groups || []).flatMap((g) => (g && Array.isArray(g.children)) ? g.children : [])).length} actors
                     {p.root ? ` · ${p.root}` : " · browser storage"}
                     {p.updatedAt ? ` · ${new Date(p.updatedAt).toLocaleDateString()}` : ""}
                   </div>
