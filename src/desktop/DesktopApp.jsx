@@ -3123,7 +3123,14 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const sanitizeGroups = (grps) =>
     (grps || GAME_WORLD).map((g) => ({
       ...g,
-      children: (g.children || []).filter((c) => !String(c.id).startsWith("spawn-chess-"))
+      children: (g.children || [])
+        .filter((c) => c && !String(c.id).startsWith("spawn-chess-"))
+        .map((c) => ({
+          ...c,
+          pos: { x: 0, y: 0, z: 0, ...(c.pos || {}) },
+          rot: { x: 0, y: 0, z: 0, ...(c.rot || {}) },
+          scale: { x: 1, y: 1, z: 1, ...(c.scale || {}) }
+        }))
     }));
 
   const [sceneGroups, setSceneGroups] = useState(() => sanitizeGroups(currentProject?.groups));
@@ -3184,7 +3191,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return PLAYER;
   };
 
-  const selectedNode = findNodeById(selectedNodeId);
+  // Older saves can hold actors without transforms: always hand the UI full vectors.
+  const withTransform = (n) =>
+    n && (n.pos && n.rot && n.scale ? n : { ...n, pos: { x: 0, y: 0, z: 0, ...(n.pos || {}) }, rot: { x: 0, y: 0, z: 0, ...(n.rot || {}) }, scale: { x: 1, y: 1, z: 1, ...(n.scale || {}) } });
+  const selectedNode = withTransform(findNodeById(selectedNodeId));
 
   // Mesh library — keywords route to real PropMesh geometry (see GameViewport PropMesh)
   const MESH_LIBRARY = [
