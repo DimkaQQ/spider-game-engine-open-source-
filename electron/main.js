@@ -189,13 +189,12 @@ function createWindow(splash) {
   }
 
   win.webContents.on('did-finish-load', async () => {
-    console.log("Page finished loading! Checking root element...");
     try {
       const html = await win.webContents.executeJavaScript('document.getElementById("root")?.innerHTML');
-      console.log("Root element HTML length:", html ? html.length : "null/empty", "preview:", html ? html.slice(0, 100) : "");
-    } catch (e) {
-      console.log("Root element check error:", e);
-    }
+      if (!html || html.length === 0) {
+        console.warn("Root element is empty on finish load");
+      }
+    } catch (e) {}
   });
 
   win.once('ready-to-show', () => {

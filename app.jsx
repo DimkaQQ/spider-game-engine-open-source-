@@ -1972,9 +1972,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       case "moveObject": {
         const n = findByName(args?.id);
         if (!n) throw new Error(`actor not found: ${args?.id}`);
-        const nx = args?.x !== undefined ? Number(args.x) : n.pos.x;
-        const ny = args?.y !== undefined ? Number(args.y) : n.pos.y;
-        const nz = args?.z !== undefined ? Number(args.z) : n.pos.z;
+        const nx = args?.x !== undefined ? Number(args.x) : (n?.pos?.x ?? 0);
+        const ny = args?.y !== undefined ? Number(args.y) : (n?.pos?.y ?? 0);
+        const nz = args?.z !== undefined ? Number(args.z) : (n?.pos?.z ?? 0);
         if (![nx, ny, nz].every(Number.isFinite)) throw new Error("x/y/z must be numbers");
         setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((c) => (c?.id === n.id ? { ...c, pos: { x: nx, y: ny, z: nz } } : c)) })));
         return `moved ${n.name} to (${nx}, ${ny}, ${nz})`;
@@ -2174,7 +2174,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         if (!n) throw new Error(`actor not found: ${args?.id}`);
         const p = args?.patch || {};
         const allowed = {};
-        if (p.pos) allowed.pos = { x: Number(p.pos.x ?? n.pos.x), y: Number(p.pos.y ?? n.pos.y), z: Number(p.pos.z ?? n.pos.z) };
+        if (p.pos) allowed.pos = { x: Number(p.pos.x ?? n?.pos?.x ?? 0), y: Number(p.pos.y ?? n?.pos?.y ?? 0), z: Number(p.pos.z ?? n?.pos?.z ?? 0) };
         if (p.scale) allowed.scale = { x: Number(p.scale.x ?? 1), y: Number(p.scale.y ?? 1), z: Number(p.scale.z ?? 1) };
         if (p.rot) allowed.rot = { x: Number(p.rot.x ?? 0), y: Number(p.rot.y ?? 0), z: Number(p.rot.z ?? 0) };
         for (const k of ["visible", "physics", "mass", "collision", "tag", "name"]) if (p[k] !== undefined) allowed[k] = p[k];
@@ -3165,13 +3165,26 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       for (const group of sceneGroups) {
         if (group && Array.isArray(group.children)) {
           for (const child of group.children) {
-            if (child && child.id === id) return child;
+            if (child && child.id === id) {
+              return {
+                ...child,
+                pos: child.pos || { x: 0, y: 0, z: 0 },
+                rot: child.rot || { x: 0, y: 0, z: 0 },
+                scale: child.scale || { x: 1, y: 1, z: 1 }
+              };
+            }
           }
         }
       }
       for (const group of sceneGroups) {
         if (group && Array.isArray(group.children) && group.children.length > 0) {
-          return group.children[0];
+          const first = group.children[0];
+          return {
+            ...first,
+            pos: first?.pos || { x: 0, y: 0, z: 0 },
+            rot: first?.rot || { x: 0, y: 0, z: 0 },
+            scale: first?.scale || { x: 1, y: 1, z: 1 }
+          };
         }
       }
     }
@@ -3388,7 +3401,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           children: (g?.children || []).map((c) => {
             if (c.id !== id && c.name !== id) return c;
             found = true;
-            return { ...c, pos: { x: Number(x ?? c.pos.x), y: Number(y ?? c.pos.y), z: Number(z ?? c.pos.z) } };
+            return { ...c, pos: { x: Number(x ?? c?.pos?.x ?? 0), y: Number(y ?? c?.pos?.y ?? 0), z: Number(z ?? c?.pos?.z ?? 0) } };
           })
         })));
         return { ok: true, id };
@@ -4003,7 +4016,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               if (dx === 0 && dz === 0 && ny === node.pos.y) return node;
               if (dx !== 0 || dz !== 0) tutorialStats.current.moved = true;
               tutorialStats.current.maxY = Math.max(tutorialStats.current.maxY, ny);
-              let nx = Number(Math.max(PLAYER.bounds.minX, Math.min(PLAYER.bounds.maxX, node.pos.x + dx)).toFixed(1));
+              let nx = Number(Math.max(PLAYER.bounds.minX, Math.min(PLAYER.bounds.maxX, (node.pos?.x ?? 0) + dx)).toFixed(1));
               let nz = Number(Math.max(PLAYER.bounds.minZ, Math.min(PLAYER.bounds.maxZ, node.pos.z + dz)).toFixed(1));
               // Real BlockAll collision — slide out of every blocker circle
               for (const b of blockers) {
@@ -4036,7 +4049,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 ...node,
                 pos: {
                   ...node.pos,
-                  x: Number(Math.max(-60, Math.min(60, node.pos.x + dx)).toFixed(1)),
+                  x: Number(Math.max(-60, Math.min(60, (node.pos?.x ?? 0) + dx)).toFixed(1)),
                   z: Number(Math.max(-60, Math.min(60, node.pos.z + dz)).toFixed(1))
                 }
               };
@@ -4104,7 +4117,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     if (!isPlaying) return;
     const p = (sceneGroups || []).flatMap((g) => g?.children || []).find((c) => c && c.id === PLAYER.id);
     if (!p) return;
-    const hits = coins.filter((c) => !c.taken && Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < COIN_RULES.pickupRadius && p.pos.y < COIN_RULES.maxPickupHeight);
+    const hits = coins.filter((c) => !c.taken && Math.hypot((p?.pos?.x ?? 0) - c.x, (p?.pos?.z ?? 0) - c.z) < COIN_RULES.pickupRadius && (p?.pos?.y ?? 0) < COIN_RULES.maxPickupHeight);
     if (hits.length === 0) return;
     setCoins((cs) => cs.map((c) => (hits.some((h) => h.id === c.id) ? { ...c, taken: true } : c)));
     sfx.playCoin();
@@ -6321,14 +6334,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                             <div
                               key={c.id}
                               onClick={() => { setSelectedNodeId(c.id); setRightTab("Inspector"); }}
-                              title={`Select ${c.name} — pos (${c.pos.x}, ${c.pos.y}, ${c.pos.z})`}
+                              title={`Select ${c.name || "Object"} — pos (${c.pos?.x ?? 0}, ${c.pos?.y ?? 0}, ${c.pos?.z ?? 0})`}
                               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer transition text-[11px]"
                             >
                               <span className="flex items-center gap-2 font-semibold text-slate-700">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                                {c.name}
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color || "#6366f1" }} />
+                                {c.name || "Object"}
                               </span>
-                              <span className="font-mono text-slate-400">({c.pos.x}, {c.pos.y}, {c.pos.z})</span>
+                              <span className="font-mono text-slate-400">({c.pos?.x ?? 0}, {c.pos?.y ?? 0}, {c.pos?.z ?? 0})</span>
                             </div>
                           ))
                       )}
@@ -6611,11 +6624,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <input
                           type="number"
                           step="0.5"
-                          value={selectedNode.pos[axis]}
+                          value={selectedNode?.pos?.[axis] ?? 0}
                           onChange={(e) =>
                             updateSelectedNode((n) => ({
                               ...n,
-                              pos: { ...n.pos, [axis]: parseFloat(e.target.value) || 0 }
+                              pos: { ...(n?.pos || { x: 0, y: 0, z: 0 }), [axis]: parseFloat(e.target.value) || 0 }
                             }))
                           }
                           className="w-full bg-transparent text-right font-mono text-[11px] focus:outline-none"
@@ -6648,11 +6661,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <input
                           type="number"
                           step="5"
-                          value={selectedNode.rot[axis]}
+                          value={selectedNode?.rot?.[axis] ?? 0}
                           onChange={(e) =>
                             updateSelectedNode((n) => ({
                               ...n,
-                              rot: { ...n.rot, [axis]: parseFloat(e.target.value) || 0 }
+                              rot: { ...(n?.rot || { x: 0, y: 0, z: 0 }), [axis]: parseFloat(e.target.value) || 0 }
                             }))
                           }
                           className="w-full bg-transparent text-right font-mono text-[11px] focus:outline-none"
@@ -6685,12 +6698,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <input
                           type="number"
                           step="0.1"
-                          value={selectedNode.scale[axis]}
+                          value={selectedNode?.scale?.[axis] ?? 1}
                           onChange={(e) =>
                             updateSelectedNode((n) => ({
                               ...n,
                               scale: {
-                                ...n.scale,
+                                ...(n?.scale || { x: 1, y: 1, z: 1 }),
                                 [axis]: Math.max(0.2, parseFloat(e.target.value) || 1)
                               }
                             }))
