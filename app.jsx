@@ -94,7 +94,13 @@ export default function App() {
   const [cameraMode, setCameraMode] = useState("Viewport");
   const [groups, setGroups] = useState(() => GAME_WORLD);
   const [selectedId, setSelectedId] = useState("player");
-  const [code, setCode] = useState(STARTER_CODE);
+  const [code, setCode] = useState(() => {
+    try {
+      return localStorage.getItem("spider-pocket-code") || STARTER_CODE;
+    } catch {
+      return STARTER_CODE;
+    }
+  });
   const [activeJsx, setActiveJsx] = useState(null);
   const [codeError, setCodeError] = useState(null);
   const [task, setTask] = useState("");
@@ -110,6 +116,12 @@ export default function App() {
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [log]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("spider-pocket-code", code);
+    } catch {}
+  }, [code]);
 
   const pushLog = useCallback((line) => {
     setLog((prev) => [...prev.slice(-120), line]);
