@@ -12,7 +12,7 @@ import GameViewport, { viewportApi } from "./src/engine/GameViewport";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFromRawJson } from "./src/engine/agentHarness.js";
 import {
-  GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed, GameMainMenu
+  GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed
 } from "./src/game/index.js";
 import { MATERIAL_PRESETS, matColor, TUTORIALS } from "./src/game/index.js";
 import {
@@ -658,7 +658,7 @@ function AgentQuestionCard({ questionData, onAnswer }) {
 export default function App() {
   // Navigation & Tabs State
   const [activeLeftRail, setActiveLeftRail] = useState("Scene");
-  const [viewportTab, setViewportTab] = useState("Title Menu"); // Title Menu, Viewport, Cinematic, Game View
+  const [viewportTab, setViewportTab] = useState("Viewport"); // Viewport, Cinematic, Game View
   const [bottomTab, setBottomTab] = useState("Content Browser"); // Content Browser, Console, Build Log
   const [rightTab, setRightTab] = useState("Inspector"); // Inspector, World Settings
   const [activeFolder, setActiveFolder] = useState("3D Shapes");
@@ -3731,14 +3731,14 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return { groups: full, select: "player" }; // normal third person
   };
   // Per-project UI memory — each project keeps its own panel layout (own index in storage)
-  const DEFAULT_UI = { hierarchyOpen: true, inspectorOpen: true, bottomLeftOpen: true, consoleOpen: true, viewportTab: "Title Menu", bottomTab: "Content Browser", rightTab: "Inspector" };
+  const DEFAULT_UI = { hierarchyOpen: true, inspectorOpen: true, bottomLeftOpen: true, consoleOpen: true, viewportTab: "Viewport", bottomTab: "Content Browser", rightTab: "Inspector" };
   const applyUi = (ui) => {
     const u = { ...DEFAULT_UI, ...(ui || {}) };
     setHierarchyOpen(true);
     setInspectorOpen(true);
     setBottomLeftOpen(true);
     setConsoleOpen(true);
-    setViewportTab(u.viewportTab || "Title Menu");
+    setViewportTab(u.viewportTab || "Viewport");
     setBottomTab(u.bottomTab || "Content Browser");
     setRightTab(u.rightTab || "Inspector");
   };
@@ -4477,11 +4477,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     if (label === "Toggle Visibility") { updateSelectedNode((n) => ({ ...n, visible: !n.visible })); return close(); }
     if (label === "Reset Transform") { updateSelectedNode({ pos: { x: 0, y: 0, z: 0 }, rot: { x: 0, y: 0, z: 0 }, scale: { x: 1, y: 1, z: 1 } }); return close(); }
     if (label === "Play / Stop") { handleTogglePlay(); return close(); }
-    if (label === "Main Menu (AAA Title Screen)" || label === "Game Main Menu") {
-      setViewportTab("Title Menu");
-      appendLog("Success", "🎮 Switched to AAA Game Main Menu (Knowledge Park)");
-      return close();
-    }
     if (label === "Reset Score") { setScore(0); setCoins((prev) => prev.map((c) => ({ ...c, taken: false }))); return close(); }
     if (label === "Build + Export scene.json") { handleBuildProject(); return close(); }
     if (label === "Clear Console") { setConsoleLogs([]); return close(); }
@@ -5406,8 +5401,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       [
                         { id: "Viewport", icon: Box },
                         { id: "Cinematic", icon: Film },
-                        { id: "Game View", icon: Gamepad2 },
-                        { id: "Title Menu", icon: Sparkles }
+                        { id: "Game View", icon: Gamepad2 }
                       ].map((tab) => {
                         const Icon = tab.icon;
                         const active = viewportTab === tab.id;
@@ -5416,7 +5410,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                             key={tab.id}
                             onClick={() => {
                               setViewportTab(tab.id);
-                              appendLog("Info", tab.id === "Title Menu" ? "Title Menu — Knowledge Park AAA Main Menu" : tab.id === "Game View" ? "Game View — chase camera locked to hero (Play to run)" : tab.id === "Cinematic" ? "Cinematic — slow auto-orbit camera" : "Viewport — free orbit camera");
+                              appendLog("Info", tab.id === "Game View" ? "Game View — chase camera locked to hero (Play to run)" : tab.id === "Cinematic" ? "Cinematic — slow auto-orbit camera" : "Viewport — free orbit camera");
                             }}
                             className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                               active
@@ -5723,18 +5717,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   >
                     <span>✕ Exit Game</span>
                   </button>
-                )}
-
-                {viewportTab === "Title Menu" && (
-                  <div className="absolute inset-0 z-30 bg-black overflow-hidden">
-                    <GameMainMenu
-                      onLaunchGame={() => {
-                        setViewportTab("Game View");
-                        if (!isPlaying) handleTogglePlay();
-                      }}
-                      onClose={() => setViewportTab("Viewport")}
-                    />
-                  </div>
                 )}
 
                 <GameViewport
