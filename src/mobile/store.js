@@ -83,6 +83,35 @@ export function sanitizeGroups(groups) {
     }));
 }
 
+
+const DROP_FROM_STARTER = new Set(["terrain", "water", "trees", "rocks", "weapon", "buildings", "vehicles", "npcs", "point-lights", "fog"]);
+const prop = (id, name, mesh, color, pos, scale = { x: 1, y: 1, z: 1 }) => ({
+  id, name, type: "mesh", color, visible: true, pos, rot: { x: 0, y: 0, z: 0 }, scale,
+  tag: "Primitive", layer: "Default", mesh, mat0: `M_${name}_Base`, mat1: `M_${name}_Detail`,
+  anim: "None", physics: false, mass: 100, collision: "BlockAll",
+});
+
+/** Plain starter level: flat ground, a few shapes, the hero, coins. No forest, rocks or water. */
+function starterWorld() {
+  const full = clone(GAME_WORLD);
+  const groups = full
+    .map((g) => ({ ...g, children: (g.children || []).filter((c) => !DROP_FROM_STARTER.has(c.id)) }))
+    .filter((g) => g.children.length);
+  const props = {
+    id: "props-group",
+    name: "Level",
+    type: "folder",
+    expanded: true,
+    children: [
+      prop("spawn-ground", "Ground", "platform", "#9ca3af", { x: 0, y: -0.5, z: 10 }, { x: 40, y: 1, z: 60 }),
+      prop("spawn-box-1", "Box", "box", "#6366f1", { x: 6, y: 0, z: 10 }),
+      prop("spawn-box-2", "Box", "box", "#f59e0b", { x: -6, y: 0, z: 18 }, { x: 1.5, y: 1.5, z: 1.5 }),
+      prop("spawn-ball-1", "Ball", "sphere", "#ef4444", { x: 0, y: 0, z: 24 }),
+    ],
+  };
+  return [...groups, props];
+}
+
 export function buildTemplate(tpl, fallbackGroups) {
   const full = clone(GAME_WORLD);
   if (tpl === "blank" || tpl === "code") {
@@ -136,7 +165,7 @@ export function buildTemplate(tpl, fallbackGroups) {
       code: null,
     };
   }
-  return { groups: full, select: "player", code: null };
+  return { groups: starterWorld(), select: "player", code: null };
 }
 
 export function makeProject(name, tpl = "normal", fallbackGroups) {
@@ -172,7 +201,7 @@ export const loadCurrentId = () => read(K.current, null);
 export const saveCurrentId = (id) => write(K.current, id);
 
 export const DEFAULT_SETTINGS = {
-  theme: "system",
+  theme: "light",
   rtx: true,
   grid: true,
   viewMode: "Lit",
@@ -185,7 +214,11 @@ export const DEFAULT_SETTINGS = {
   autosave: true,
 };
 
-export const loadSettings = () => ({ ...DEFAULT_SETTINGS, ...read(K.settings, {}) });
+export const loadSettings = () => {
+  const s = { ...DEFAULT_SETTINGS, ...read(K.settings, {}) };
+  if (s.theme !== "dark") s.theme = "light";
+  return s;
+};
 export const saveSettings = (s) => write(K.settings, s);
 
 export const loadSessions = () => {

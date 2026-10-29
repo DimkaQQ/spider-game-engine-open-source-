@@ -12,7 +12,7 @@ import {
 import { PLAYER, PRIMITIVE_SHAPES } from "../game/index.js";
 import licenses from "../../THIRD_PARTY_LICENSES.md?raw";
 import { TEMPLATES } from "./store.js";
-import { Empty, Segmented, Sheet, Toggle, cx } from "./ui.jsx";
+import { Empty, Segmented, Sheet, TemplateIcon, Toggle, cx } from "./ui.jsx";
 
 function Row({ icon: Icon, title, hint, onClick, tone }) {
   return (
@@ -69,7 +69,7 @@ function Projects({ s, onBack, notify, onOpened }) {
             return (
               <li key={p.id} className={cx("sp-project", cur && "is-on")}>
                 <button type="button" className="sp-project-main" onClick={() => { s.openProject(p.id); onOpened(); }}>
-                  <span className="sp-project-art">{(TEMPLATES.find((t) => t.id === p.template) || TEMPLATES[0]).emoji}</span>
+                  <span className="sp-project-art"><TemplateIcon id={p.template} /></span>
                   <span className="sp-project-text">
                     <b>{p.name}</b>
                     <small>
@@ -134,7 +134,7 @@ function Projects({ s, onBack, notify, onOpened }) {
             <div className="sp-tpls" role="radiogroup" aria-label="Template">
               {TEMPLATES.map((t) => (
                 <button key={t.id} type="button" role="radio" aria-checked={tpl === t.id} className={cx("sp-tpl", tpl === t.id && "is-on")} onClick={() => setTpl(t.id)}>
-                  <i>{t.emoji}</i>
+                  <i><TemplateIcon id={t.id} /></i>
                   <b>{t.name}</b>
                   <small>{t.blurb}</small>
                 </button>
@@ -235,7 +235,7 @@ function Settings({ s, onBack, notify }) {
         <section className="sp-card sp-stack-sm">
           <h3 className="sp-h3"><Palette size={16} /> Appearance</h3>
           <Toggle
-            checked={settings.theme === "dark" || (settings.theme === "system" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches)}
+            checked={settings.theme === "dark"}
             onChange={(on) => setSettings({ theme: on ? "dark" : "light" })}
             label="Dark theme"
             hint="Off = light theme"
@@ -271,7 +271,7 @@ function Settings({ s, onBack, notify }) {
         </section>
 
         <section className="sp-card sp-stack-sm">
-          <h3 className="sp-h3"><Sparkles size={16} /> AI &amp; keys</h3>
+          <h3 className="sp-h3"><KeyRound size={16} /> AI &amp; keys</h3>
           <div className="sp-field">
             <span>Agent permissions</span>
             <Segmented label="Permissions" value={settings.permission} onChange={(permission) => setSettings({ permission })} options={[{ value: "ask", label: "Ask first" }, { value: "auto", label: "Auto" }]} />
@@ -334,7 +334,7 @@ function About({ onBack }) {
       <Back title="About" onBack={onBack} />
       <div className="sp-scroll sp-stack">
         <div className="sp-about">
-          <span className="sp-logo">🕷️</span>
+          <span className="sp-logo">S</span>
           <h2>Spider Engine</h2>
           <p>v0.9.0 · Pocket Studio · WebGL</p>
         </div>
@@ -374,7 +374,7 @@ export default function More({ s, notify, onOpened, initialPage = null, onPageCh
           </header>
           <div className="sp-scroll">
             <button type="button" className="sp-current" onClick={() => setPage("projects")}>
-              <span className="sp-project-art">{(TEMPLATES.find((t) => t.id === s.project.template) || TEMPLATES[0]).emoji}</span>
+              <span className="sp-project-art"><TemplateIcon id={s.project.template} /></span>
               <span className="sp-project-text">
                 <small>Current project</small>
                 <b>{s.project.name}</b>

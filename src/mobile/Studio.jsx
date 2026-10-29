@@ -6,7 +6,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
   Camera, ChevronUp, Copy, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
-  SlidersHorizontal, Sparkles, Trash2, Undo2, Coins as CoinsIcon,
+  SlidersHorizontal, Bot, Trash2, Undo2, Coins as CoinsIcon,
 } from "lucide-react";
 import GameViewport, { viewportApi } from "../engine/GameViewport.jsx";
 import { cx } from "./ui.jsx";
@@ -72,7 +72,7 @@ function Joystick({ onChange }) {
   );
 }
 
-export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI }) {
+export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI, desktop = false }) {
   const {
     groups, selectedId, setSelectedId, selected, isPlaying, gizmo, setGizmo, cameraMode, setCameraMode,
     settings, activeJsx, activeJsxName, setFps, fps, keys, setKeys, jump, score, coins, togglePlay,
@@ -175,7 +175,8 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI 
                 )}
               </div>
             )}
-            {!customGame && (
+            {!customGame && desktop && <div className="sp-hud-keys">WASD to move · Space to jump</div>}
+            {!customGame && !desktop && (
               <>
                 <Joystick onChange={(v) => setKeys((k) => ({ ...k, ...v }))} />
                 <button
@@ -209,14 +210,14 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI 
             <b>Blank level</b>
             <span>Add something from Scene, or ask the AI to build a game.</span>
             <button type="button" onClick={onGoAI}>
-              <Sparkles size={14} /> Ask AI
+              <Bot size={14} /> Ask AI
             </button>
           </div>
         )}
       </div>
 
       {/* selection dock (above tab bar, never over the stick) */}
-      {!isPlaying && selected && (
+      {!isPlaying && !desktop && selected && (
         <div className="sp-dock">
           <button type="button" className="sp-dock-main" onClick={() => onOpenInspector(true)} aria-label="Open inspector">
             <span className="sp-dot" style={{ background: selected.tint || selected.color || "#6366f1" }} />

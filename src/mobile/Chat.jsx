@@ -5,15 +5,15 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ArrowUp, Check, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Sparkles,
+  ArrowUp, Check, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
 } from "lucide-react";
 import { Sheet, cx } from "./ui.jsx";
 
 const QUICK = [
-  { label: "Chess", icon: "♟", task: "3D chess board with full rules, tap pieces to move, blue restart button" },
-  { label: "Ludo", icon: "🎲", task: "3D ludo board 52 tiles staggered elevations, 4 colored pawns, tap dice to roll and tap pawn to move" },
-  { label: "Coin arena", icon: "🪙", task: "arena 20x20 green ground blue walls, ball hero, 8 gold coins, tap to jump swipe to steer, score HUD" },
-  { label: "Shooter", icon: "🚀", task: "spaceship shooter, drag to move touch to shoot, enemies drones, score and lives HUD" },
+  { label: "Chess", icon: Crown, task: "3D chess board with full rules, tap pieces to move, blue restart button" },
+  { label: "Ludo", icon: Dices, task: "3D ludo board 52 tiles staggered elevations, 4 colored pawns, tap dice to roll and tap pawn to move" },
+  { label: "Coin arena", icon: Coins, task: "arena 20x20 green ground blue walls, ball hero, 8 gold coins, tap to jump swipe to steer, score HUD" },
+  { label: "Shooter", icon: Rocket, task: "spaceship shooter, drag to move touch to shoot, enemies drones, score and lives HUD" },
 ];
 
 function Step({ s }) {
@@ -86,7 +86,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
     <section className="sp-chat">
       <header className="sp-chat-head">
         <button type="button" className="sp-model" onClick={() => setSheet("model")} aria-label="Choose model">
-          <Sparkles size={15} />
+          <Bot size={16} />
           <span>{friendly.name}</span>
           <ChevronDown size={14} />
         </button>
@@ -113,7 +113,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
         {empty && (
           <div className="sp-ai-welcome">
             <span className="sp-ai-orb">
-              <Sparkles size={26} />
+              <Bot size={26} />
             </span>
             <h2>What are we building?</h2>
             <p>Describe a game. Spider AI writes the code, mounts it in the viewport and checks it for errors.</p>
@@ -129,7 +129,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
             <div className="sp-quick">
               {QUICK.map((q) => (
                 <button key={q.label} type="button" onClick={() => { setText(q.task); requestAnimationFrame(() => { grow(input.current); input.current?.focus(); }); }}>
-                  <i>{q.icon}</i>
+                  <i><q.icon size={19} strokeWidth={1.8} /></i>
                   {q.label}
                 </button>
               ))}
@@ -187,7 +187,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
         {question && (
           <div className="sp-ask" role="group" aria-label="Agent question">
             <div className="sp-ask-head">
-              <Sparkles size={16} /> <b>{question.question}</b>
+              <Bot size={16} /> <b>{question.question}</b>
             </div>
             <div className="sp-ask-opts">
               {question.options.map((o) => (

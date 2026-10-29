@@ -564,6 +564,36 @@ export function useStudio() {
     return () => clearInterval(tick);
   }, [isPlaying, activeJsx, patchProject, project.id]);
 
+  // keyboard (desktop, tablets with keyboards): WASD / arrows move, Space jumps
+  useEffect(() => {
+    const map = { w: "w", arrowup: "w", s: "s", arrowdown: "s", a: "a", arrowleft: "a", d: "d", arrowright: "d" };
+    const typing = (e) => {
+      const t = e.target;
+      return t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
+    };
+    const down = (e) => {
+      if (!playRef.current || jsxRef.current.code || typing(e)) return;
+      const k = e.key.toLowerCase();
+      if (k === " ") {
+        e.preventDefault();
+        if (!e.repeat) jump();
+      } else if (map[k]) {
+        e.preventDefault();
+        setKeys((p) => (p[map[k]] ? p : { ...p, [map[k]]: true }));
+      }
+    };
+    const up = (e) => {
+      const k = e.key.toLowerCase();
+      if (map[k]) setKeys((p) => (p[map[k]] ? { ...p, [map[k]]: false } : p));
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+    };
+  }, [jump]);
+
   // coin pickup
   useEffect(() => {
     if (!isPlaying || activeJsx) return;

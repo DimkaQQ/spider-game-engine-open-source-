@@ -24,10 +24,114 @@ function Vec3({ title, value, onChange, step, min, tone = true, decimals = 2 }) 
   );
 }
 
+function InspectorBody({ s, n, onClose, onFocusStudio, notify, showFocus = true }) {
+  const set = (patch, opts) => n && s.updateNode(n.id, patch, opts);
+  if (!n) return <p className="sp-muted">Select an object in the viewport or the scene list.</p>;
+  return (
+    <div className="sp-stack">
+      <label className="sp-field">
+        <span>Name</span>
+        <input value={n.name || ""} onChange={(e) => set({ name: e.target.value })} spellCheck={false} autoCapitalize="off" enterKeyHint="done" />
+      </label>
+
+      <Vec3 title="Position" value={n.pos} step={0.5} onChange={(pos) => set({ pos })} decimals={1} />
+      <Vec3 title="Rotation °" value={n.rot} step={15} onChange={(rot) => set({ rot })} decimals={0} />
+      <Vec3 title="Scale" value={n.scale} step={0.25} min={0.05} onChange={(scale) => set({ scale })} />
+
+      <div className="sp-field">
+        <span>Color</span>
+        <Swatches value={n.tint || n.color} colors={COLORS} onChange={(c) => set({ color: c, tint: c })} />
+      </div>
+
+      <div className="sp-field">
+        <span>Material</span>
+        <div className="sp-chips" role="listbox" aria-label="Material presets">
+          {Object.entries(MATERIAL_PRESETS).map(([name, hex]) => (
+            <button
+              key={name}
+              type="button"
+              role="option"
+              aria-selected={n.mat0 === name}
+              className={cx("sp-chip", n.mat0 === name && "is-on")}
+              onClick={() => set({ mat0: name, tint: hex, color: hex })}
+            >
+              <i style={{ background: hex }} />
+              {name.replace(/^M_/, "").replace(/_/g, " ")}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="sp-card sp-stack-sm">
+        <Toggle checked={!!n.physics} onChange={(v) => set({ physics: v })} label="Physics" hint="Falls under gravity while playing" />
+        {n.physics && <NumField label="Mass" value={n.mass ?? 100} step={25} min={1} decimals={0} onChange={(mass) => set({ mass })} />}
+        <div className="sp-field">
+          <span>Collision</span>
+          <Segmented
+            size="sm"
+            label="Collision"
+            value={n.collision || "BlockAll"}
+            onChange={(collision) => set({ collision })}
+            options={[
+              { value: "BlockAll", label: "Block" },
+              { value: "Overlap", label: "Overlap" },
+              { value: "NoCollision", label: "None" },
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="sp-row-actions">
+        {showFocus && (
+          <button type="button" className="sp-btn" onClick={() => onFocusStudio?.()}>
+            <Crosshair size={16} /> Show in Studio
+          </button>
+        )}
+        <button type="button" className="sp-btn" onClick={() => { s.duplicate(n.id); notify("Duplicated", "ok"); }}>
+          <Copy size={16} /> Duplicate
+        </button>
+        <button
+          type="button"
+          className="sp-btn is-danger"
+          onClick={() => {
+            s.removeNode(n.id);
+            onClose?.();
+            notify("Deleted", "ok");
+          }}
+        >
+          <Trash2 size={16} /> Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Docked inspector for desktop. */
+export function InspectorPanel({ s, notify }) {
+  const n = s.selected;
+  return (
+    <aside className="sp-panel sp-panel-right" aria-label="Inspector">
+      <header className="sp-panel-head">
+        <div>
+          <h2>{n ? n.name || n.id : "Inspector"}</h2>
+          <p>{n ? `${n.mesh || n.type || "actor"} · ${n.tag || "Untagged"}` : "Nothing selected"}</p>
+        </div>
+        {n && (
+          <button type="button" className="sp-icon-btn" aria-label={n.visible === false ? "Show" : "Hide"} onClick={() => s.toggleVisible(n.id)}>
+            {n.visible === false ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
+      </header>
+      <div className="sp-panel-body">
+        <InspectorBody s={s} n={n} notify={notify} showFocus={false} />
+      </div>
+    </aside>
+  );
+}
+
 export function InspectorSheet({ s, open, onClose, onFocusStudio, notify }) {
   const n = s.selected;
   if (!open) return null;
-  const set = (patch, opts) => n && s.updateNode(n.id, patch, opts);
   return (
     <Sheet
       open={open}
@@ -37,94 +141,13 @@ export function InspectorSheet({ s, open, onClose, onFocusStudio, notify }) {
       subtitle={n ? `${n.mesh || n.type || "actor"} · ${n.tag || "Untagged"}` : "Nothing selected"}
       actions={
         n && (
-          <button
-            type="button"
-            className="sp-icon-btn"
-            aria-label={n.visible === false ? "Show" : "Hide"}
-            onClick={() => s.toggleVisible(n.id)}
-          >
+          <button type="button" className="sp-icon-btn" aria-label={n.visible === false ? "Show" : "Hide"} onClick={() => s.toggleVisible(n.id)}>
             {n.visible === false ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         )
       }
     >
-      {!n ? (
-        <p className="sp-muted">Tap an object in the viewport or pick one in Scene.</p>
-      ) : (
-        <div className="sp-stack">
-          <label className="sp-field">
-            <span>Name</span>
-            <input value={n.name || ""} onChange={(e) => set({ name: e.target.value })} spellCheck={false} autoCapitalize="off" enterKeyHint="done" />
-          </label>
-
-          <Vec3 title="Position" value={n.pos} step={0.5} onChange={(pos) => set({ pos })} decimals={1} />
-          <Vec3 title="Rotation °" value={n.rot} step={15} onChange={(rot) => set({ rot })} decimals={0} />
-          <Vec3 title="Scale" value={n.scale} step={0.25} min={0.05} onChange={(scale) => set({ scale })} />
-
-          <div className="sp-field">
-            <span>Color</span>
-            <Swatches value={n.tint || n.color} colors={COLORS} onChange={(c) => set({ color: c, tint: c })} />
-          </div>
-
-          <div className="sp-field">
-            <span>Material</span>
-            <div className="sp-chips" role="listbox" aria-label="Material presets">
-              {Object.entries(MATERIAL_PRESETS).map(([name, hex]) => (
-                <button
-                  key={name}
-                  type="button"
-                  role="option"
-                  aria-selected={n.mat0 === name}
-                  className={cx("sp-chip", n.mat0 === name && "is-on")}
-                  onClick={() => set({ mat0: name, tint: hex, color: hex })}
-                >
-                  <i style={{ background: hex }} />
-                  {name.replace(/^M_/, "").replace(/_/g, " ")}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="sp-card sp-stack-sm">
-            <Toggle checked={!!n.physics} onChange={(v) => set({ physics: v })} label="Physics" hint="Falls under gravity while playing" />
-            {n.physics && <NumField label="Mass" value={n.mass ?? 100} step={25} min={1} decimals={0} onChange={(mass) => set({ mass })} />}
-            <div className="sp-field">
-              <span>Collision</span>
-              <Segmented
-                size="sm"
-                label="Collision"
-                value={n.collision || "BlockAll"}
-                onChange={(collision) => set({ collision })}
-                options={[
-                  { value: "BlockAll", label: "Block" },
-                  { value: "Overlap", label: "Overlap" },
-                  { value: "NoCollision", label: "None" },
-                ]}
-              />
-            </div>
-          </div>
-
-          <div className="sp-row-actions">
-            <button type="button" className="sp-btn" onClick={() => { onFocusStudio?.(); }}>
-              <Crosshair size={16} /> Show in Studio
-            </button>
-            <button type="button" className="sp-btn" onClick={() => { s.duplicate(n.id); notify("Duplicated", "ok"); }}>
-              <Copy size={16} /> Duplicate
-            </button>
-            <button
-              type="button"
-              className="sp-btn is-danger"
-              onClick={() => {
-                s.removeNode(n.id);
-                onClose();
-                notify("Deleted", "ok");
-              }}
-            >
-              <Trash2 size={16} /> Delete
-            </button>
-          </div>
-        </div>
-      )}
+      <InspectorBody s={s} n={n} onClose={onClose} onFocusStudio={onFocusStudio} notify={notify} />
     </Sheet>
   );
 }
