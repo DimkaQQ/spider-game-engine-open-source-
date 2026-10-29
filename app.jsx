@@ -1110,9 +1110,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     if (!q) return;
     setAiPrompt("");
 
-    // Multi-chat / message queuing: if agent is currently busy, queue the instruction so it isn't abandoned!
+    // Multi-chat / message queuing: chat with agent while working without stopping streaming!
     if (aiThinking) {
-      appendLog("Info", `Queued follow-up for agent: "${raw}"`);
+      appendLog("Info", `Live mid-stream message delivered: "${raw}"`);
+      pushMsg("You", raw, true);
       messageQueueRef.current.push(raw);
       setQueuedMessages([...messageQueueRef.current]);
       setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -1788,7 +1789,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const [chessAiThinking, setChessAiThinking] = useState(false);
   const aiThinkingTimerRef = useRef(null);
 
-  // Platform Convert states (EXE working, APK, IOS, MAC OS, spider os coming soon)
+  // Platform Convert states (EXE working, Universal Web in Any Browser, APK, IOS, spider os)
   const [convertOpen, setConvertOpen] = useState(false);
   const [convertStatus, setConvertStatus] = useState(null);
   const convertMenuRef = useRef(null);
@@ -4617,17 +4618,17 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </span>
                 </div>
 
-                {/* 4. MAC OS - COMING SOON */}
-                <div className="flex items-center justify-between px-3 py-2 opacity-50 cursor-not-allowed select-none">
+                {/* 4. UNIVERSAL WEB - RUNS IN ANY BROWSER */}
+                <div className="flex items-center justify-between px-3 py-2 bg-emerald-50/60 rounded-lg border border-emerald-200/50">
                   <div className="flex items-center gap-2.5">
-                    <Laptop className="w-4 h-4 text-slate-400 shrink-0" />
+                    <Globe className="w-4 h-4 text-emerald-600 shrink-0" />
                     <div>
-                      <div className="font-semibold text-slate-700">MAC OS</div>
-                      <div className="text-[10px] text-slate-400">Apple macOS App</div>
+                      <div className="font-semibold text-slate-800">Universal Web</div>
+                      <div className="text-[10px] text-emerald-700 font-medium">Runs in Any Browser (Desktop & Mobile)</div>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
-                    Coming Soon
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Active
                   </span>
                 </div>
 
@@ -7357,7 +7358,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 type="text"
                 value={aiPrompt}
                 onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder={aiThinking ? "Agent is working... type to queue or click Stop" : "Type / to use skills"}
+                placeholder={aiThinking ? "Agent is working... chat anytime without stopping stream" : "Type a message or / for skills"}
                 className="flex-1 text-[11px] px-2.5 py-2 bg-slate-100 rounded-full border border-transparent focus:outline-none focus:border-indigo-300"
               />
               {aiThinking ? (
@@ -7464,7 +7465,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         </div>
       )}
 
-      {/* Settings — macOS-style two-sided page: sidebar + content */}
+      {/* Settings — two-sided studio page: sidebar + content */}
       {settingsOpen && (
         <div className="absolute inset-0 z-50 bg-[#f0f2f8] flex flex-col">
           <div className="h-12 bg-white border-b border-slate-200 px-5 flex items-center justify-between shrink-0">
