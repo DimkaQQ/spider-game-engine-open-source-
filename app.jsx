@@ -677,7 +677,7 @@ export default function App() {
   const [activeJsxCode, setActiveJsxCode] = useState(() => {
     try {
       const saved = localStorage.getItem("spider-active-jsx-code");
-      if (saved && (saved.includes("function Tower") || saved.includes('color="#846a49"') || saved.includes('color="#6a5c4e"'))) {
+      if (saved && (saved.includes("function Tower") || saved.includes('color="#846a49"') || saved.includes('color="#6a5c4e"') || saved.includes("ENDLESS OCEAN") || saved.includes("oceanGeo"))) {
         localStorage.removeItem("spider-active-jsx-code");
         return null;
       }
@@ -768,7 +768,14 @@ export default function App() {
       const saved = localStorage.getItem("spider-project-script-files");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((f) => {
+            if (f.name === "GameComponent.jsx" && f.content && (f.content.includes("ENDLESS OCEAN") || f.content.includes("oceanGeo"))) {
+              return { ...f, content: "" };
+            }
+            return f;
+          });
+        }
       }
     } catch {}
     return BUILTIN_PROJECT_SCRIPTS;
@@ -821,7 +828,7 @@ export default function App() {
       try {
         const savedCode = await idbGetScene("active-jsx-code");
         if (savedCode && savedCode.code) {
-          if (savedCode.code.includes("function Tower") || savedCode.code.includes('color="#846a49"') || savedCode.code.includes('color="#6a5c4e"')) {
+          if (savedCode.code.includes("function Tower") || savedCode.code.includes('color="#846a49"') || savedCode.code.includes('color="#6a5c4e"') || savedCode.code.includes("ENDLESS OCEAN") || savedCode.code.includes("oceanGeo")) {
             await idbSaveScene("active-jsx-code", { code: null, name: null, updatedAt: Date.now() });
           } else {
             setActiveJsxCode((cur) => cur || savedCode.code);
@@ -4180,6 +4187,30 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     };
   }, []);
 
+  // Quick return to Title Menu listener (from HUD button or Escape key)
+  useEffect(() => {
+    const handleReturnToMenu = () => {
+      setViewportTab("Title Menu");
+      setIsPlaying(false);
+      appendLog("Info", "Returned to Title Menu");
+    };
+    const handleGlobalEsc = (e) => {
+      if (e.key === "Escape") {
+        if (viewportTab === "Game View") {
+          setViewportTab("Title Menu");
+          setIsPlaying(false);
+          appendLog("Info", "Paused & returned to Title Menu");
+        }
+      }
+    };
+    window.addEventListener("spider:return-to-menu", handleReturnToMenu);
+    window.addEventListener("keydown", handleGlobalEsc);
+    return () => {
+      window.removeEventListener("spider:return-to-menu", handleReturnToMenu);
+      window.removeEventListener("keydown", handleGlobalEsc);
+    };
+  }, [viewportTab]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       // Circle colliders for BlockAll actors — computed from the LATEST scene each tick
@@ -5728,9 +5759,26 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 {viewportTab === "Title Menu" && (
                   <div className="absolute inset-0 z-30 bg-black overflow-hidden">
                     <GameMainMenu
-                      onLaunchGame={() => {
+                      onLaunchGame={async () => {
+                        try {
+                          if (window.spiderShell?.readProjectFile && currentProject?.root) {
+                            const res = await window.spiderShell.readProjectFile("src/game", "GameComponent.jsx");
+                            if (res && res.ok && res.content) {
+                              setActiveJsxCode(res.content);
+                              setActiveJsxName("GameComponent.jsx");
+                              setSelectedScriptNames(new Set(["GameComponent.jsx"]));
+                            }
+                          }
+                        } catch {}
+                        setTimeOfDay(22.5);
+                        setTimelineT(22.5);
                         setViewportTab("Game View");
                         if (!isPlaying) handleTogglePlay();
+                        appendLog("Success", "🌆 Entering Knowledge Park District (Dark Open World) — Possessing Wayfarer!");
+                        setTimeout(() => {
+                          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+                          window.focus();
+                        }, 60);
                       }}
                       onClose={() => setViewportTab("Viewport")}
                     />

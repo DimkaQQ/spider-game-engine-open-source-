@@ -737,29 +737,150 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
 function Hero({ node, wire, selected, moving }) {
   const ref = useRef(null);
+  const leftLeg = useRef(null);
+  const rightLeg = useRef(null);
+  const leftArm = useRef(null);
+  const rightArm = useRef(null);
+  const coatLeft = useRef(null);
+  const coatRight = useRef(null);
+
   useFrame(({ clock }) => {
     if (!ref.current) return;
     const t = clock.elapsedTime;
-    // Walk bob + lean while moving in Play mode, idle breathing otherwise
-    const amp = moving ? 0.09 : 0.03;
+    const amp = moving ? 0.08 : 0.02;
     ref.current.position.y = Math.abs(Math.sin(t * (moving ? 10 : 2))) * amp;
-    ref.current.rotation.x = moving ? 0.12 : 0;
+    ref.current.rotation.x = moving ? 0.1 : 0;
+
+    // Procedural arm, leg and trenchcoat sway
+    const swing = moving ? Math.sin(t * 10) * 0.5 : 0;
+    if (leftLeg.current) leftLeg.current.rotation.x = swing;
+    if (rightLeg.current) rightLeg.current.rotation.x = -swing;
+    if (leftArm.current) leftArm.current.rotation.x = -swing * 0.8;
+    if (rightArm.current) rightArm.current.rotation.x = swing * 0.8;
+
+    const coatFlutter = moving ? 0.2 + Math.sin(t * 12) * 0.08 : 0.04;
+    if (coatLeft.current) coatLeft.current.rotation.x = coatFlutter;
+    if (coatRight.current) coatRight.current.rotation.x = coatFlutter;
   });
+
   const e = selected ? "#3b82f6" : undefined;
+
   return (
     <group ref={ref}>
-      <mesh position={[0, 0.9, 0]} castShadow>
-        <capsuleGeometry args={[0.42, 0.9, 6, 14]} />
-        <Std color={node.tint || "#1e3a8a"} wire={wire} emissive={e} />
-      </mesh>
-      <mesh position={[0, 1.95, 0]} castShadow>
-        <sphereGeometry args={[0.32, 20, 20]} />
-        <Std color="#d6b49c" wire={wire} emissive={e} />
-      </mesh>
-      <mesh position={[0, 1.95, 0.28]}>
-        <boxGeometry args={[0.34, 0.1, 0.05]} />
-        <Std color="#271c19" wire={wire} />
-      </mesh>
+      {/* 1. Cowl Hood & Glowing Cyber Visor */}
+      <group position={[0, 1.82, 0]}>
+        <mesh castShadow>
+          <sphereGeometry args={[0.32, 16, 16, 0, Math.PI * 2, 0, Math.PI * 0.8]} />
+          <Std color="#0f172a" wire={wire} emissive={e} />
+        </mesh>
+        <mesh position={[0, 0.08, 0.2]} rotation={[0.3, 0, 0]} castShadow>
+          <boxGeometry args={[0.36, 0.08, 0.24]} />
+          <Std color="#090d16" wire={wire} />
+        </mesh>
+        <mesh position={[0, -0.04, 0.12]}>
+          <sphereGeometry args={[0.22, 12, 12]} />
+          <meshBasicMaterial color="#020617" />
+        </mesh>
+        {/* Cyan Cyber Visor Eyes */}
+        <mesh position={[0, -0.02, 0.22]}>
+          <boxGeometry args={[0.22, 0.035, 0.04]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#38bdf8" emissiveIntensity={3} />
+        </mesh>
+      </group>
+
+      {/* 2. Torso Armor & High Collar */}
+      <group position={[0, 1.35, 0]}>
+        <mesh position={[0, 0.28, 0.02]} castShadow>
+          <cylinderGeometry args={[0.25, 0.32, 0.2, 12]} />
+          <Std color="#090d16" wire={wire} />
+        </mesh>
+        <mesh position={[0, 0.02, 0]} castShadow>
+          <boxGeometry args={[0.54, 0.55, 0.34]} />
+          <Std color={node.tint || "#1e293b"} wire={wire} emissive={e} />
+        </mesh>
+        {/* Cyan Spine Rail */}
+        <mesh position={[0, 0.04, -0.18]}>
+          <boxGeometry args={[0.07, 0.44, 0.03]} />
+          <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={2.5} />
+        </mesh>
+        {/* Shoulder Pauldrons */}
+        <mesh position={[-0.34, 0.2, 0]} rotation={[0, 0, -0.15]} castShadow>
+          <boxGeometry args={[0.18, 0.16, 0.28]} />
+          <Std color="#0f172a" wire={wire} />
+        </mesh>
+        <mesh position={[0.34, 0.2, 0]} rotation={[0, 0, 0.15]} castShadow>
+          <boxGeometry args={[0.18, 0.16, 0.28]} />
+          <Std color="#0f172a" wire={wire} />
+        </mesh>
+      </group>
+
+      {/* 3. Arms */}
+      <group ref={leftArm} position={[-0.35, 1.45, 0]}>
+        <mesh position={[0, -0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.085, 0.42, 6, 8]} />
+          <Std color="#111827" wire={wire} />
+        </mesh>
+        <mesh position={[0, -0.32, 0.02]}>
+          <cylinderGeometry args={[0.1, 0.09, 0.22, 8]} />
+          <meshStandardMaterial color="#0284c7" emissive="#0284c7" emissiveIntensity={0.8} />
+        </mesh>
+      </group>
+      <group ref={rightArm} position={[0.35, 1.45, 0]}>
+        <mesh position={[0, -0.25, 0]} castShadow>
+          <capsuleGeometry args={[0.085, 0.42, 6, 8]} />
+          <Std color="#111827" wire={wire} />
+        </mesh>
+        <mesh position={[0, -0.32, 0.02]}>
+          <cylinderGeometry args={[0.1, 0.09, 0.22, 8]} />
+          <meshStandardMaterial color="#0284c7" emissive="#0284c7" emissiveIntensity={0.8} />
+        </mesh>
+      </group>
+
+      {/* 4. Trenchcoat Tails */}
+      <group position={[0, 1.05, 0]}>
+        <mesh position={[0, 0.02, 0]} castShadow>
+          <cylinderGeometry args={[0.31, 0.32, 0.1, 14]} />
+          <Std color="#090d16" wire={wire} />
+        </mesh>
+        <mesh position={[0, 0.02, 0.31]}>
+          <boxGeometry args={[0.14, 0.08, 0.04]} />
+          <meshStandardMaterial color="#c79d42" metalness={0.8} roughness={0.2} />
+        </mesh>
+        <group ref={coatLeft} position={[-0.14, -0.05, -0.1]}>
+          <mesh position={[0, -0.42, 0]} castShadow>
+            <boxGeometry args={[0.26, 0.75, 0.06]} />
+            <Std color="#090d16" wire={wire} />
+          </mesh>
+        </group>
+        <group ref={coatRight} position={[0.14, -0.05, -0.1]}>
+          <mesh position={[0, -0.42, 0]} castShadow>
+            <boxGeometry args={[0.26, 0.75, 0.06]} />
+            <Std color="#090d16" wire={wire} />
+          </mesh>
+        </group>
+      </group>
+
+      {/* 5. Legs & Armored Boots */}
+      <group ref={leftLeg} position={[-0.16, 0.95, 0]}>
+        <mesh position={[0, -0.45, 0]} castShadow>
+          <capsuleGeometry args={[0.095, 0.75, 6, 8]} />
+          <Std color="#1e293b" wire={wire} />
+        </mesh>
+        <mesh position={[0, -0.88, 0.06]} castShadow>
+          <boxGeometry args={[0.18, 0.18, 0.32]} />
+          <Std color="#020617" wire={wire} />
+        </mesh>
+      </group>
+      <group ref={rightLeg} position={[0.16, 0.95, 0]}>
+        <mesh position={[0, -0.45, 0]} castShadow>
+          <capsuleGeometry args={[0.095, 0.75, 6, 8]} />
+          <Std color="#1e293b" wire={wire} />
+        </mesh>
+        <mesh position={[0, -0.88, 0.06]} castShadow>
+          <boxGeometry args={[0.18, 0.18, 0.32]} />
+          <Std color="#020617" wire={wire} />
+        </mesh>
+      </group>
     </group>
   );
 }
