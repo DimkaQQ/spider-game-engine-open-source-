@@ -20,7 +20,7 @@ import GameViewport from "./src/engine/GameViewport.jsx";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, extractCodeFromRaw } from "./src/engine/agentHarness.js";
 import { GAME_WORLD } from "./src/game/index.js";
-import { Play, Square, Code2, Boxes, Sparkles, Eye, EyeOff, Camera, Sun, Moon, RotateCcw, Eraser } from "lucide-react";
+import { Play, Square, Code2, Boxes, Sparkles, Eye, EyeOff, Camera, Sun, Moon, RotateCcw, Eraser, Plus, Trash2 } from "lucide-react";
 
 /* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
 const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
@@ -72,6 +72,15 @@ function TabBtn({ id, active, onTap, icon: Icon, label }) {
   );
 }
 
+const SPAWNABLES = [
+  { mesh: "box", name: "Box", color: "#6366f1" },
+  { mesh: "sphere", name: "Ball", color: "#3b82f6" },
+  { mesh: "cylinder", name: "Pole", color: "#10b981" },
+  { mesh: "cone", name: "Cone", color: "#f59e0b" },
+  { mesh: "torus", name: "Ring", color: "#ec4899" },
+  { mesh: "ramp", name: "Ramp", color: "#8b5cf6" },
+];
+
 export default function App() {
   const [tab, setTab] = useState("game");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -106,6 +115,41 @@ export default function App() {
       }))
     );
   }, []);
+
+  const handleSpawn = useCallback((mesh, name, color) => {
+    const id = `spawn-${mesh}-${Date.now().toString(36)}`;
+    const node = {
+      id,
+      name: `${name} ${flat.length + 1}`,
+      type: "prop",
+      mesh,
+      color,
+      visible: true,
+      pos: { x: Math.round((Math.random() - 0.5) * 60), y: 0, z: Math.round((Math.random() - 0.5) * 60) },
+      rot: { x: 0, y: Math.round(Math.random() * 360), z: 0 },
+      scale: { x: 1, y: 1, z: 1 },
+    };
+    setGroups((prev) =>
+      prev.map((g) =>
+        g.id === "props-group"
+          ? { ...g, children: [...(g.children || []), node] }
+          : g
+      )
+    );
+    setSelectedId(id);
+    pushLog(`＋ ${node.name}`);
+  }, [flat.length, pushLog]);
+
+  const handleDeleteSpawn = useCallback((id) => {
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        children: (g.children || []).filter((c) => c.id !== id),
+      }))
+    );
+    setSelectedId((cur) => (cur === id ? "player" : cur));
+    pushLog(`－ removed`);
+  }, [pushLog]);
 
   const handleRender = useCallback(() => {
     const comp = compileJsxComponent(code, {}, (e) => setCodeError(String(e?.message || e)));
@@ -245,6 +289,19 @@ export default function App() {
               <span className="spider-pane-title">Сцена · {flat.length}</span>
               <span className="spider-hint">тап — выбрать</span>
             </div>
+            <div className="spider-spawn-grid">
+              {SPAWNABLES.map((s) => (
+                <button
+                  key={s.mesh}
+                  type="button"
+                  onClick={() => handleSpawn(s.mesh, s.name, s.color)}
+                  className="spider-spawn-btn"
+                >
+                  <span className="spider-scene-dot" style={{ background: s.color }} />
+                  <Plus className="w-3.5 h-3.5" /> {s.name}
+                </button>
+              ))}
+            </div>
             <ul className="spider-scene-list">
               {flat.map((n) => (
                 <li key={n.id}>
@@ -270,6 +327,16 @@ export default function App() {
                   >
                     {n.visible === false ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
+                  {String(n.id).startsWith("spawn-") && (
+                    <button
+                      type="button"
+                      aria-label="Удалить"
+                      onClick={() => handleDeleteSpawn(n.id)}
+                      className="spider-icon-btn danger"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
