@@ -16,11 +16,11 @@
  * ============================================================================
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import GameViewport from "./src/engine/GameViewport.jsx";
+import GameViewport, { viewportApi } from "./src/engine/GameViewport.jsx";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, extractCodeFromRaw } from "./src/engine/agentHarness.js";
 import { GAME_WORLD } from "./src/game/index.js";
-import { Play, Square, Code2, Boxes, Sparkles, Eye, EyeOff, Camera, Sun, Moon, RotateCcw, Eraser, Plus, Trash2 } from "lucide-react";
+import { Play, Square, Code2, Boxes, Sparkles, Eye, EyeOff, Camera, Sun, Moon, RotateCcw, Eraser, Plus, Trash2, ImageDown } from "lucide-react";
 
 /* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
 const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
@@ -81,6 +81,13 @@ const SPAWNABLES = [
   { mesh: "ramp", name: "Ramp", color: "#8b5cf6" },
 ];
 
+const QUICK_TASKS = [
+  { label: "♟️ Chess", task: "3D chess board with full rules, tap pieces to move, blue restart button" },
+  { label: "🎲 Ludo", task: "3D ludo board 52 tiles staggered elevations, 4 colored pawns, tap dice to roll and tap pawn to move" },
+  { label: "🪙 Coins", task: "arena 20x20 green ground blue walls, ball hero, 8 gold coins, tap to jump swipe to steer, score HUD" },
+  { label: "🚀 Shooter", task: "spaceship shooter, drag to move touch to shoot, enemies drones, score and lives HUD" },
+];
+
 export default function App() {
   const [tab, setTab] = useState("game");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -94,6 +101,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState([]);
   const [fps, setFps] = useState(0);
+  const [shot, setShot] = useState(null);
   const logRef = useRef(null);
   const keysPressed = useMemo(() => ({}), []);
 
@@ -151,6 +159,20 @@ export default function App() {
     pushLog(`－ removed`);
   }, [pushLog]);
 
+  const handleShot = useCallback(() => {
+    try {
+      const url = viewportApi?.capture ? viewportApi.capture(false, 640) : null;
+      if (url) {
+        setShot(url);
+        pushLog("📸 screenshot taken");
+      } else {
+        pushLog("✗ camera not ready — open Игра tab first");
+      }
+    } catch (e) {
+      pushLog(`✗ shot: ${String(e?.message || e)}`);
+    }
+  }, [pushLog]);
+
   const handleRender = useCallback(() => {
     const comp = compileJsxComponent(code, {}, (e) => setCodeError(String(e?.message || e)));
     if (comp) {
@@ -206,7 +228,6 @@ export default function App() {
 
   return (
     <div className="spider-pocket">
-      {/* ── Top bar ─────────────────────────────── */}
       <header className="spider-topbar">
         <div className="spider-brand">
           <span className="spider-brand-dot">🕷️</span>
@@ -214,49 +235,28 @@ export default function App() {
           <span className="spider-fps">{fps > 0 ? `${fps} FPS` : ""}</span>
         </div>
         <div className="spider-top-actions">
-          <button
-            type="button"
-            className={`spider-chip-btn ${isPlaying ? "is-live" : ""}`}
-            onClick={() => setIsPlaying((p) => !p)}
-          >
+          <button type="button" className="spider-chip-btn" onClick={handleShot} aria-label="Screenshot">
+            <ImageDown className="w-4 h-4" />
+          </button>
+          <button type="button" className={`spider-chip-btn ${isPlaying ? "is-live" : ""}`} onClick={() => setIsPlaying((p) => !p)}>
             {isPlaying ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
             {isPlaying ? "Stop" : "Play"}
           </button>
         </div>
       </header>
-
-      {/* ── Tab body ────────────────────────────── */}
       <main className="spider-body">
         {tab === "game" && (
           <section className="spider-viewport-wrap">
-            <GameViewport
-              sceneGroups={groups}
-              selectedNodeId={selectedId}
-              onSelectNode={setSelectedId}
-              isPlaying={isPlaying}
-              cameraMode={cameraMode}
-              keysPressed={keysPressed}
-              activeGizmo="select"
-              activeJsxCode={activeJsx}
-              activeJsxName="GameComponent.jsx"
-              onFps={setFps}
-            />
+            <GameViewport sceneGroups={groups} selectedNodeId={selectedId} onSelectNode={setSelectedId} isPlaying={isPlaying} cameraMode={cameraMode} keysPressed={keysPressed} activeGizmo="select" activeJsxCode={activeJsx} activeJsxName="GameComponent.jsx" onFps={setFps} />
             <div className="spider-cam-pills">
               {["Viewport", "Game View", "Cinematic"].map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setCameraMode(m)}
-                  className={`spider-pill ${cameraMode === m ? "is-active" : ""}`}
-                >
-                  {m === "Viewport" ? <Camera className="w-3.5 h-3.5" /> : m === "Game View" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+                <button key={m} type="button" onClick={() => setCameraMode(m)} className={`spider-pill ${cameraMode === m ? "is-active" : ""}`}>
                   {m}
                 </button>
               ))}
             </div>
           </section>
         )}
-
         {tab === "code" && (
           <section className="spider-pane">
             <div className="spider-pane-row">
@@ -271,18 +271,10 @@ export default function App() {
               </div>
             </div>
             {codeError && <div className="spider-error">{codeError}</div>}
-            <textarea
-              className="spider-code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-            />
-            <p className="spider-hint">Render монтирует код во вкладку Игра. Ошибки — красной строкой выше.</p>
+            <textarea className="spider-code" value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false} autoCapitalize="off" autoCorrect="off" />
+            <p className="spider-hint">Render монтирует код во вкладку Игра.</p>
           </section>
         )}
-
         {tab === "scene" && (
           <section className="spider-pane">
             <div className="spider-pane-row">
@@ -291,12 +283,7 @@ export default function App() {
             </div>
             <div className="spider-spawn-grid">
               {SPAWNABLES.map((s) => (
-                <button
-                  key={s.mesh}
-                  type="button"
-                  onClick={() => handleSpawn(s.mesh, s.name, s.color)}
-                  className="spider-spawn-btn"
-                >
+                <button key={s.mesh} type="button" onClick={() => handleSpawn(s.mesh, s.name, s.color)} className="spider-spawn-btn">
                   <span className="spider-scene-dot" style={{ background: s.color }} />
                   <Plus className="w-3.5 h-3.5" /> {s.name}
                 </button>
@@ -305,35 +292,15 @@ export default function App() {
             <ul className="spider-scene-list">
               {flat.map((n) => (
                 <li key={n.id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedId(n.id);
-                      setTab("game");
-                    }}
-                    className={`spider-scene-row ${selectedId === n.id ? "is-active" : ""}`}
-                  >
+                  <button type="button" onClick={() => { setSelectedId(n.id); setTab("game"); }} className={`spider-scene-row ${selectedId === n.id ? "is-active" : ""}`}>
                     <span className="spider-scene-dot" style={{ background: n.color || "#6366f1" }} />
                     <span className="spider-scene-name">{n.name || n.id}</span>
-                    <span className="spider-scene-meta">
-                      {Math.round(n.pos?.x ?? 0)},{Math.round(n.pos?.y ?? 0)},{Math.round(n.pos?.z ?? 0)}
-                    </span>
                   </button>
-                  <button
-                    type="button"
-                    aria-label={n.visible === false ? "Показать" : "Скрыть"}
-                    onClick={() => toggleVisible(n.id)}
-                    className="spider-icon-btn"
-                  >
+                  <button type="button" onClick={() => toggleVisible(n.id)} className="spider-icon-btn">
                     {n.visible === false ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                   {String(n.id).startsWith("spawn-") && (
-                    <button
-                      type="button"
-                      aria-label="Удалить"
-                      onClick={() => handleDeleteSpawn(n.id)}
-                      className="spider-icon-btn danger"
-                    >
+                    <button type="button" onClick={() => handleDeleteSpawn(n.id)} className="spider-icon-btn danger">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
@@ -342,26 +309,21 @@ export default function App() {
             </ul>
           </section>
         )}
-
         {tab === "render" && (
           <section className="spider-pane">
             <div className="spider-pane-row">
               <span className="spider-pane-title">Рендер из слов</span>
             </div>
+            <div className="spider-spawn-grid">
+              {QUICK_TASKS.map((q) => (
+                <button key={q.label} type="button" onClick={() => setTask(q.task)} className="spider-spawn-btn">
+                  {q.label}
+                </button>
+              ))}
+            </div>
             <div className="spider-render-box">
-              <textarea
-                className="spider-task"
-                value={task}
-                onChange={(e) => setTask(e.target.value)}
-                placeholder="Опиши игру: арена 20×20, шар-герой, 8 монет…"
-                rows={4}
-              />
-              <button
-                type="button"
-                className="spider-big-btn"
-                disabled={busy || !task.trim()}
-                onClick={handleRunTask}
-              >
+              <textarea className="spider-task" value={task} onChange={(e) => setTask(e.target.value)} placeholder="Опиши игру: арена 20×20, шар-герой, 8 монет…" rows={4} />
+              <button type="button" className="spider-big-btn" disabled={busy || !task.trim()} onClick={handleRunTask}>
                 <Sparkles className="w-4 h-4" /> {busy ? "Рендерю…" : "Сгенерировать"}
               </button>
               <button type="button" className="spider-chip-btn" onClick={() => setLog([])}>
@@ -369,16 +331,22 @@ export default function App() {
               </button>
             </div>
             <div ref={logRef} className="spider-log">
-              {log.length === 0 && <span className="spider-hint">Лог пуст. Без моста модели код пишется во вкладке Код.</span>}
+              {log.length === 0 && <span className="spider-hint">Лог пуст.</span>}
               {log.map((l, i) => (
                 <div key={i}>{l}</div>
               ))}
             </div>
+            {shot && (
+              <div className="spider-shot">
+                <img src={shot} alt="Viewport screenshot" />
+                <button type="button" className="spider-chip-btn" onClick={() => setShot(null)}>
+                  Закрыть
+                </button>
+              </div>
+            )}
           </section>
         )}
       </main>
-
-      {/* ── Bottom tab bar ──────────────────────── */}
       <nav className="spider-tabbar">
         <TabBtn id="game" active={tab} onTap={setTab} icon={Play} label="Игра" />
         <TabBtn id="code" active={tab} onTap={setTab} icon={Code2} label="Код" />
