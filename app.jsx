@@ -676,6 +676,10 @@ export default function App() {
   const [activeJsxCode, setActiveJsxCode] = useState(() => {
     try {
       const saved = localStorage.getItem("spider-active-jsx-code");
+      if (saved && (saved.includes("function Tower") || saved.includes('color="#846a49"') || saved.includes('color="#6a5c4e"'))) {
+        localStorage.removeItem("spider-active-jsx-code");
+        return null;
+      }
       return saved && saved.trim() ? saved : null;
     } catch { return null; }
   });
@@ -816,8 +820,12 @@ export default function App() {
       try {
         const savedCode = await idbGetScene("active-jsx-code");
         if (savedCode && savedCode.code) {
-          setActiveJsxCode((cur) => cur || savedCode.code);
-          setActiveJsxName((cur) => cur || savedCode.name || "GameComponent.jsx");
+          if (savedCode.code.includes("function Tower") || savedCode.code.includes('color="#846a49"') || savedCode.code.includes('color="#6a5c4e"')) {
+            await idbSaveScene("active-jsx-code", { code: null, name: null, updatedAt: Date.now() });
+          } else {
+            setActiveJsxCode((cur) => cur || savedCode.code);
+            setActiveJsxName((cur) => cur || savedCode.name || "GameComponent.jsx");
+          }
         }
       } catch (err) {}
     })();
