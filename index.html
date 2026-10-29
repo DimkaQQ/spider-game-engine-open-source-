@@ -15,10 +15,97 @@
     <!-- [LINEAGE-AUTHORS]: vivek / venom / quick / qucik -->
     <meta name="engine-provenance" content="vivek / venom / quick / qucik / m4spider" />
     <meta name="disclaimer" content="NOTE: Games created or run using this engine are strictly at your own risk." />
-
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: ws: wss: http: https: file:;" />
+    <style>
+      html, body {
+        background-color: #0f172a;
+        color: #f8fafc;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        user-select: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      #root {
+        width: 100%;
+        height: 100%;
+        background-color: #0f172a;
+      }
+      .engine-boot-loader {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        width: 100vw;
+        background-color: #0f172a;
+        color: #f8fafc;
+      }
+      .engine-boot-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #6366f1, #a855f7 55%, #38bdf8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+        margin-bottom: 16px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      .engine-boot-title {
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.25em;
+        color: #f1f5f9;
+        margin-bottom: 6px;
+      }
+      .engine-boot-sub {
+        font-size: 11px;
+        color: #64748b;
+        letter-spacing: 0.08em;
+        margin-bottom: 20px;
+        font-weight: 500;
+      }
+      .engine-boot-progress {
+        width: 160px;
+        height: 3px;
+        background: #1e293b;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .engine-boot-bar {
+        width: 45%;
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #38bdf8);
+        border-radius: 999px;
+        animation: sweep 1.2s ease-in-out infinite;
+      }
+      @keyframes sweep {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(250%); }
+      }
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.04); opacity: 0.9; }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="engine-boot-loader">
+        <div class="engine-boot-icon">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="#ffffff">
+            <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1 14.5l-3.5-3.5 1.41-1.41L11 13.67l4.59-4.59L17 10.5 11 16.5z"/>
+          </svg>
+        </div>
+        <div class="engine-boot-title">SPIDER ENGINE</div>
+        <div class="engine-boot-sub">INITIALIZING WORKSPACE…</div>
+        <div class="engine-boot-progress"><div class="engine-boot-bar"></div></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

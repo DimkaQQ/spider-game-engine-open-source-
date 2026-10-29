@@ -15,6 +15,31 @@ const http = require('http')
 const contextMenuModule = require('electron-context-menu')
 const contextMenu = contextMenuModule.default || contextMenuModule
 
+// Set application name and dedicated userData folder to prevent cache conflicts
+app.name = 'SpiderEngine';
+try {
+  const userDataPath = path.join(app.getPath('appData'), 'SpiderEngine');
+  app.setPath('userData', userDataPath);
+} catch (e) {}
+
+// Prevent GPU cache lock conflicts on Windows
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+
+// Single instance lock to prevent multiple instances clashing on disk cache
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    const wins = BrowserWindow.getAllWindows();
+    if (wins.length > 0) {
+      const mainWin = wins[0];
+      if (mainWin.isMinimized()) mainWin.restore();
+      mainWin.focus();
+    }
+  });
+}
+
 // Right-click menu: Copy for selections, Cut/Copy/Paste for inputs, Inspect in dev
 contextMenu({
   showLookUpSelection: false,
@@ -106,7 +131,7 @@ function createSplash() {
   const splash = new BrowserWindow({
     width: 560,
     height: 360,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f172a',
     resizable: false,
     frame: false,
     center: true,
@@ -124,7 +149,7 @@ function createWindow(splash) {
     height: 900,
     minWidth: 1024,
     minHeight: 680,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#0f172a',
     autoHideMenuBar: true,
     show: false,
     center: true,
@@ -145,7 +170,8 @@ function createWindow(splash) {
       message.includes('unsupported GPOS') ||
       message.includes('unsupported GSUB') ||
       message.includes('LookupType') ||
-      message.includes('removeChild')
+      message.includes('removeChild') ||
+      message.includes('Electron Security Warning')
     ) {
       return;
     }
