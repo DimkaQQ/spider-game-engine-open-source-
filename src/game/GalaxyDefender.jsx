@@ -32,15 +32,35 @@ function GameComponent(){
   const partRefs = useRef([]);
   const starData = useRef(Array.from({length:90},()=>({x:(Math.random()-0.5)*32,y:Math.random()*11-0.5,z:Math.random()*-42+6,s:Math.random()*0.11+0.04,sp:Math.random()*3+2})));
   const starRefs = useRef([]);
+  const touchStart = useRef(null);
 
   useEffect(()=>{
     const dn=(e)=>{ keys.current[e.code]=true; if(e.key) keys.current[e.key.toLowerCase()]=true; if(e.code==='Space'||e.key===' '){ e.preventDefault(); } };
     const up=(e)=>{ keys.current[e.code]=false; if(e.key) keys.current[e.key.toLowerCase()]=false; };
     const md=()=>{ mouseFire.current=true; };
     const mu=()=>{ mouseFire.current=false; };
+    // Touch: drag steers the ship (relative), touching also auto-fires.
+    // Touches starting on real controls (buttons) are left alone.
+    const onTs=(e)=>{
+      if (e.target && e.target.closest && e.target.closest('button, a, input, select, textarea, [role="button"]')) return;
+      const t=e.touches[0];
+      if(t){ touchStart.current={x:t.clientX,y:t.clientY}; mouseFire.current=true; }
+    };
+    const onTm=(e)=>{
+      if(!touchStart.current) return;
+      const t=e.touches[0];
+      if(!t) return;
+      const dx=t.clientX-touchStart.current.x, dy=t.clientY-touchStart.current.y;
+      keys.current['TouchLeft']=dx<-24; keys.current['TouchRight']=dx>24;
+      keys.current['TouchUp']=dy<-24; keys.current['TouchDown']=dy>24;
+    };
+    const onTe=()=>{ touchStart.current=null; mouseFire.current=false; keys.current['TouchLeft']=keys.current['TouchRight']=keys.current['TouchUp']=keys.current['TouchDown']=false; };
     window.addEventListener('keydown',dn); window.addEventListener('keyup',up);
     window.addEventListener('mousedown',md); window.addEventListener('mouseup',mu);
-    return()=>{ window.removeEventListener('keydown',dn); window.removeEventListener('keyup',up); window.removeEventListener('mousedown',md); window.removeEventListener('mouseup',mu); };
+    window.addEventListener('touchstart',onTs,{passive:true});
+    window.addEventListener('touchmove',onTm,{passive:true});
+    window.addEventListener('touchend',onTe); window.addEventListener('touchcancel',onTe);
+    return()=>{ window.removeEventListener('keydown',dn); window.removeEventListener('keyup',up); window.removeEventListener('mousedown',md); window.removeEventListener('mouseup',mu); window.removeEventListener('touchstart',onTs); window.removeEventListener('touchmove',onTm); window.removeEventListener('touchend',onTe); window.removeEventListener('touchcancel',onTe); };
   },[]);
 
   const spawnExplosion=(x,y,z,color)=>{
@@ -76,8 +96,12 @@ function GameComponent(){
   useFrame((state, rawDelta)=>{
     const dt=Math.min(rawDelta||0.016,0.05);
     const k=keys.current;
-    // CAMERA LOCK EVERY FRAME
-    state.camera.position.set(playerPos.current.x*0.45, 4.6, 11.2);
+    // CAMERA LOCK EVERY FRAME (pulls back on narrow phone screens
+    // so the ship + incoming enemies stay inside the frame).
+    const narrow = typeof window !== "undefined" && window.innerWidth < 560;
+    const camDist = narrow ? 14.6 : 11.2;
+    const camH = narrow ? 6.0 : 4.6;
+    state.camera.position.set(playerPos.current.x*0.45, camH, camDist);
     state.camera.lookAt(playerPos.current.x*0.5, 1.6, -6);
     // stars drift always
     for(let i=0;i<starData.current.length;i++){
@@ -108,10 +132,10 @@ function GameComponent(){
     if(fireCd.current>0) fireCd.current-=dt;
     // MOVEMENT
     let dx=0, dy=0;
-    if(k['KeyA']||k['a']||k['ArrowLeft']) dx-=1;
-    if(k['KeyD']||k['d']||k['ArrowRight']) dx+=1;
-    if(k['KeyW']||k['w']||k['ArrowUp']) dy+=1;
-    if(k['KeyS']||k['s']||k['ArrowDown']) dy-=1;
+    if(k['KeyA']||k['a']||k['ArrowLeft']||k['TouchLeft']) dx-=1;
+    if(k['KeyD']||k['d']||k['ArrowRight']||k['TouchRight']) dx+=1;
+    if(k['KeyW']||k['w']||k['ArrowUp']||k['TouchUp']) dy+=1;
+    if(k['KeyS']||k['s']||k['ArrowDown']||k['TouchDown']) dy-=1;
     const speed=11;
     const blend=1-Math.exp(-12*dt);
     vel.current.x+=(dx*speed-vel.current.x)*blend;
@@ -326,18 +350,19 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         <meshBasicMaterial color={i%3===0?'#fbbf24':i%3===1?'#f43f5e':'#38bdf8'} />
       </mesh>
     ))}
-    <Html fullscreen style={{pointerEvents:'none'}}>
-      <div style={{position:'absolute',top:14,left:0,right:0,display:'flex',justifyContent:'center',gap:14,pointerEvents:'none'}}>
-        <div style={{background:'rgba(5,10,25,0.72)',border:'1px solid #38bdf8',borderRadius:12,padding:'8px 18px',color:'#fff',fontFamily:'sans-serif',fontSize:18,fontWeight:700}}>SCORE: <span style={{color:'#4ade80'}}>{score}</span></div>
-        <div style={{background:'rgba(5,10,25,0.72)',border:'1px solid #f43f5e',borderRadius:12,padding:'8px 18px',color:'#fff',fontFamily:'sans-serif',fontSize:18,fontWeight:700}}>LIVES: <span style={{color:'#fbbf24'}}>{'❤'.repeat(Math.max(0,lives))||'—'}</span></div>
+    <Html fullscreen style={{ pointerEvents: 'none' }}>
+      <div className="spider-hud-top">
+        <div style={{ background: 'rgba(5,10,25,0.78)', border: '1px solid #38bdf8', borderRadius: 12, padding: '8px 14px', color: '#fff', fontFamily: 'sans-serif', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>SCORE: <span style={{ color: '#4ade80' }}>{score}</span></div>
+        <div style={{ background: 'rgba(5,10,25,0.78)', border: '1px solid #f43f5e', borderRadius: 12, padding: '8px 14px', color: '#fff', fontFamily: 'sans-serif', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>LIVES: <span style={{ color: '#fbbf24' }}>{'❤'.repeat(Math.max(0, lives)) || '—'}</span></div>
       </div>
-      <div style={{position:'absolute',bottom:12,left:0,right:0,textAlign:'center',color:'#94a3b8',fontFamily:'sans-serif',fontSize:13}}>WASD / Arrows move • SPACE / Click shoot</div>
-      {gameOver&&(
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(2,6,18,0.62)',pointerEvents:'auto'}}>
-          <div style={{background:'#0b1430',border:'2px solid #38bdf8',borderRadius:18,padding:32,textAlign:'center',fontFamily:'sans-serif'}}>
-            <div style={{color:'#f43f5e',fontSize:42,fontWeight:900}}>GAME OVER</div>
-            <div style={{color:'#fff',fontSize:20,margin:'10px 0'}}>Final Score: {score}</div>
-            <button onClick={restart} style={{marginTop:10,background:'#38bdf8',border:'none',borderRadius:10,padding:'12px 28px',fontSize:18,fontWeight:800,cursor:'pointer',color:'#04121f'}}>RESTART</button>
+      <div className="spider-hud-bottom spider-only-fine"><div style={{ color: '#94a3b8', fontFamily: 'sans-serif', fontSize: 13 }}>WASD / Arrows move • SPACE / Click shoot</div></div>
+      <div className="spider-hud-bottom spider-only-coarse"><div style={{ color: '#94a3b8', fontFamily: 'sans-serif', fontSize: 13 }}>Drag to move • Touch to shoot</div></div>
+      {gameOver && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(2,6,18,0.62)', pointerEvents: 'auto', padding: 16 }}>
+          <div style={{ background: '#0b1430', border: '2px solid #38bdf8', borderRadius: 18, padding: '24px 22px', textAlign: 'center', fontFamily: 'sans-serif', width: 'min(92vw, 380px)' }}>
+            <div style={{ color: '#f43f5e', fontSize: 32, fontWeight: 900 }}>GAME OVER</div>
+            <div style={{ color: '#fff', fontSize: 17, margin: '10px 0' }}>Final Score: {score}</div>
+            <button onClick={restart} className="spider-hud-btn" style={{ marginTop: 10, background: '#38bdf8', border: 'none', borderRadius: 10, padding: '12px 28px', fontSize: 17, fontWeight: 800, cursor: 'pointer', color: '#04121f' }}>RESTART</button>
           </div>
         </div>
       )}

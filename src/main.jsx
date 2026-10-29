@@ -55,7 +55,7 @@ class RootErrorBoundary extends React.Component {
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 40, background: '#0f172a', color: '#f43f5e', fontFamily: 'monospace', height: '100vh', boxSizing: 'border-box', overflow: 'auto' }}>
+        <div style={{ padding: 40, background: '#0f172a', color: '#f43f5e', fontFamily: 'monospace', height: '100dvh', boxSizing: 'border-box', overflow: 'auto' }}>
           <h1 style={{ color: '#ef4444', fontSize: '20px', marginBottom: '12px' }}>Spider Engine Startup Error</h1>
           <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '20px' }}>An unhandled error occurred while mounting the application:</p>
           <pre style={{ whiteSpace: 'pre-wrap', background: '#1e293b', padding: '16px', borderRadius: '8px', color: '#fca5a5', fontSize: '12px', border: '1px solid #334155' }}>

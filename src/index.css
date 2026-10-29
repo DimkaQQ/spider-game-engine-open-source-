@@ -6,9 +6,232 @@
  */
 @import "tailwindcss";
 
+/* ------------------------------------------------------------------
+ * Mobile-first foundation.
+ * Rules distilled from the connected skill repos:
+ *  mobile-native (Emil Kowalski) — platform layer: viewport, touch,
+ *  safe areas, tap feedback; taste-skill layout/type — one column on
+ *  phones, 16–20px margins, 16px+ body, 44px targets; impeccable
+ *  adapt/layout — capability queries over device sniffing.
+ * ------------------------------------------------------------------ */
+:root {
+  --spider-margin: clamp(1rem, 2.2vw, 2rem);
+  --spider-touch: 44px;
+  --spider-sat: env(safe-area-inset-top, 0px);
+  --spider-sab: env(safe-area-inset-bottom, 0px);
+  --spider-sal: env(safe-area-inset-left, 0px);
+  --spider-sar: env(safe-area-inset-right, 0px);
+  --spider-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --spider-t-press: 140ms;
+  --spider-t-hover: 180ms;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+
 html, body, #root {
   height: 100%;
+  height: 100dvh;
   margin: 0;
+  overscroll-behavior: none;
+}
+
+body {
+  padding-left: var(--spider-sal);
+  padding-right: var(--spider-sar);
+}
+
+/* Full-bleed game shell: tracks the visible area as browser chrome
+ * shows/hides (dvh), paints edge-to-edge under notch/island (pads via
+ * safe-area on HUD, not on canvas). */
+.spider-game-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+  background: #0b0f19;
+  /* Cancel the body's side safe-area padding so the game stays
+   * full-bleed; HUD elements pad themselves via safe-area instead. */
+  margin-left: calc(-1 * var(--spider-sal));
+  margin-right: calc(-1 * var(--spider-sar));
+}
+
+.spider-game-root canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+/* Top-anchored HUD overlay (used inside drei <Html fullscreen>).
+ * One centered row, wraps instead of overflowing, clears the notch,
+ * never intercepts canvas gestures except on real controls. */
+.spider-hud-top {
+  position: absolute;
+  top: calc(10px + var(--spider-sat));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-inline: max(12px, var(--spider-sal)) max(12px, var(--spider-sar));
+  pointer-events: none;
+  z-index: 10;
+}
+
+.spider-hud-top > * {
+  pointer-events: none;
+  max-width: min(94vw, 560px);
+}
+
+.spider-hud-top button,
+.spider-hud-top [role="button"] {
+  pointer-events: auto;
+}
+
+/* Bottom-anchored hint bar: hidden on touch (thumb zone stays clean). */
+.spider-hud-bottom {
+  position: absolute;
+  bottom: calc(10px + var(--spider-sab));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding-inline: 12px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .spider-hud-bottom.spider-only-fine {
+    display: none;
+  }
+}
+
+/* Touch-sized controls: 44px minimum, instant press feedback. */
+.spider-hud-btn {
+  min-height: var(--spider-touch);
+  min-width: var(--spider-touch);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform var(--spider-t-press) var(--spider-ease-out);
+}
+
+.spider-hud-btn:active {
+  transform: scale(0.96);
+}
+
+button, a, [role="button"], .tappable {
+  touch-action: manipulation;
+}
+
+button, [role="button"], .tab, .chip {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input, textarea, select {
+  font-size: 16px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .spider-hud-btn:hover {
+    filter: brightness(1.08);
+  }
+}
+
+/* Visible only on touch devices (replaces desktop-only hints). */
+.spider-only-coarse {
+  display: none;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .spider-hud-bottom.spider-only-coarse {
+    display: flex;
+  }
+  .spider-touch-controls.spider-only-coarse {
+    display: flex;
+  }
+}
+
+/* Editor/game viewport root: canvas owns its gestures, page never
+ * rubber-bands or pull-to-refreshes underneath it. */
+.spider-viewport-root {
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+/* On-screen touch controls for arena games (d-pad + jump).
+ * Fixed thumb zones above the home indicator; never overlap the HUD. */
+.spider-touch-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(14px + var(--spider-sab));
+  display: none;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-inline: max(14px, var(--spider-sal)) max(14px, var(--spider-sar));
+  pointer-events: none;
+  z-index: 11;
+}
+
+.spider-touch-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 56px);
+  grid-template-rows: repeat(3, 56px);
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.spider-touch-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(15, 23, 42, 0.55);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  backdrop-filter: blur(6px);
+}
+
+.spider-touch-btn:active {
+  background: rgba(59, 130, 246, 0.7);
+  transform: scale(0.94);
+}
+
+.spider-touch-jump {
+  width: 76px;
+  height: 76px;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  background: rgba(59, 130, 246, 0.55);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spider-load-bar,
+  .ai-shimmer-text,
+  .term-shimmer-text,
+  .engine-boot-icon,
+  .engine-boot-bar {
+    animation: none;
+  }
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -44,14 +267,14 @@ html, body, #root {
   top: 1.5px;
   width: 4px;
   height: 7px;
-
-/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
-[data-engine-provenance="vivek-venom-quick-qucik"] { display: none; }
-
   border: solid #fff;
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+[data-engine-provenance="vivek-venom-quick-qucik"] { display: none; }
+
 /* Splash loading bar */
 @keyframes spider-load {
   0% { transform: translateX(-100%); }

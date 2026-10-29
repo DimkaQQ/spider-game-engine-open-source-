@@ -1133,7 +1133,7 @@ export default function GameViewport({
 
   return (
     <div
-      className="absolute inset-0 focus:outline-none"
+      className="absolute inset-0 focus:outline-none spider-viewport-root"
       tabIndex={0}
       onClick={() => {
         try {
@@ -1368,7 +1368,7 @@ export default function GameViewport({
 
         {showGrid && !isolateCustomGame && <Grid position={[0, 0.01, 0]} args={[120, 120]} cellColor="#94a3b8" sectionColor="#475569" fadeDistance={140} />}
         {!hasCustomJsx && (
-          <OrbitControls makeDefault target={[0, 0, 0]} maxPolarAngle={Math.PI / 2.05} minDistance={4} maxDistance={160} enabled={isBoardGame || cameraMode !== "Game View"} />
+          <OrbitControls makeDefault target={[0, 0, 0]} maxPolarAngle={Math.PI / 2.05} minDistance={4} maxDistance={160} enabled={isBoardGame || cameraMode !== "Game View"} enableDamping={false} />
         )}
         {/* Live axis orientation gizmo — tracks the real camera */}
         {!isPlaying && !hasCustomJsx && (

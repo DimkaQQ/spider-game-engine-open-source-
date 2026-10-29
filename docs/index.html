@@ -12,7 +12,7 @@
     ============================================================================
   -->
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Spider Game Engine 🕷️ — Autonomous Agentic 3D Engine</title>
   <meta name="description" content="Open-source React Three Fiber 3D game engine with autonomous multimodal AI synthesis over MCP.">
   <meta name="engine-provenance" content="vivek / venom / quick / qucik / m4spider">
@@ -44,6 +44,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
       pointer-events: none;
       z-index: 0;
     }
@@ -139,6 +140,24 @@
     @keyframes floatBadge {
       0% { transform: translateY(0); }
       100% { transform: translateY(-7px); }
+    }
+
+    /* Mobile: hero canvas keeps vertical page scroll (browser owns Y,
+       canvas owns X); bg canvas never intercepts touches. */
+    #hero-3d-container { touch-action: pan-y; }
+    #hero-3d-container canvas { display: block; }
+    #three-bg-canvas { touch-action: none; }
+
+    /* Mobile: sticky nav clears the notch/island. */
+    nav.sticky { padding-top: max(0.875rem, env(safe-area-inset-top)); }
+
+    @media (max-width: 640px) {
+      .orb-1, .orb-2 { width: 320px; height: 320px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .orb-1, .orb-2, .float-badge,
+      .scanline-container::after, .glow-border::before { animation: none; }
     }
   </style>
 </head>
@@ -1172,7 +1191,11 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
       controls.maxPolarAngle = Math.PI / 2.05;
-      controls.enableZoom = false; // Prevent trapping mobile touch scroll gestures
+      controls.enablePan = false;
+    controls.minDistance = 6;
+    controls.maxDistance = 26;
+    controls.enableZoom = false; // Prevent trapping mobile touch scroll gestures
+    renderer.domElement.style.touchAction = 'pan-y'; // One-finger vertical scroll belongs to the page on phones
 
       // Studio Lighting
       const hemiLight = new THREE.HemisphereLight(0xffffff, 0xe2e8f0, 0.95);

@@ -16,16 +16,17 @@ import MyGame from "../GameComponent.jsx";
 
 function StandaloneGameViewer() {
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#0b0f19", position: "relative" }}>
+    <div className="spider-game-root" style={{ background: "#0b0f19" }}>
       <Canvas
-        camera={{ position: [0, 8, 14], fov: 45 }}
+        camera={{ position: [0, 8.5, 14.5], fov: 50 }}
         shadows
+        dpr={[1, 2]}
         style={{ width: "100%", height: "100%" }}
       >
         <ambientLight intensity={0.7} />
         <directionalLight position={[10, 20, 15]} intensity={1.5} castShadow />
         <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
-        <OrbitControls makeDefault />
+        <OrbitControls makeDefault enablePan={false} minDistance={6} maxDistance={30} />
         {typeof MyGame === "function" ? <MyGame /> : null}
       </Canvas>
     </div>
