@@ -13,7 +13,7 @@
 /* form fields keep editor-sized type on desktop */
 .sp-desk input,
 .sp-desk select,
-.sp-desk textarea { font-size: inherit; min-width: 0; }
+.sp-desk textarea { min-width: 0; }
 .sp-desk input[type="number"],
 .sp-desk input[type="text"] { text-overflow: ellipsis; }
 

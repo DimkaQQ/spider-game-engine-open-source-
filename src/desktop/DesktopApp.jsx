@@ -102,6 +102,17 @@ import { tourSeen, markTourSeen } from "../onboarding.js";
 // The full demo world (forest, rocks, water) stays available for the shooter/racing templates.
 const GAME_WORLD = starterWorld();
 
+// A saved scene is worth restoring only if it has real actors and is not the old forest demo
+// (which would hide the new starter level). Anything the user built themselves (spawn-*) is kept.
+function isUsableScene(groups) {
+  const kids = (Array.isArray(groups) ? groups : []).flatMap((g) => (g && Array.isArray(g.children) ? g.children : [])).filter(Boolean);
+  if (!kids.some((c) => c.pos && (c.mesh || c.type))) return false;
+  const ids = new Set(kids.map((c) => c.id));
+  const oldDemo = ids.has("terrain") && ids.has("trees") && ids.has("rocks");
+  const userMade = kids.some((c) => String(c.id).startsWith("spawn-"));
+  return !(oldDemo && !userMade);
+}
+
 // --- CONSOLE LOGS (start empty — real boot lines are logged on mount) ---
 const INITIAL_LOGS = [];
 
@@ -826,7 +837,7 @@ export default function App() {
       // 2. Restore 3D Scene from IndexedDB
       try {
         const savedScene = await idbGetScene("current-scene");
-        if (savedScene && savedScene.groups && Array.isArray(savedScene.groups)) {
+        if (savedScene && savedScene.groups && Array.isArray(savedScene.groups) && isUsableScene(savedScene.groups)) {
           setSceneGroups(sanitizeGroups(savedScene.groups));
           appendLog("Success", `Restored 3D scene from browser IndexedDB (${savedScene.name})`);
         }
@@ -2956,7 +2967,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           ...p,
           id: p.id || `project-${Date.now()}`,
           name: p.name || "Untitled",
-          groups: Array.isArray(p.groups)
+          groups: Array.isArray(p.groups) && isUsableScene(p.groups)
             ? p.groups.filter(Boolean).map((g) => ({
                 ...g,
                 children: Array.isArray(g.children) ? g.children : []
@@ -4404,7 +4415,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
           <div className="w-[560px] h-[360px] max-w-full max-h-full bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-extrabold text-[11px] shadow-sm">S</div>
+                <SpiderMark size={24} className="shrink-0" />
                 <span className="font-extrabold text-[12px] text-slate-900">Project Browser</span>
                 <span className="text-[10px] text-slate-400">Which project are we opening?</span>
               </div>
@@ -4776,7 +4787,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <div className="px-2 py-1.5 border-b border-slate-100 flex items-center justify-between gap-1 bg-slate-50/70">
                   <div className="flex items-center gap-1 bg-slate-200/80 p-0.5 rounded-lg text-[11px] font-semibold min-w-0">
                     <button
-                      onClick={() => setLeftPanelTab("hierarchy")}
+                      title="Scene" onClick={() => setLeftPanelTab("hierarchy")}
                       className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition cursor-pointer ${
                         leftPanelTab === "hierarchy" ? "bg-white text-indigo-600 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
                       }`}
@@ -4785,7 +4796,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       <span className="@max-[230px]:hidden">Scene</span>
                     </button>
                     <button
-                      onClick={() => setLeftPanelTab("scripts")}
+                      title="Scripts" onClick={() => setLeftPanelTab("scripts")}
                       className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition cursor-pointer ${
                         leftPanelTab === "scripts" ? "bg-white text-indigo-600 shadow-2xs font-bold" : "text-slate-600 hover:text-slate-900"
                       }`}
@@ -4994,7 +5005,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           Bundle: <span className="font-mono text-indigo-700 font-bold">{selectedScriptFolder}</span>
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                         <button
                           onClick={() => {
                             const target = (currentProject?.root && currentProject.root.trim()) || "src/game";
@@ -5202,7 +5213,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <span>Multi-File Preview Active</span>
                       </div>
                       <span className="text-[9px] text-slate-400 leading-snug">
-                        Selecting a folder links all its files into Preview mode. Relative imports like <code>./Component</code> resolve live in memory.
+                        Pick a folder to preview all its files together.
                       </span>
                     </div>
                   </div>
@@ -6130,7 +6141,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       className="bg-transparent text-[11px] w-full min-w-0 focus:outline-none text-slate-700"
                     />
                   </div>
-                  <Grid className="w-3.5 h-3.5 text-slate-400 shrink-0 @max-[420px]:hidden" />
+                  
                   <button onClick={() => setBottomLeftOpen(false)} title="Hide panel (press B to reopen)" className="text-slate-400 hover:text-slate-700 text-xs cursor-pointer px-1 rounded hover:bg-slate-100">×</button>
                 </div>
               </div>

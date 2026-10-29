@@ -5,7 +5,7 @@
  * or shows only an icon, gets a styled tooltip after a short hover. The native
  * `title` is moved to data-tip so the browser's own slow tooltip never doubles it.
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const ICON_NAMES = {
   "rotate-ccw": "Undo",
@@ -37,6 +37,13 @@ const ICON_NAMES = {
   "panel-left-open": "Expand menu",
 };
 
+/* Keep tooltips to a few words: cut at the first dash or bracket, cap the length. */
+function short(text) {
+  let t = String(text).trim().split(/\s[—–-]\s|\s\(/)[0].trim();
+  if (t.length > 44) t = `${t.slice(0, 42).trim()}…`;
+  return t;
+}
+
 function labelFor(el) {
   const own = el.getAttribute("data-tip") || el.getAttribute("title");
   if (own) {
@@ -44,14 +51,14 @@ function labelFor(el) {
       el.setAttribute("data-tip", el.getAttribute("title"));
       el.removeAttribute("title");
     }
-    return own.trim();
+    return short(own);
   }
   const aria = el.getAttribute("aria-label");
-  if (aria) return aria.trim();
+  if (aria) return short(aria);
   const visible = (el.innerText || "").trim();
-  if (visible) return ""; // already labelled on screen
   const hidden = (el.textContent || "").trim(); // label hidden by a narrow-panel rule
-  if (hidden) return hidden;
+  if (visible && !(visible.length <= 3 && hidden.length > visible.length)) return ""; // already labelled on screen
+  if (hidden) return hidden.replace(/\s*\d+$/, "").trim() || hidden;
   const svg = el.querySelector("svg");
   if (svg) {
     const m = String(svg.getAttribute("class") || "").match(/lucide-([a-z0-9-]+)/);
@@ -102,11 +109,18 @@ export default function AutoTooltips() {
     };
   }, []);
 
+  const box = useRef(null);
+  const [left, setLeft] = useState(null);
+  useLayoutEffect(() => {
+    if (!tip || !box.current) return;
+    const w = box.current.offsetWidth;
+    setLeft(Math.min(Math.max(tip.x, w / 2 + 8), window.innerWidth - w / 2 - 8));
+  }, [tip]);
+
   if (!tip) return null;
   const below = tip.top < 44;
-  const x = Math.min(Math.max(tip.x, 90), window.innerWidth - 90);
   return (
-    <div className={`sp-tip ${below ? "is-below" : ""}`} style={{ left: x, top: below ? tip.bottom + 8 : tip.top - 8 }} role="tooltip">
+    <div ref={box} className={`sp-tip ${below ? "is-below" : ""}`} style={{ left: left ?? tip.x, top: below ? tip.bottom + 8 : tip.top - 8 }} role="tooltip">
       {tip.text}
     </div>
   );
