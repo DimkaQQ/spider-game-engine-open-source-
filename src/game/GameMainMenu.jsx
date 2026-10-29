@@ -117,9 +117,14 @@ const sfx = new SoundEffects();
 // PROCEDURAL 2D CANVAS CITY & CHARACTER SCENE
 // (Faithfully recreates the Knowledge Park night scene)
 // ==========================================
-const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }) => {
+const ProceduralNightCityCanvas = React.memo(({ mousePos, mousePosRef, customBgUrl, bokehIntensity = 1 }) => {
   const canvasRef = useRef(null);
+  const bgDivRef = useRef(null);
   const sceneDataRef = useRef(null);
+  const internalMouseRef = useRef(mousePos || { x: 0.5, y: 0.5 });
+  useEffect(() => {
+    if (mousePos) internalMouseRef.current = mousePos;
+  }, [mousePos]);
 
   // Generate deterministic building windows, street trees, and rain particles once
   useEffect(() => {
@@ -241,9 +246,15 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
         return;
       }
 
-      // Subtle camera parallax based on mouse
-      const px = (mousePos.x - 0.5) * 22;
-      const py = (mousePos.y - 0.5) * 12;
+      // Subtle camera parallax based on mouse (read from ref — 0 React re-renders!)
+      const m = mousePosRef?.current || internalMouseRef.current || { x: 0.5, y: 0.5 };
+      const px = (m.x - 0.5) * 22;
+      const py = (m.y - 0.5) * 12;
+
+      // Smoothly update background image parallax via direct DOM style
+      if (bgDivRef.current) {
+        bgDivRef.current.style.transform = `scale(1.03) translate(${(m.x - 0.5) * -14}px, ${(m.y - 0.5) * -10}px)`;
+      }
 
       ctx.clearRect(0, 0, w, h);
 
@@ -706,17 +717,17 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
       window.removeEventListener('resize', updateSize);
       if (resizeObs) resizeObs.disconnect();
     };
-  }, [mousePos, bokehIntensity]);
+  }, [bokehIntensity]);
 
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
       <canvas ref={canvasRef} className="w-full h-full block" />
       {customBgUrl && (
         <div
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-500"
+          ref={bgDivRef}
+          className="absolute inset-0 bg-cover bg-center will-change-transform"
           style={{
             backgroundImage: `url(${customBgUrl})`,
-            transform: `scale(1.03) translate(${(mousePos.x - 0.5) * -14}px, ${(mousePos.y - 0.5) * -10}px)`,
           }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/25 to-transparent" />
@@ -724,7 +735,7 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
       )}
     </div>
   );
-};
+});
 
 // ==========================================
 // ORNATE SVG COMPONENTS (Exact match to image)
@@ -876,7 +887,7 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [activeModal, setActiveModal] = useState(null); // null | 'continue' | 'new_game' | 'load_game' | 'settings' | 'photo_mode' | 'credits' | 'exit'
-  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
+  const mousePosRef = useRef({ x: 0.5, y: 0.5 });
   const [soundMuted, setSoundMuted] = useState(false);
   const [customBgUrl, setCustomBgUrl] = useState('');
   const [notification, setNotification] = useState(null);
@@ -929,12 +940,12 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
     }, 3200);
   }, []);
 
-  // Mouse Parallax Handler
+  // Mouse Parallax Handler (Ref-based — zero React re-renders on mousemove!)
   const handleMouseMove = (e) => {
     const rect = e.currentTarget ? e.currentTarget.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     const x = (e.clientX - rect.left) / (rect.width || 1);
     const y = (e.clientY - rect.top) / (rect.height || 1);
-    setMousePos({ x, y });
+    mousePosRef.current = { x, y };
   };
 
   // Trigger Menu Item Action
@@ -1034,7 +1045,7 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
 
       {/* 1. ANIMATED PROCEDURAL NIGHT CITY & CHARACTER SCENE */}
       <ProceduralNightCityCanvas
-        mousePos={mousePos}
+        mousePosRef={mousePosRef}
         customBgUrl={customBgUrl}
         bokehIntensity={settings.bokehIntensity}
       />
