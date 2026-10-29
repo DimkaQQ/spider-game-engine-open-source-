@@ -31,13 +31,15 @@ export function useKeyboardControls() {
       keys.current[e.key.toLowerCase()] = false;
     };
 
-    // Mobile touch controls: swipe & drag to move, tap to jump
+    // Mobile touch controls: swipe & drag to move, quick tap to jump.
+    // Never hijack touches that start on real controls (buttons etc.).
+    // A tap only counts as jump on touchend (short + no drag) so orbiting
+    // the camera with one finger doesn't fire jumps.
     const onTouchStart = (e) => {
+      if (e.target && e.target.closest && e.target.closest('button, a, input, select, textarea, [role="button"]')) return;
       const t = e.touches[0];
       if (t) {
-        touchStart.current = { x: t.clientX, y: t.clientY };
-        touchDir.current.jump = true;
-        setTimeout(() => { touchDir.current.jump = false; }, 150);
+        touchStart.current = { x: t.clientX, y: t.clientY, t: Date.now(), moved: false };
       }
     };
     const onTouchMove = (e) => {
@@ -47,13 +49,21 @@ export function useKeyboardControls() {
       const dx = t.clientX - touchStart.current.x;
       const dy = t.clientY - touchStart.current.y;
       if (Math.hypot(dx, dy) > 15) {
+        touchStart.current.moved = true;
         touchDir.current.x = Math.max(-1, Math.min(1, dx / 40));
         touchDir.current.z = Math.max(-1, Math.min(1, dy / 40));
       }
     };
     const onTouchEnd = () => {
+      const s = touchStart.current;
+      if (s && !s.moved && Date.now() - s.t < 260) {
+        touchDir.current.jump = true;
+        setTimeout(() => { touchDir.current.jump = false; }, 150);
+      }
       touchStart.current = null;
-      touchDir.current = { x: 0, z: 0, jump: false };
+      // Keep jump pulse; reset steering.
+      touchDir.current = { x: 0, z: 0, jump: touchDir.current.jump };
+      setTimeout(() => { touchDir.current.jump = false; }, 160);
     };
 
     window.addEventListener('keydown', onDown);
@@ -208,49 +218,106 @@ export function ObstacleBox({ position = [0, 0.6, 0], size = [2, 1.2, 2], color 
 }
 
 /**
+ * On-screen touch controls (d-pad + jump) for phones.
+ * Writes into window.__spiderVirtualTouch, merged by useKeyboardControls.
+ * Rendered only on touch devices via .spider-only-coarse.
+ */
+export function TouchControls() {
+  const set = (patch) => {
+    if (typeof window === "undefined") return;
+    window.__spiderVirtualTouch = { x: 0, z: 0, jump: false, ...(window.__spiderVirtualTouch || {}), ...patch };
+  };
+  const releaseDir = () => {
+    if (typeof window === "undefined") return;
+    window.__spiderVirtualTouch = { ...(window.__spiderVirtualTouch || {}), x: 0, z: 0 };
+  };
+  const dir = (x, z) => (e) => { e.preventDefault(); set({ x, z }); };
+  const jump = (e) => { e.preventDefault(); set({ jump: true }); setTimeout(() => set({ jump: false }), 180); };
+  const noCtx = (e) => e.preventDefault();
+  const btn = (label, handlers, style) => (
+    <button
+      type="button"
+      className="spider-touch-btn"
+      style={style}
+      onPointerDown={handlers[0]}
+      onPointerUp={releaseDir}
+      onPointerLeave={releaseDir}
+      onPointerCancel={releaseDir}
+      onContextMenu={noCtx}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="spider-touch-controls spider-only-coarse">
+      <div className="spider-touch-pad">
+        <span />
+        {btn("▲", [dir(0, -1)])}
+        <span />
+        {btn("◀", [dir(-1, 0)])}
+        <span />
+        {btn("▶", [dir(1, 0)])}
+        <span />
+        {btn("▼", [dir(0, 1)])}
+        <span />
+      </div>
+      <button
+        type="button"
+        className="spider-touch-btn spider-touch-jump"
+        onPointerDown={jump}
+        onContextMenu={noCtx}
+      >
+        JUMP
+      </button>
+    </div>
+  );
+}
+
+/**
  * Sleek Glassmorphic Game HUD
  */
 export function GameHud({ title = 'ARCADE ARENA', score = 0, total = 8, won = false, onRestart }) {
   const isWon = won || (total > 0 && score >= total);
 
   return (
-    <Html position={[0, 5.5, -8]} center style={{ pointerEvents: 'none' }}>
-      <div
-        style={{
-          background: 'rgba(15, 23, 42, 0.92)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-          padding: '10px 22px',
-          borderRadius: '14px',
-          color: '#ffffff',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
-          whiteSpace: 'nowrap'
-        }}
-      >
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ fontWeight: 800, fontSize: '15px', letterSpacing: '0.5px', color: '#60a5fa' }}>
+    <Html fullscreen style={{ pointerEvents: 'none' }}>
+      <div className="spider-hud-top">
+        <div
+          style={{
+            background: 'rgba(15, 23, 42, 0.92)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+            padding: '8px 14px',
+            borderRadius: '14px',
+            color: '#ffffff',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '8px',
+            pointerEvents: 'auto'
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: '14px', letterSpacing: '0.5px', color: '#60a5fa', whiteSpace: 'nowrap' }}>
             {title}
           </div>
-          <div style={{ fontWeight: 700, fontSize: '14px', color: '#fbbf24' }}>
+          <div style={{ fontWeight: 700, fontSize: '14px', color: '#fbbf24', whiteSpace: 'nowrap' }}>
             Score: {score} / {total}
           </div>
           {onRestart && (
             <button
               onClick={onRestart}
+              className="spider-hud-btn"
               style={{
-                pointerEvents: 'auto',
                 background: '#3b82f6',
                 color: '#fff',
                 border: 'none',
-                padding: '4px 12px',
-                borderRadius: '6px',
+                padding: '8px 16px',
+                borderRadius: '8px',
                 cursor: 'pointer',
                 fontWeight: 700,
-                fontSize: '12px'
+                fontSize: '14px'
               }}
             >
               Restart
@@ -258,11 +325,12 @@ export function GameHud({ title = 'ARCADE ARENA', score = 0, total = 8, won = fa
           )}
         </div>
         {isWon && (
-          <div style={{ color: '#4ade80', fontWeight: 800, fontSize: '14px' }}>
-            🎉 VICTORY! ALL COINS COLLECTED! 🎉
+          <div style={{ color: '#4ade80', fontWeight: 800, fontSize: '14px', background: 'rgba(15,23,42,0.92)', padding: '6px 14px', borderRadius: '10px', whiteSpace: 'nowrap' }}>
+            🎉 VICTORY! 🎉
           </div>
         )}
       </div>
+      <TouchControls />
     </Html>
   );
 }

@@ -7,6 +7,11 @@
  * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
  * ============================================================================
  */
+import React, { useRef, useState, useEffect } from 'react';
+import { Html } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import * as THREE from 'three';
+
 function GameComponent(){
   const keys = useRef({});
   const mouseFire = useRef(false);
@@ -32,15 +37,33 @@ function GameComponent(){
   const partRefs = useRef([]);
   const starData = useRef(Array.from({length:90},()=>({x:(Math.random()-0.5)*32,y:Math.random()*11-0.5,z:Math.random()*-42+6,s:Math.random()*0.11+0.04,sp:Math.random()*3+2})));
   const starRefs = useRef([]);
+  const touchStart = useRef(null);
 
   useEffect(()=>{
     const dn=(e)=>{ keys.current[e.code]=true; if(e.key) keys.current[e.key.toLowerCase()]=true; if(e.code==='Space'||e.key===' '){ e.preventDefault(); } };
     const up=(e)=>{ keys.current[e.code]=false; if(e.key) keys.current[e.key.toLowerCase()]=false; };
     const md=()=>{ mouseFire.current=true; };
     const mu=()=>{ mouseFire.current=false; };
+    const onTs=(e)=>{
+      if (e.target && e.target.closest && e.target.closest('button, a, input, select, textarea, [role="button"]')) return;
+      const t=e.touches[0];
+      if(t){ touchStart.current={x:t.clientX,y:t.clientY}; mouseFire.current=true; }
+    };
+    const onTm=(e)=>{
+      if(!touchStart.current) return;
+      const t=e.touches[0];
+      if(!t) return;
+      const dx=t.clientX-touchStart.current.x, dy=t.clientY-touchStart.current.y;
+      keys.current['TouchLeft']=dx<-24; keys.current['TouchRight']=dx>24;
+      keys.current['TouchUp']=dy<-24; keys.current['TouchDown']=dy>24;
+    };
+    const onTe=()=>{ touchStart.current=null; mouseFire.current=false; keys.current['TouchLeft']=keys.current['TouchRight']=keys.current['TouchUp']=keys.current['TouchDown']=false; };
     window.addEventListener('keydown',dn); window.addEventListener('keyup',up);
     window.addEventListener('mousedown',md); window.addEventListener('mouseup',mu);
-    return()=>{ window.removeEventListener('keydown',dn); window.removeEventListener('keyup',up); window.removeEventListener('mousedown',md); window.removeEventListener('mouseup',mu); };
+    window.addEventListener('touchstart',onTs,{passive:true});
+    window.addEventListener('touchmove',onTm,{passive:true});
+    window.addEventListener('touchend',onTe); window.addEventListener('touchcancel',onTe);
+    return()=>{ window.removeEventListener('keydown',dn); window.removeEventListener('keyup',up); window.removeEventListener('mousedown',md); window.removeEventListener('mouseup',mu); window.removeEventListener('touchstart',onTs); window.removeEventListener('touchmove',onTm); window.removeEventListener('touchend',onTe); window.removeEventListener('touchcancel',onTe); };
   },[]);
 
   const spawnExplosion=(x,y,z,color)=>{
@@ -49,7 +72,7 @@ function GameComponent(){
       const p=partData.current[i];
       if(!p.active){
         p.active=true; p.x=x; p.y=y; p.z=z;
-        const a=Math.random()*Math.PI*2; const b=Math.random()*2-1;
+        const a=Math.random()*Math.PI*2;
         const sp=3+Math.random()*5;
         p.vx=Math.cos(a)*sp; p.vz=Math.sin(a)*sp; p.vy=Math.random()*4+1;
         p.life=p.max=0.6+Math.random()*0.5;
@@ -76,10 +99,11 @@ function GameComponent(){
   useFrame((state, rawDelta)=>{
     const dt=Math.min(rawDelta||0.016,0.05);
     const k=keys.current;
-    // CAMERA LOCK EVERY FRAME
-    state.camera.position.set(playerPos.current.x*0.45, 4.6, 11.2);
+    const narrow = typeof window !== "undefined" && window.innerWidth < 560;
+    const camDist = narrow ? 14.6 : 11.2;
+    const camH = narrow ? 6.0 : 4.6;
+    state.camera.position.set(playerPos.current.x*0.45, camH, camDist);
     state.camera.lookAt(playerPos.current.x*0.5, 1.6, -6);
-    // stars drift always
     for(let i=0;i<starData.current.length;i++){
       const s=starData.current[i]; const m=starRefs.current[i];
       if(!m) continue;
@@ -87,7 +111,6 @@ function GameComponent(){
       if(s.z>7){ s.z=-36; s.x=(Math.random()-0.5)*32; s.y=Math.random()*11-0.5; }
       m.position.set(s.x,s.y,s.z);
     }
-    // particles always update
     for(let i=0;i<partData.current.length;i++){
       const p=partData.current[i]; const m=partRefs.current[i];
       if(!p.active||!m) continue;
@@ -106,12 +129,11 @@ function GameComponent(){
     elapsed.current+=dt;
     if(invuln.current>0) invuln.current-=dt;
     if(fireCd.current>0) fireCd.current-=dt;
-    // MOVEMENT
     let dx=0, dy=0;
-    if(k['KeyA']||k['a']||k['ArrowLeft']) dx-=1;
-    if(k['KeyD']||k['d']||k['ArrowRight']) dx+=1;
-    if(k['KeyW']||k['w']||k['ArrowUp']) dy+=1;
-    if(k['KeyS']||k['s']||k['ArrowDown']) dy-=1;
+    if(k['KeyA']||k['a']||k['ArrowLeft']||k['TouchLeft']) dx-=1;
+    if(k['KeyD']||k['d']||k['ArrowRight']||k['TouchRight']) dx+=1;
+    if(k['KeyW']||k['w']||k['ArrowUp']||k['TouchUp']) dy+=1;
+    if(k['KeyS']||k['s']||k['ArrowDown']||k['TouchDown']) dy-=1;
     const speed=11;
     const blend=1-Math.exp(-12*dt);
     vel.current.x+=(dx*speed-vel.current.x)*blend;
@@ -124,11 +146,9 @@ function GameComponent(){
         tiltRef.current.rotation.z=THREE.MathUtils.lerp(tiltRef.current.rotation.z,-vel.current.x*0.045,0.2);
         tiltRef.current.rotation.x=THREE.MathUtils.lerp(tiltRef.current.rotation.x,vel.current.y*0.03,0.2);
       }
-      // invuln flicker
       const vis=invuln.current>0 ? (Math.floor(elapsed.current*12)%2===0) : true;
       shipRef.current.visible=vis;
     }
-    // FIRING
     const wantFire=(k['Space']||k[' ']||mouseFire.current);
     if(wantFire&&fireCd.current<=0){
       for(let i=0;i<laserData.current.length;i++){
@@ -141,7 +161,6 @@ function GameComponent(){
         }
       }
     }
-    // LASERS
     for(let i=0;i<laserData.current.length;i++){
       const L=laserData.current[i]; const m=laserRefs.current[i];
       if(!L.active||!m) continue;
@@ -149,7 +168,6 @@ function GameComponent(){
       if(L.z<-26){ L.active=false; m.visible=false; continue; }
       m.position.set(L.x,L.y,L.z);
     }
-    // SPAWN ENEMIES
     spawnT.current-=dt;
     if(spawnT.current<=0){
       const diff=Math.min(1,elapsed.current/75);
@@ -169,13 +187,6 @@ function GameComponent(){
         }
       }
     }
-
-/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
-const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
-if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
-if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
-
-    // ENEMIES MOVE
     for(let i=0;i<enemyData.current.length;i++){
       const E=enemyData.current[i]; const m=enemyRefs.current[i];
       if(!E.active||!m) continue;
@@ -186,7 +197,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       m.rotation.y+=dt*E.spin*1.5;
       if(E.z>8.5){ E.active=false; m.visible=false; continue; }
     }
-    // LASER vs ENEMY
     for(let li=0;li<laserData.current.length;li++){
       const L=laserData.current[li];
       if(!L.active) continue;
@@ -208,7 +218,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         }
       }
     }
-    // ENEMY vs PLAYER
     if(invuln.current<=0){
       for(let i=0;i<enemyData.current.length;i++){
         const E=enemyData.current[i];
@@ -239,14 +248,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       <meshStandardMaterial color="#0a1226" roughness={0.9} metalness={0.1} />
     </mesh>
     <gridHelper args={[44,22,'#38bdf8','#1b2a4a']} position={[0,-0.5,-8]} />
-    {/* STARS */}
     {starData.current.map((s,i)=>(
       <mesh key={'s'+i} ref={(el)=>{starRefs.current[i]=el;}} position={[s.x,s.y,s.z]}>
         <sphereGeometry args={[s.s,6,6]} />
         <meshBasicMaterial color={i%5===0?'#38bdf8':'#ffffff'} />
       </mesh>
     ))}
-    {/* PLAYER SHIP composite */}
     <group ref={shipRef} position={[0,1.2,4]}>
       <group ref={tiltRef}>
         <mesh rotation-x={-Math.PI/2} position={[0,0,-0.2]}>
@@ -287,14 +294,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         </mesh>
       </group>
     </group>
-    {/* LASER POOL */}
     {laserData.current.map((l,i)=>(
       <mesh key={'l'+i} ref={(el)=>{laserRefs.current[i]=el;}} visible={false}>
         <boxGeometry args={[0.18,0.18,1.5]} />
         <meshBasicMaterial color="#4ade80" />
       </mesh>
     ))}
-    {/* ENEMY POOL - drones */}
     {enemyData.current.map((e,i)=>(
       <group key={'e'+i} ref={(el)=>{enemyRefs.current[i]=el;}} visible={false}>
         <mesh>
@@ -319,28 +324,35 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         </mesh>
       </group>
     ))}
-    {/* PARTICLE POOL */}
     {partData.current.map((p,i)=>(
       <mesh key={'p'+i} ref={(el)=>{partRefs.current[i]=el;}} visible={false}>
         <sphereGeometry args={[0.22,8,8]} />
         <meshBasicMaterial color={i%3===0?'#fbbf24':i%3===1?'#f43f5e':'#38bdf8'} />
       </mesh>
     ))}
-    <Html fullscreen style={{pointerEvents:'none'}}>
-      <div style={{position:'absolute',top:14,left:0,right:0,display:'flex',justifyContent:'center',gap:14,pointerEvents:'none'}}>
-        <div style={{background:'rgba(5,10,25,0.72)',border:'1px solid #38bdf8',borderRadius:12,padding:'8px 18px',color:'#fff',fontFamily:'sans-serif',fontSize:18,fontWeight:700}}>SCORE: <span style={{color:'#4ade80'}}>{score}</span></div>
-        <div style={{background:'rgba(5,10,25,0.72)',border:'1px solid #f43f5e',borderRadius:12,padding:'8px 18px',color:'#fff',fontFamily:'sans-serif',fontSize:18,fontWeight:700}}>LIVES: <span style={{color:'#fbbf24'}}>{'❤'.repeat(Math.max(0,lives))||'—'}</span></div>
+    <Html fullscreen style={{ pointerEvents: 'none' }}>
+      <div className="spider-hud-top">
+        <div style={{ background: 'rgba(5,10,25,0.78)', border: '1px solid #38bdf8', borderRadius: 12, padding: '8px 14px', color: '#fff', fontFamily: 'sans-serif', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>SCORE: <span style={{ color: '#4ade80' }}>{score}</span></div>
+        <div style={{ background: 'rgba(5,10,25,0.78)', border: '1px solid #f43f5e', borderRadius: 12, padding: '8px 14px', color: '#fff', fontFamily: 'sans-serif', fontSize: 15, fontWeight: 700, whiteSpace: 'nowrap' }}>LIVES: <span style={{ color: '#fbbf24' }}>{'❤'.repeat(Math.max(0, lives)) || '—'}</span></div>
       </div>
-      <div style={{position:'absolute',bottom:12,left:0,right:0,textAlign:'center',color:'#94a3b8',fontFamily:'sans-serif',fontSize:13}}>WASD / Arrows move • SPACE / Click shoot</div>
-      {gameOver&&(
-        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(2,6,18,0.62)',pointerEvents:'auto'}}>
-          <div style={{background:'#0b1430',border:'2px solid #38bdf8',borderRadius:18,padding:32,textAlign:'center',fontFamily:'sans-serif'}}>
-            <div style={{color:'#f43f5e',fontSize:42,fontWeight:900}}>GAME OVER</div>
-            <div style={{color:'#fff',fontSize:20,margin:'10px 0'}}>Final Score: {score}</div>
-            <button onClick={restart} style={{marginTop:10,background:'#38bdf8',border:'none',borderRadius:10,padding:'12px 28px',fontSize:18,fontWeight:800,cursor:'pointer',color:'#04121f'}}>RESTART</button>
+      <div className="spider-hud-bottom spider-only-fine"><div style={{ color: '#94a3b8', fontFamily: 'sans-serif', fontSize: 13 }}>WASD / Arrows move • SPACE / Click shoot</div></div>
+      <div className="spider-hud-bottom spider-only-coarse"><div style={{ color: '#94a3b8', fontFamily: 'sans-serif', fontSize: 13 }}>Drag to move • Touch to shoot</div></div>
+      {gameOver && (
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(2,6,18,0.62)', pointerEvents: 'auto', padding: 16 }}>
+          <div style={{ background: '#0b1430', border: '2px solid #38bdf8', borderRadius: 18, padding: '24px 22px', textAlign: 'center', fontFamily: 'sans-serif', width: 'min(92vw, 380px)' }}>
+            <div style={{ color: '#f43f5e', fontSize: 32, fontWeight: 900 }}>GAME OVER</div>
+            <div style={{ color: '#fff', fontSize: 17, margin: '10px 0' }}>Final Score: {score}</div>
+            <button onClick={restart} className="spider-hud-btn" style={{ marginTop: 10, background: '#38bdf8', border: 'none', borderRadius: 10, padding: '12px 28px', fontSize: 17, fontWeight: 800, cursor: 'pointer', color: '#04121f' }}>RESTART</button>
           </div>
         </div>
       )}
     </Html>
   </>);
 }
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
+if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
+
+export default GameComponent;

@@ -8,11 +8,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#0b0f19" />
+    <meta name="color-scheme" content="dark" />
     <title>Spider Chess 3D</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body, html, #root { width: 100%; height: 100%; overflow: hidden; background: #0b0f19; }
+      html {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        overscroll-behavior: none;
+      }
+      body, html, #root {
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        overflow: hidden;
+        background: #0b0f19;
+        overscroll-behavior: none;
+      }
+      #root {
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      canvas { display: block; touch-action: none; }
+      button, a, [role="button"] { touch-action: manipulation; }
+      input, textarea, select { font-size: 16px; }
     </style>
     <!-- [LINEAGE-AUTHORS]: vivek / venom / quick / qucik -->
     <meta name="engine-provenance" content="vivek / venom / quick / qucik / m4spider" />

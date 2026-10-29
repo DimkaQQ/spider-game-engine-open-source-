@@ -31,7 +31,7 @@ export function ChessBoardMesh({ selected, legalMoves = [], lastMove, checkSquar
       if (isSel) col = '#4ade80';
       if (isCheck) col = '#ef4444';
       squares.push(
-        <mesh key={`${f}-${r}`} position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(f, r); }} onPointerOver={(e)=>{document.body.style.cursor='pointer';}} onPointerOut={()=>{document.body.style.cursor='auto';}}>
+        <mesh key={`${f}-${r}`} position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(f, r); }}>
           <boxGeometry args={[1.1, 0.18, 1.1]} />
           <meshStandardMaterial color={col} roughness={0.55} metalness={0.05} />
           {isLegal && (
