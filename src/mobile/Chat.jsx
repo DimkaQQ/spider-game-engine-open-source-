@@ -54,7 +54,7 @@ function Message({ m, last, onUndo }) {
 }
 
 export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
-  const { session, sessions, busy, stream, permission, question, queued, settings, setSettings, metaKey } = s;
+  const { session, sessions, busy, stream, permission, question, queued, settings, setSettings, hasKey } = s;
   const [text, setText] = useState("");
   const [sheet, setSheet] = useState(null); // 'history' | 'model'
   const end = useRef(null);
@@ -87,7 +87,10 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
       <header className="sp-chat-head">
         <button type="button" className="sp-model" onClick={() => setSheet("model")} aria-label="Choose model">
           <Bot size={16} />
-          <span>{friendly.name}</span>
+          <span className="sp-model-name">
+            <small>{s.provider.short || s.provider.name}</small>
+            {friendly.name}
+          </span>
           <ChevronDown size={14} />
         </button>
         <span className="sp-grow" />
@@ -117,11 +120,11 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
             </span>
             <h2>What are we building?</h2>
             <p>Describe a game. The assistant writes the code, mounts it in the viewport and checks it for errors.</p>
-            {!metaKey && (
+            {!hasKey && (
               <button type="button" className="sp-keycard" onClick={onOpenSettings}>
                 <KeyRound size={18} />
                 <span>
-                  <b>Add your Meta API key</b>
+                  <b>Add your {s.provider.short || s.provider.name} API key</b>
                   <small>Needed once, stays on this device</small>
                 </span>
               </button>
@@ -228,20 +231,43 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
         </div>
       </div>
 
-      <Sheet open={sheet === "model"} onClose={() => setSheet(null)} title="Model" subtitle={s.modelsError || "Meta Model API"}>
-        <div className="sp-list">
-          {s.models.map((id) => {
-            const f = s.friendlyModel(id);
-            return (
-              <button key={id} type="button" className={cx("sp-list-row", id === s.model && "is-on")} onClick={() => { s.setModel(id); setSheet(null); }}>
-                <span>
-                  <b>{f.name}</b>
-                  <small>{f.desc}</small>
-                </span>
-                {id === s.model && <Check size={18} />}
+      <Sheet open={sheet === "model"} onClose={() => setSheet(null)} title="Model" subtitle={s.modelsError || `${s.provider.name}`}>
+        <div className="sp-stack-sm">
+          <div className="sp-chips sp-chips-row" role="tablist" aria-label="Providers">
+            {s.providers.map((p) => (
+              <button key={p.id} type="button" role="tab" aria-selected={p.id === s.providerId} className={cx("sp-chip", p.id === s.providerId && "is-on")} onClick={() => s.setProvider(p.id)}>
+                <i className={cx("sp-pdot", s.isConfigured(p.id) && "is-ok")} />
+                {p.short || p.name}
               </button>
-            );
-          })}
+            ))}
+          </div>
+          {!s.hasKey ? (
+            <div className="sp-empty">
+              <h3>No {s.provider.short || s.provider.name} key</h3>
+              <p>Add a key once and pick a model.</p>
+              <button type="button" className="sp-btn is-primary" onClick={() => { setSheet(null); onOpenSettings(); }}>
+                <KeyRound size={16} /> Add key
+              </button>
+            </div>
+          ) : (
+            <div className="sp-list">
+              {s.models.map((id) => {
+                const f = s.friendlyModel(id);
+                return (
+                  <button key={id} type="button" className={cx("sp-list-row", id === s.model && "is-on")} onClick={() => { s.setModel(id); setSheet(null); }}>
+                    <span>
+                      <b>{f.name}</b>
+                      <small>{f.desc}</small>
+                    </span>
+                    {id === s.model && <Check size={18} />}
+                  </button>
+                );
+              })}
+              <button type="button" className="sp-link" onClick={() => { setSheet(null); onOpenSettings(); }}>
+                More models and settings
+              </button>
+            </div>
+          )}
         </div>
       </Sheet>
 

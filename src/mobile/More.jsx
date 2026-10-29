@@ -7,7 +7,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ChevronLeft, ChevronRight, Download, HelpCircle, Eye, EyeOff, FileText, FolderKanban, Gamepad2, Hammer, Info, KeyRound, Palette,
-  Plus, Sparkles, Terminal, Trash2, Upload, Sun, CornerDownLeft, Settings as Cog, Check,
+  Plus, RefreshCw, Terminal, Trash2, Upload, Sun, CornerDownLeft, Settings as Cog, Check,
 } from "lucide-react";
 import { PLAYER, PRIMITIVE_SHAPES } from "../game/index.js";
 import licenses from "../../THIRD_PARTY_LICENSES.md?raw";
@@ -221,6 +221,123 @@ function Console({ s, onBack }) {
   );
 }
 
+/* ----------------------------- AI providers ----------------------------- */
+function AiSettings({ s, notify }) {
+  const { settings, setSettings, provider } = s;
+  const [keyInput, setKeyInput] = useState("");
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [urlDraft, setUrlDraft] = useState(s.baseUrl);
+  const [modelDraft, setModelDraft] = useState("");
+  useEffect(() => {
+    setKeyInput("");
+    setUrlDraft(s.baseUrl);
+    setModelDraft("");
+  }, [s.providerId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveKey = async (e) => {
+    e.preventDefault();
+    if (provider.custom && urlDraft !== s.baseUrl) s.setBaseUrl(urlDraft);
+    if (!keyInput.trim() && !provider.custom) return;
+    setBusy(true);
+    const ok = await s.setProviderKey(provider.id, keyInput);
+    setBusy(false);
+    setKeyInput("");
+    notify(ok ? "Key saved" : "Saved, but models could not be loaded", ok ? "ok" : "warn");
+  };
+
+  return (
+    <section className="sp-card sp-stack-sm">
+      <h3 className="sp-h3"><KeyRound size={16} /> AI providers</h3>
+
+      <div className="sp-field">
+        <span>Provider</span>
+        <div className="sp-chips" role="listbox" aria-label="Provider">
+          {s.providers.map((p) => (
+            <button key={p.id} type="button" role="option" aria-selected={p.id === s.providerId} className={cx("sp-chip", p.id === s.providerId && "is-on")} onClick={() => s.setProvider(p.id)}>
+              <i className={cx("sp-pdot", s.isConfigured(p.id) && "is-ok")} />
+              {p.short || p.name}
+            </button>
+          ))}
+        </div>
+        <small className="sp-muted">The green dot marks providers with a saved key. The one you pick here is used by the AI tab.</small>
+      </div>
+
+      <form className="sp-stack-sm" onSubmit={saveKey}>
+        {provider.custom && (
+          <label className="sp-field">
+            <span>Base URL</span>
+            <input value={urlDraft} onChange={(e) => setUrlDraft(e.target.value)} placeholder="https://host/v1" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+          </label>
+        )}
+        <label className="sp-field">
+          <span>{provider.name} API key {s.providerKey && <em className="sp-ok">saved</em>}</span>
+          <div className="sp-keyrow">
+            <input
+              type={show ? "text" : "password"}
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              placeholder={s.providerKey ? "••••••••  paste to replace" : provider.keyHint}
+              autoCapitalize="off"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <button type="button" className="sp-icon-btn" onClick={() => setShow(!show)} aria-label={show ? "Hide key" : "Show key"}>
+              {show ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </label>
+        <div className="sp-row-actions">
+          <button type="submit" className="sp-btn is-primary" disabled={busy || (!provider.custom && !keyInput.trim())}>
+            <KeyRound size={16} /> {busy ? "Checking…" : "Save and load models"}
+          </button>
+          {s.providerKey && (
+            <button type="button" className="sp-btn is-danger" onClick={() => { s.setProviderKey(provider.id, ""); notify("Key removed", "ok"); }}>
+              Remove
+            </button>
+          )}
+        </div>
+        {s.modelsError && <div className="sp-error">{s.modelsError}</div>}
+        <small className="sp-muted">Keys stay in this browser and go only to {provider.custom ? "your base URL" : new URL(provider.baseUrl).host}. If a provider blocks direct browser calls, use OpenRouter or your own proxy as Custom.</small>
+      </form>
+
+      <div className="sp-field">
+        <span>Model</span>
+        <div className="sp-list">
+          {s.models.map((id) => {
+            const f = s.friendlyModel(id);
+            return (
+              <button key={id} type="button" className={cx("sp-list-row", id === s.model && "is-on")} onClick={() => s.setModel(id)}>
+                <span>
+                  <b>{f.name}</b>
+                  <small>{f.desc}</small>
+                </span>
+                {id === s.model && <Check size={18} />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="sp-keyrow">
+          <input value={modelDraft} onChange={(e) => setModelDraft(e.target.value)} placeholder="Or type any model id" autoCapitalize="off" autoCorrect="off" spellCheck={false} enterKeyHint="done" />
+          <button type="button" className="sp-btn" disabled={!modelDraft.trim()} onClick={() => { s.setModel(modelDraft.trim()); setModelDraft(""); notify("Model set", "ok"); }}>
+            Use
+          </button>
+        </div>
+        <button type="button" className="sp-btn" disabled={s.loadingModels || (!s.providerKey && !provider.custom)} onClick={async () => notify((await s.refreshModels()) ? "Models updated" : "Could not load models", "ok")}>
+          <RefreshCw size={16} /> {s.loadingModels ? "Loading…" : "Refresh model list"}
+        </button>
+      </div>
+
+      <div className="sp-field">
+        <span>Agent permissions</span>
+        <Segmented label="Permissions" value={settings.permission} onChange={(permission) => setSettings({ permission })} options={[{ value: "ask", label: "Ask first" }, { value: "auto", label: "Auto" }]} />
+        <small className="sp-muted">{settings.permission === "ask" ? "The agent asks before writing, editing or deleting files." : "The agent edits files without asking. Use for fast prototypes."}</small>
+      </div>
+    </section>
+  );
+}
+
 /* ----------------------------- Settings ----------------------------- */
 function Settings({ s, onBack, notify }) {
   const [keyInput, setKeyInput] = useState("");
@@ -270,57 +387,7 @@ function Settings({ s, onBack, notify }) {
           </div>
         </section>
 
-        <section className="sp-card sp-stack-sm">
-          <h3 className="sp-h3"><KeyRound size={16} /> AI &amp; keys</h3>
-          <div className="sp-field">
-            <span>Agent permissions</span>
-            <Segmented label="Permissions" value={settings.permission} onChange={(permission) => setSettings({ permission })} options={[{ value: "ask", label: "Ask first" }, { value: "auto", label: "Auto" }]} />
-            <small className="sp-muted">{settings.permission === "ask" ? "The agent asks before writing, editing or deleting files." : "The agent edits files without asking. Use for fast prototypes."}</small>
-          </div>
-          <form
-            className="sp-stack-sm"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (!keyInput.trim()) return;
-              setChecking(true);
-              await s.setMetaKey(keyInput);
-              setChecking(false);
-              setKeyInput("");
-              notify("Key saved", "ok");
-            }}
-          >
-            <label className="sp-field">
-              <span>Meta API key {s.metaKey && <em className="sp-ok">saved</em>}</span>
-              <div className="sp-keyrow">
-                <input
-                  type={show ? "text" : "password"}
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder={s.metaKey ? "••••••••  paste to replace" : "Paste key from dev.meta.ai"}
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  autoComplete="off"
-                  spellCheck={false}
-                />
-                <button type="button" className="sp-icon-btn" onClick={() => setShow(!show)} aria-label={show ? "Hide key" : "Show key"}>
-                  {show ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </label>
-            {s.modelsError && <div className="sp-error">{s.modelsError}</div>}
-            <div className="sp-row-actions">
-              <button type="submit" className="sp-btn is-primary" disabled={!keyInput.trim() || checking}>
-                <KeyRound size={16} /> {checking ? "Checking…" : "Save key"}
-              </button>
-              {s.metaKey && (
-                <button type="button" className="sp-btn is-danger" onClick={() => { s.setMetaKey(""); notify("Key removed", "ok"); }}>
-                  Remove
-                </button>
-              )}
-            </div>
-            <small className="sp-muted">The key is stored only in this browser and sent only to api.meta.ai.</small>
-          </form>
-        </section>
+        <AiSettings s={s} notify={notify} />
       </div>
     </>
   );

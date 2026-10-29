@@ -28,7 +28,7 @@ import {
   saveSettings,
   haptic,
 } from "./store.js";
-import { chat, fetchModels, friendlyModel, loadKey, loadModel, loadModels, saveKey, saveModel, DEFAULT_MODELS } from "./meta.js";
+import { PROVIDERS, baseUrlFor, chat, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
 
 const MAX_UNDO = 40;
 const CORE_IDS = new Set(["player", "camera", "weapon", "terrain", "water", "sky", "lighting", "fog", "postprocess", "dir-light", "sky-light", "point-lights"]);
@@ -615,10 +615,12 @@ export function useStudio() {
   }, [timelinePlaying]);
 
   // ---------- AI ----------
-  const [metaKey, setMetaKeyState] = useState(loadKey);
-  const [models, setModels] = useState(loadModels);
-  const [model, setModelState] = useState(loadModel);
-  const [modelsError, setModelsError] = useState("");
+  const [aiCfg, setAiCfg] = useState(loadConfig);
+  const [keysRev, setKeysRev] = useState(0);
+  const [modelsErrors, setModelsErrors] = useState({});
+  const [loadingModels, setLoadingModels] = useState(false);
+  const aiCfgRef = useRef(aiCfg);
+  aiCfgRef.current = aiCfg;
   const [sessions, setSessions] = useState(loadSessions);
   const [sessionId, setSessionId] = useState(() => loadSessions()[0].id);
   const [busy, setBusy] = useState(false);
@@ -671,36 +673,77 @@ export function useStudio() {
     []
   );
 
-  const setMetaKey = useCallback(
-    async (key) => {
-      saveKey(key);
-      setMetaKeyState(key);
-      setModelsError("");
-      if (!key) return;
-      try {
-        const ids = await fetchModels(key);
-        setModels(ids);
-        const chosen = ids.includes(model) ? model : ids.find((i) => i.includes("1.3")) || ids[0];
-        setModelState(chosen);
-        saveModel(chosen);
-        log("Success", `Meta key accepted (${ids.length} models)`);
-      } catch (e) {
-        setModelsError(e.message);
-        log("Warning", e.message);
-      }
-    },
-    [model, log]
-  );
-  const setModel = useCallback((m) => {
-    setModelState(m);
-    saveModel(m);
+  const updateCfg = useCallback((patch) => {
+    // read/write the ref first so back-to-back updates (set URL, then load models) see each other
+    const c = aiCfgRef.current;
+    const next = { ...c, ...(typeof patch === "function" ? patch(c) : patch) };
+    aiCfgRef.current = next;
+    saveConfig(next);
+    setAiCfg(next);
   }, []);
 
-  const modelChoices = useMemo(() => {
-    const pool = models.filter((id) => /spark|wonder|contribu/i.test(id));
-    return pool.length ? pool : models.length ? models : DEFAULT_MODELS;
-  }, [models]);
-  const effectiveModel = modelChoices.includes(model) ? model : modelChoices[0];
+  const providerId = aiCfg.provider;
+  const provider = providerById(providerId);
+  const baseUrl = baseUrlFor(provider, aiCfg);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const providerKey = useMemo(() => loadKey(providerId), [providerId, keysRev]);
+  const hasKey = Boolean(providerKey || (provider.custom && baseUrl));
+  const isConfigured = useCallback(
+    (id) => {
+      const p = providerById(id);
+      return Boolean(loadKey(id) || (p.custom && aiCfgRef.current.baseUrls.custom));
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [keysRev, aiCfg.baseUrls]
+  );
+  const models = aiCfg.models[providerId]?.length ? aiCfg.models[providerId] : provider.models;
+  const model = aiCfg.model[providerId] || models[0] || "";
+  const modelsError = modelsErrors[providerId] || "";
+
+  const setProvider = useCallback((id) => updateCfg({ provider: id }), [updateCfg]);
+  const setModel = useCallback((m) => updateCfg((c) => ({ model: { ...c.model, [c.provider]: m } })), [updateCfg]);
+  const setBaseUrl = useCallback((url) => updateCfg((c) => ({ baseUrls: { ...c.baseUrls, custom: url.trim() } })), [updateCfg]);
+
+  const refreshModels = useCallback(
+    async (id = aiCfgRef.current.provider) => {
+      const p = providerById(id);
+      const cfg = aiCfgRef.current;
+      setLoadingModels(true);
+      setModelsErrors((e) => ({ ...e, [id]: "" }));
+      try {
+        let ids = await fetchModels(p, loadKey(id), cfg);
+        if (id === "meta") {
+          const chatty = ids.filter((m) => /spark|wonder|contribu/i.test(m));
+          if (chatty.length) ids = chatty;
+        }
+        updateCfg((c) => {
+          const cur = c.model[id];
+          const chosen = cur && ids.includes(cur) ? cur : (id === "meta" && ids.find((m) => m.includes("1.3"))) || ids[0];
+          return { models: { ...c.models, [id]: ids }, model: { ...c.model, [id]: chosen } };
+        });
+        log("Success", `${p.name}: ${ids.length} models`);
+        return true;
+      } catch (e) {
+        setModelsErrors((er) => ({ ...er, [id]: e.message }));
+        log("Warning", e.message);
+        return false;
+      } finally {
+        setLoadingModels(false);
+      }
+    },
+    [log, updateCfg]
+  );
+
+  const setProviderKey = useCallback(
+    async (id, key) => {
+      saveKey(id, key);
+      setKeysRev((n) => n + 1);
+      setModelsErrors((e) => ({ ...e, [id]: "" }));
+      if (!key && !providerById(id).custom) return true;
+      return refreshModels(id);
+    },
+    [refreshModels]
+  );
 
   const snapshotText = useCallback(() => {
     const p = projectRef.current;
@@ -944,9 +987,11 @@ export function useStudio() {
         pushMessage({ role: "user", text: goal, queued: true });
         return;
       }
-      if (!loadKey()) {
+      const cfgNow = aiCfgRef.current;
+      const provNow = providerById(cfgNow.provider);
+      if (!loadKey(provNow.id) && !(provNow.custom && cfgNow.baseUrls.custom)) {
         pushMessage({ role: "user", text: goal });
-        pushMessage({ role: "assistant", ok: false, text: "No Meta API key yet. Open More → Settings → AI & Keys, paste your key, then ask again." });
+        pushMessage({ role: "assistant", ok: false, text: `No ${provNow.name} key yet. Open More, then Settings, then AI, paste your key, then ask again.` });
         return;
       }
       pushMessage({ role: "user", text: goal });
@@ -983,9 +1028,13 @@ export function useStudio() {
                   ),
                 ];
           let acc = "";
+          const cfg = aiCfgRef.current;
+          const prov = providerById(cfg.provider);
           const out = await chat({
-            key: loadKey(),
-            model: effectiveModelRef.current,
+            provider: prov,
+            baseUrl: baseUrlFor(prov, cfg),
+            key: loadKey(prov.id),
+            model: cfg.model[prov.id] || (cfg.models[prov.id] || prov.models)[0],
             messages,
             signal: ctrlRef.current.signal,
             onToken: (tok) => {
@@ -1045,8 +1094,6 @@ export function useStudio() {
   );
   const sendRef = useRef(null);
   sendRef.current = send;
-  const effectiveModelRef = useRef(effectiveModel);
-  effectiveModelRef.current = effectiveModel;
 
   const stop = useCallback(() => {
     abortRef.current = true;
@@ -1082,7 +1129,9 @@ export function useStudio() {
     // console
     logs, setLogs, log,
     // AI
-    metaKey, setMetaKey, models: modelChoices, model: effectiveModel, setModel, modelsError, friendlyModel,
+    providers: PROVIDERS, provider, providerId, setProvider, hasKey, providerKey, isConfigured, setProviderKey,
+    models, model, setModel, modelsError, refreshModels, loadingModels, baseUrl, setBaseUrl,
+    friendlyModel: (id) => friendlyModel(providerId, id),
     sessions, session, sessionId, setSessionId, startSession, deleteSession,
     busy, stream, permission, question, queued, send, stop, undoAgent,
     pushMessage,
