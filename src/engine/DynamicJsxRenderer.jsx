@@ -11,8 +11,10 @@ import React, { Component, useState, useEffect, useMemo, useRef, useCallback, us
 import * as THREE from "three";
 import * as Fiber from "@react-three/fiber";
 import * as Drei from "@react-three/drei";
+import * as Lucide from "lucide-react";
 import { transform } from "sucrase";
 import { Chess } from "chess.js";
+import { sfx, SoundEffects } from "./audioSynthesizer.js";
 
 class JsxErrorBoundary extends Component {
   constructor(props) {
@@ -115,7 +117,15 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
       three: THREE,
       "@react-three/fiber": Fiber,
       "@react-three/drei": Drei,
+      "lucide-react": Lucide,
       "chess.js": { Chess, default: Chess },
+      audio: { sfx, SoundEffects, default: sfx },
+      sound: { sfx, SoundEffects, default: sfx },
+      "./audio": { sfx, SoundEffects, default: sfx },
+      "./sound": { sfx, SoundEffects, default: sfx },
+      sfx,
+      SoundEffects,
+      spiderAudio: sfx,
       ...customScope
     };
 
@@ -166,7 +176,10 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
               "Stars",
               "Grid",
               "Html",
-              "Chess"
+              "Chess",
+              "sfx",
+              "SoundEffects",
+              "spiderAudio"
             ];
             const subValues = [
               customRequire,
@@ -191,7 +204,10 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
               Drei.Stars,
               Drei.Grid,
               Drei.Html,
-              Chess
+              Chess,
+              sfx,
+              SoundEffects,
+              sfx
             ];
             const subFn = new Function(...subKeys, subTransformed);
             subFn(...subValues);
@@ -241,7 +257,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       "Stars",
       "Grid",
       "Html",
-      "Chess"
+      "Chess",
+      "sfx",
+      "SoundEffects",
+      "spiderAudio"
     ];
 
     const scopeValues = [
@@ -267,7 +286,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       Drei.Stars,
       Drei.Grid,
       Drei.Html,
-      Chess
+      Chess,
+      sfx,
+      SoundEffects,
+      sfx
     ];
 
     const fn = new Function(...scopeKeys, transformed);

@@ -87,6 +87,7 @@ import {
   FolderKanban,
   X
 } from "lucide-react";
+import { sfx } from "./src/engine/audioSynthesizer.js";
 
 
 // --- CONSOLE LOGS (start empty — real boot lines are logged on mount) ---
@@ -3114,9 +3115,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     };
   }, [currentProject?.root]);
   const sanitizeGroups = (grps) =>
-    (grps || GAME_WORLD).map((g) => ({
+    (Array.isArray(grps) ? grps : GAME_WORLD).filter(Boolean).map((g) => ({
       ...g,
-      children: (g.children || []).filter((c) => !String(c.id).startsWith("spawn-chess-"))
+      children: (Array.isArray(g?.children) ? g.children : []).filter((c) => c && !String(c.id).startsWith("spawn-chess-"))
     }));
 
   const [sceneGroups, setSceneGroups] = useState(() => sanitizeGroups(currentProject?.groups));
@@ -3824,8 +3825,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Play / Stop Engine Handler
   const handleTogglePlay = () => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); // Space must jump, not re-click
-    const hasChessScene = sceneGroups.some((g) => (g.children || []).some((c) => String(c.id).startsWith("spawn-chess-")));
+    const hasChessScene = (sceneGroups || []).some((g) => (g?.children || []).some((c) => c && String(c.id).startsWith("spawn-chess-")));
     if (!isPlaying) {
+      sfx.playSelect();
       setIsPlaying(true);
       if (hasChessScene) {
         setChessActive(true);
@@ -3848,6 +3850,7 @@ if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
 
     } else {
+      sfx.playBack();
       setIsPlaying(false);
       setViewportTab("Viewport");
       appendLog("Info", "Play mode stopped");
@@ -3937,7 +3940,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) {
         e.preventDefault();
         if (k === " " && !e.repeat) {
-          if (velY.current === 0) velY.current = PLAYER.jumpImpulse; // jump impulse (grounded only)
+          if (velY.current === 0) {
+            velY.current = PLAYER.jumpImpulse; // jump impulse (grounded only)
+            sfx.playJump();
+          }
           setKeysPressed((prev) => ({ ...prev, [k]: true }));
           return;
         }
@@ -4053,7 +4059,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
   // Shooting — click fires in Play; targets die, score pays (real TPP/FPP mechanic)
   const handleShoot = useCallback((hitId) => {
     tutorialStats.current.shots++;
+    sfx.playLaser();
     if (hitId && String(hitId).startsWith("spawn-target-")) {
+      sfx.playExplosion();
       setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((c) => (c.id === hitId ? { ...c, visible: false } : c)) })));
       setScore((s) => {
         const ns = s + 50;
@@ -4099,10 +4107,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     const hits = coins.filter((c) => !c.taken && Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < COIN_RULES.pickupRadius && p.pos.y < COIN_RULES.maxPickupHeight);
     if (hits.length === 0) return;
     setCoins((cs) => cs.map((c) => (hits.some((h) => h.id === c.id) ? { ...c, taken: true } : c)));
+    sfx.playCoin();
     setScore((s) => {
       const ns = s + hits.length * COIN_RULES.pointsEach;
       appendLog("Success", `Collected ${hits.length} coin${hits.length > 1 ? "s" : ""} — score ${ns}`);
       if (coins.filter((c) => !c.taken).length === hits.length) {
+        sfx.playPowerUp();
         setTimeout(() => appendLog("Success", `All coins collected! Final score ${ns} — Game menu > Reset Score to replay`), 50);
       }
       return ns;

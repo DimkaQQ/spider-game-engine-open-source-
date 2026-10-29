@@ -25,7 +25,14 @@ export const viewportApi = { capture: null };
 let transforming = false;
 
 function findNode(groups, id) {
-  for (const g of groups) for (const c of g.children) if (c.id === id) return c;
+  if (!Array.isArray(groups)) return null;
+  for (const g of groups) {
+    if (g && Array.isArray(g.children)) {
+      for (const c of g.children) {
+        if (c && c.id === id) return c;
+      }
+    }
+  }
   return null;
 }
 
@@ -1087,7 +1094,7 @@ export default function GameViewport({
   projectFiles = []
 }) {
   const hasChess = useMemo(() => {
-    return sceneGroups.some((g) => (g.children || []).some((c) => String(c.id).startsWith("spawn-chess-")));
+    return (sceneGroups || []).some((g) => (g?.children || []).some((c) => c && String(c.id).startsWith("spawn-chess-")));
   }, [sceneGroups]);
   const hasCustomJsx = Boolean(activeJsxCode && activeJsxCode.trim());
   const isBoardGame = hasChess || snakesActive;
@@ -1117,8 +1124,11 @@ export default function GameViewport({
   const weapon = findNode(sceneGroups, "weapon");
 
   const spawned = [];
-  for (const g of sceneGroups)
-    for (const c of g.children) if (String(c.id).startsWith("spawn-")) spawned.push(c);
+  for (const g of (sceneGroups || [])) {
+    if (g && Array.isArray(g.children)) {
+      for (const c of g.children) if (c && String(c.id).startsWith("spawn-")) spawned.push(c);
+    }
+  }
 
   // Sun path: 6h rise -> 12h noon -> 18h set.
   const sunT = ((timeOfDay - 6) / 12) * Math.PI;
