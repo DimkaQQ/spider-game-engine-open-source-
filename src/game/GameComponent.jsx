@@ -562,16 +562,23 @@ export default function App() {
         return { ...prev, radius: nextR, alpha: Math.max(0, 1 - nextR / prev.maxRadius) };
       });
 
-      // Kinematics & Collision
+      // Kinematics & Open World Movement
       setPlayerPos((prev) => {
-        const speed = isSprinting ? 2.6 : 1.35;
+        const speed = isSprinting ? 3.5 : 1.8;
         let dx = 0;
-        let dz = 0; // Forward travel in meters!
+        let dy = 0;
+        let dz = 0; // Forward travel in meters
 
-        if (keys.w) dz += speed * 0.8;
-        if (keys.s) dz -= speed * 0.55;
-        if (keys.a) dx -= speed * 0.95;
-        if (keys.d) dx += speed * 0.95;
+        if (keys.w) {
+          dz += speed * 1.5;
+          dy += speed * 1.2;
+        }
+        if (keys.s) {
+          dz -= speed * 1.0;
+          dy -= speed * 1.0;
+        }
+        if (keys.a) dx -= speed * 1.4;
+        if (keys.d) dx += speed * 1.4;
 
         // Vertical Jump / Gravity Physics
         let newJumpY = prev.jumpY + prev.vy;
@@ -585,27 +592,21 @@ export default function App() {
           if (!prev.isGrounded) audio.playLanding();
         }
 
-        // Candidate next positions
-        let nextX = prev.x + dx;
-        let nextZ = Math.max(0, prev.z + dz); // INFINITE FORWARD TRAVEL!
-
-        // --- SOLID COLLISION RESOLUTION ---
-        // 1. Sidewalk Curbs / Road Boundaries
-        if (nextX < -155) nextX = -155;
-        if (nextX > 175) nextX = 175;
-
-        // 2. Parked Sports Coupe Solid Collision at Z = 45m, X: [65, 145]
-        if (Math.abs(45 - nextZ) < 5.5 && nextX > 65 && nextX < 145) {
-          // Rebound deflection
-          if (keys.w) nextZ = 39.5;
-          if (keys.s) nextZ = 50.5;
-          if (keys.d) nextX = 65;
-          audio.playCarBump();
+        // Wide Open Road Limits (NO FORWARD WALL AT ALL!)
+        let nextX = Math.max(-175, Math.min(175, prev.x + dx));
+        let nextZ = Math.max(0, prev.z + dz); // Infinite forward travel!
+        
+        // Continuous forward depth on road
+        let nextY = prev.y + dy;
+        if (nextY > 160) {
+          nextY = 60; // Keep continuous smooth forward movement
+        } else if (nextY < -40) {
+          nextY = -40;
         }
 
         // Footstep Audio Synchronization
         if (grounded && isMoving) {
-          stepTimerRef.current += (isSprinting ? 1.6 : 1.0);
+          stepTimerRef.current += (isSprinting ? 1.8 : 1.1);
           if (stepTimerRef.current > 18) {
             stepTimerRef.current = 0;
             audio.playFootstep(isSprinting);
@@ -619,8 +620,8 @@ export default function App() {
 
         return {
           x: nextX,
+          y: nextY,
           z: nextZ,
-          y: 0,
           jumpY: newJumpY,
           vy: newVy,
           angle: newAngle,
@@ -758,40 +759,34 @@ export default function App() {
         }
       });
 
-      // --- 3. PEDESTRIAN SKYBRIDGE & DISTRICT SIGNS IN PERSPECTIVE ---
-      // Distance from player to skybridge
-      const skybridgeRelZ = 120 - playerPos.z;
-      const bridgeScale = Math.max(0.45, Math.min(2.2, 120 / Math.max(10, skybridgeRelZ + 120)));
-      const bridgeY = horizonY - 142 * bridgeScale + camY * 0.42;
-      const bridgeH = 36 * bridgeScale;
+      // --- 3. HIGH-ELEVATION ILLUMINATED PEDESTRIAN SKYBRIDGE & DISTRICT SIGN ---
+      const bridgeY = horizonY - 260 + camY * 0.35;
+      const signX = 740 + camX * 0.42;
+      const signY = bridgeY;
 
-      ctx.fillStyle = '#08101e';
-      ctx.fillRect(440 + camX * 0.4, bridgeY, 830 * bridgeScale, bridgeH);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-      ctx.lineWidth = 1.4;
-      ctx.strokeRect(440 + camX * 0.4, bridgeY, 830 * bridgeScale, bridgeH);
+      // High overhead architectural arch spanning the avenue
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(350 + camX * 0.35, bridgeY + 20);
+      ctx.lineTo(1570 + camX * 0.35, bridgeY + 20);
+      ctx.stroke();
 
-      // Skybridge windows
-      ctx.fillStyle = 'rgba(254, 240, 138, 0.7)';
-      for (let bw = 0; bw < 19; bw++) {
-        ctx.fillRect(455 + camX * 0.4 + bw * 42 * bridgeScale, bridgeY + 8 * bridgeScale, 26 * bridgeScale, 20 * bridgeScale);
-      }
-
-      // Bright Glowing Facade Sign (dynamically shows active district!)
-      const signX = 890 + camX * 0.42;
-      const signY = bridgeY - 30 * bridgeScale;
+      // Glowing Neon Illuminated Facade Sign
       ctx.fillStyle = '#020617';
-      ctx.fillRect(signX - 14, signY - 8, 380 * bridgeScale, 36 * bridgeScale);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
-      ctx.lineWidth = 1.8;
-      ctx.strokeRect(signX - 14, signY - 8, 380 * bridgeScale, 36 * bridgeScale);
+      ctx.fillRect(signX, signY - 14, 440, 42);
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(signX, signY - 14, 440, 42);
 
-      ctx.font = `bold ${Math.round(22 * bridgeScale)}px Inter, sans-serif`;
-      ctx.fillStyle = '#e0f2fe';
+      ctx.font = "bold 20px 'Cinzel', serif";
+      ctx.fillStyle = '#f0f9ff';
+      ctx.textAlign = 'center';
       ctx.shadowColor = '#38bdf8';
       ctx.shadowBlur = 18;
-      ctx.fillText(currentAct.district.toUpperCase(), signX + 16, signY + 18 * bridgeScale);
+      ctx.fillText(currentAct.district.toUpperCase(), signX + 220, signY + 14);
       ctx.shadowBlur = 0;
+      ctx.textAlign = 'start';
 
       // --- 4. TREE CANOPIES WITH GOLDEN FAIRY LIGHTS ---
       const drawBoulevardTree = (tx, ty, scale) => {
@@ -983,7 +978,7 @@ export default function App() {
       // =========================================================================
       const charScale = Math.max(0.68, Math.min(1.18, 1 - playerPos.y * 0.0022));
       const charX = 785 + playerPos.x * 2.1;
-      const charY = 668 - playerPos.y * 1.15 + (isJumping ? -55 : 0);
+      const charY = 668 - playerPos.y * 1.15 - (playerPos.jumpY * 2.2);
 
       // Walk & Sprint Kinematics
       const stride = isMoving ? Math.sin(playerPos.walkCycle) * (isSprinting ? 28 : 18) : 0;

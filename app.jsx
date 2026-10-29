@@ -5428,7 +5428,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             ) : null}
 
             {/* CENTER 3D VIEWPORT PANEL */}
-            <section ref={viewportRef} className="flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative">
+            <section ref={viewportRef} className={isArtifactFullscreen ? "fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden" : "flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative"}>
               {/* Viewport Top Tab Bar: Shown on both mobile and desktop (only hidden in Env Mode or Fullscreen) */}
               {!isEnvMode && !isArtifactFullscreen && (
                 <div className="h-9 px-2 sm:px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0 select-none">
