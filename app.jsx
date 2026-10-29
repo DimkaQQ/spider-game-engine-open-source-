@@ -7328,8 +7328,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
         {/* Ask AI slide-over — ChatGPT-style on Mobile / Side-dock on Desktop */}
         {openMenu === "AskAI" && (
-          <aside className={`${isMobile ? "fixed inset-0 z-50 w-full h-full rounded-none" : panelWide ? "w-[26rem]" : "w-80"} bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-lg overflow-hidden transition-all`}>
-            <div className={`flex items-center justify-between ${isMobile ? "px-4 py-3 bg-slate-50/90" : "px-3 py-2"} border-b border-slate-100`}>
+          <aside className={`${isMobile ? "fixed inset-0 z-50 w-full h-full rounded-none" : panelWide ? "w-72" : "w-60"} bg-white/95 backdrop-blur-md rounded-xl border border-slate-200/80 flex flex-col shrink-0 shadow-lg overflow-hidden transition-all`}>
+            <div className={`flex items-center justify-between ${isMobile ? "px-4 py-3 bg-slate-50/90" : "px-2.5 py-1.5"} border-b border-slate-100`}>
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
                 <button
                   onClick={() => setShowRecents((v) => !v)}
@@ -7422,7 +7422,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 </div>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto px-3 py-3">
+            <div className="flex-1 overflow-y-auto no-scrollbar px-2.5 py-2">
               {showRecents ? (
                 <div className="space-y-1">
                   <button
@@ -7466,24 +7466,24 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   )}
                 </div>
               ) : (aiHistory.length === 0 && !aiThinking && !streaming && !activeQuery) ? (
-                <div className="flex flex-col items-center text-center pt-6">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-400 flex items-center justify-center shadow-md mb-3">
-                    <Sparkles className="w-5 h-5 text-white" />
+                <div className="flex flex-col items-center text-center pt-2">
+                  <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-sky-400 flex items-center justify-center shadow-xs mb-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <div className="text-lg font-semibold text-slate-800 mb-4">Let&apos;s build, V</div>
-                  <div className="w-full space-y-1.5">
+                  <div className="text-xs font-bold text-slate-800 mb-2">Let&apos;s build</div>
+                  <div className="w-full space-y-1">
                     {["Spawn a castle in the scene", "Set the scene to night", "Play the game", "Take a screenshot"].map((s) => (
                       <button
                         key={s}
                         onClick={() => { setAiPrompt(s); }}
-                        className="w-full text-left text-[11px] px-3 py-2 rounded-full border border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50 transition cursor-pointer"
+                        className="w-full text-left text-[10.5px] px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50/50 transition cursor-pointer truncate"
                       >
                         {s}
                       </button>
                     ))}
                   </div>
-                  <div className="mt-4 text-[10px] text-slate-400 leading-snug px-2">
-                    Commands run real editor actions — spawn, sun, play, screenshots. Mistakes possible, check the Console log.
+                  <div className="mt-2 text-[9px] text-slate-400 leading-tight px-1">
+                    Commands run real editor actions in 3D.
                   </div>
                 </div>
               ) : (
@@ -7699,14 +7699,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               )}
             </div>
             {/* Model thinking effort — Auto default, Low/Med/High beside the search bar */}
-            <div className="px-2 pt-2 flex items-center gap-1 relative">
+            <div className="px-2 py-1 flex items-center gap-1 relative border-t border-slate-100/80">
               {[["auto", "Auto"], ["low", "Low"], ["medium", "Med"], ["high", "High"]].map(([v, label]) => (
                 <button
                   key={v}
                   type="button"
                   onClick={() => setThinkLevel(v)}
                   title={v === "auto" ? "Auto thinking effort" : `${label} thinking effort`}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition cursor-pointer ${thinkLevel === v ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500 hover:text-slate-800"}`}
+                  className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold transition cursor-pointer ${thinkLevel === v ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-500 hover:text-slate-800"}`}
                 >
                   {label}
                 </button>
@@ -7717,13 +7717,13 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     type="button"
                     onClick={() => setModelMenuOpen((o) => !o)}
                     title="Choose model — from your key's live list"
-                    className="flex items-center gap-1 max-w-[7rem] px-2 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-[10px] font-bold text-slate-700 transition cursor-pointer"
+                    className="flex items-center gap-0.5 max-w-[5.5rem] px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-[9px] font-bold text-slate-700 transition cursor-pointer"
                   >
                     <span className="truncate">{effectiveFriendly}</span>
-                    <ChevronDown className={`w-3 h-3 transition ${modelMenuOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`w-2.5 h-2.5 transition ${modelMenuOpen ? "rotate-180" : ""}`} />
                   </button>
                   {modelMenuOpen && (
-                    <div className="absolute bottom-7 right-0 w-60 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50 max-h-64 overflow-y-auto">
+                    <div className="absolute bottom-6 right-0 w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50 max-h-56 overflow-y-auto no-scrollbar">
                       <button
                         type="button"
                         onClick={() => { setMetaModel("muse-wonder"); try { localStorage.setItem("spider-meta-model", "muse-wonder"); } catch {} setModelMenuOpen(false); appendLog("Info", "Spider AI model → Muse Wonder"); }}
@@ -7781,13 +7781,13 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             )}
 
-            <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-2 border-t-0 border-slate-100 flex items-end gap-1.5 bg-white">
+            <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-1.5 border-t border-slate-100 flex items-end gap-1 bg-white">
               {/* + opens the file manager for ANY file — parser allowlists models/images/audio */}
               <button
                 type="button"
                 onClick={() => aiFileRef.current?.click()}
-                title="Attach any file — models, images, audio accepted (or paste image Ctrl+V)"
-                className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-base leading-none mb-1 shrink-0"
+                title="Attach any file (Ctrl+V)"
+                className="p-1 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-sm leading-none mb-0.5 shrink-0"
               >
                 +
               </button>
@@ -7803,7 +7803,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   onChange={(e) => {
                     setAiPrompt(e.target.value);
                     e.target.style.height = "auto";
-                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 36), 160)}px`;
+                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 28), 110)}px`;
                   }}
                   onKeyDown={(e) => {
                     e.stopPropagation();
@@ -7812,16 +7812,16 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       handleAskAiSubmit(e);
                     }
                   }}
-                  placeholder={aiThinking ? "Agent working... Shift+Enter for newline" : "Type a message, paste image (Ctrl+V), or / for skills"}
-                  className="w-full text-[13px] font-medium text-slate-900 placeholder:text-slate-400 px-3.5 py-2 bg-slate-50 hover:bg-white focus:bg-white rounded-2xl border border-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none min-h-[36px] max-h-[160px] leading-relaxed scrollbar-thin transition"
+                  placeholder={aiThinking ? "Working..." : "Type message, paste image..."}
+                  className="w-full text-xs font-medium text-slate-900 placeholder:text-slate-400 px-2.5 py-1.5 bg-slate-50 hover:bg-white focus:bg-white rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 resize-none min-h-[28px] max-h-[110px] leading-snug no-scrollbar transition"
                   style={{ height: "auto" }}
                 />
               </div>
 
-              {/* Primary submit button is ALWAYS in the form so Enter never defaults to Stop button */}
+              {/* Primary submit button */}
               <button
                 type="submit"
-                className={`p-1.5 mb-1 transition shrink-0 ${aiPrompt.trim() || aiAttachedImage ? "text-indigo-600 hover:text-indigo-700 cursor-pointer" : "text-slate-300 cursor-not-allowed"}`}
+                className={`p-1 mb-0.5 transition shrink-0 ${aiPrompt.trim() || aiAttachedImage ? "text-indigo-600 hover:text-indigo-700 cursor-pointer" : "text-slate-300 cursor-not-allowed"}`}
                 title={aiThinking ? "Queue follow-up (Enter)" : "Send (Enter)"}
                 disabled={!aiPrompt.trim() && !aiAttachedImage}
               >
@@ -7831,10 +7831,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); stopAgent(); }}
-                  className="p-1.5 mb-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
+                  className="p-1 mb-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
                   title="Stop agent execution"
                 >
-                  <Square className="w-3 h-3 fill-rose-600" />
+                  <Square className="w-2.5 h-2.5 fill-rose-600" />
                 </button>
               )}
             </form>
