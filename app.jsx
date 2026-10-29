@@ -1128,7 +1128,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     const effort = thinkLevel === "auto" ? "medium" : thinkLevel;
     if (effort === "high") {
-      const nodes = sceneGroups.flatMap((g) => g.children).length;
+      const nodes = ((sceneGroups || []).flatMap((g) => g?.children || [])).length;
       const turns = aiHistory.length;
       const compacted = turns > 6 ? turns - 6 : 0;
       appendLog("Info", `Reasoning (high): parsing "${raw}" against ${nodes} actors + ${PRIMITIVE_SHAPES.length} 3D primitives… context: ${turns} turns${compacted > 0 ? ` (${compacted} auto-compacted)` : ""}`);
@@ -1165,7 +1165,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         const data = JSON.parse(await sceneFile.text());
         if (data.groups && Array.isArray(data.groups)) {
           groups = data.groups;
-          appendLog("Success", `Loaded scene from ${sceneFile.name} (${groups.flatMap((g) => g.children).length} actors)`);
+          appendLog("Success", `Loaded scene from ${sceneFile.name} (${((groups || []).flatMap((g) => g?.children || [])).length} actors)`);
         }
       } catch {
         appendLog("Warning", `${sceneFile.name} is not a valid scene — starting ${sceneLabel} from the default scene`);
@@ -1198,7 +1198,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       })
     );
     if (nodes.length > 0) {
-      groups = groups.map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...g.children, ...nodes] } : g));
+      groups = groups.map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...(g?.children || []), ...nodes] } : g));
     }
     const p = { id: `project-${Date.now()}`, name: folderName, groups, updatedAt: Date.now(), ui: { hierarchyOpen: false, inspectorOpen: false, bottomLeftOpen: false, consoleOpen: false, viewportTab: "Viewport", bottomTab: "Content Browser", rightTab: "Inspector" } };
     setProjects((prev) => [...prev, p]);
@@ -1549,7 +1549,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     for (const t of turns) {
       historyBlock += `User: ${t.q}\nSpider AI: ${t.a}\n`;
     }
-    const actors = sceneGroups.flatMap((g) => g.children);
+    const actors = (sceneGroups || []).flatMap((g) => g?.children || []);
     const live = `LIVE SCENE: ${actors.length} actors; selected=${selectedNodeId}; score=${score}; coinsLeft=${coins.filter((c) => !c.taken).length}; time=${timeOfDay.toFixed(1)}h; playing=${isPlaying}.`;
     return { historyBlock, live };
   };
@@ -1881,8 +1881,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const runAgentTool = async (tool, args) => {
     const snap = () => sceneRef.current;
     const findByName = (idOrName) => {
-      const all = snap().sceneGroups.flatMap((g) => g.children);
-      return all.find((c) => c.id === idOrName || c.name === idOrName || c.name.toLowerCase().includes(String(idOrName || "").toLowerCase()));
+      const all = (snap().sceneGroups || []).flatMap((g) => g?.children || []);
+      return all.find((c) => c && (c.id === idOrName || c.name === idOrName || c.name?.toLowerCase().includes(String(idOrName || "").toLowerCase())));
     };
 
     // Permission Prompt Gate: when in 'secure' mode, prompt user before disk / scene destructive ops
@@ -1955,7 +1955,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
     switch (tool) {
       case "listScene": {
-        const actors = snap().sceneGroups.flatMap((g) => g.children).map((c) => ({ id: c.id, name: c.name, pos: c.pos, mesh: c.mesh, visible: c.visible }));
+        const actors = (snap().sceneGroups || []).flatMap((g) => g?.children || []).map((c) => ({ id: c?.id, name: c?.name, pos: c?.pos, mesh: c?.mesh, visible: c?.visible }));
         return JSON.stringify({ count: actors.length, actors: actors.slice(0, 60) });
       }
       case "spawnObject": {
@@ -1975,7 +1975,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         const ny = args?.y !== undefined ? Number(args.y) : n.pos.y;
         const nz = args?.z !== undefined ? Number(args.z) : n.pos.z;
         if (![nx, ny, nz].every(Number.isFinite)) throw new Error("x/y/z must be numbers");
-        setSceneGroups((prev) => prev.map((g) => ({ ...g, children: g.children.map((c) => (c.id === n.id ? { ...c, pos: { x: nx, y: ny, z: nz } } : c)) })));
+        setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((c) => (c?.id === n.id ? { ...c, pos: { x: nx, y: ny, z: nz } } : c)) })));
         return `moved ${n.name} to (${nx}, ${ny}, ${nz})`;
       }
       case "setVisibility": {
@@ -2093,7 +2093,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         const code = activeJsxCodeRef?.current || sceneRef.current?.activeJsxCode || activeJsxCode || "";
         const hasCode = !!(code && code.trim());
         const lastErr = typeof window !== "undefined" ? window.__lastDynamicJsxError : null;
-        const actors = snap().sceneGroups.flatMap((g) => g.children);
+        const actors = (snap().sceneGroups || []).flatMap((g) => g?.children || []);
         const shot = viewportApi.capture?.(false, 512);
 
         if (!hasCode) {
@@ -2163,7 +2163,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
             collision: it.collision || "BlockAll"
           };
           ids.push(n.id);
-          setSceneGroups((prev) => prev.map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...g.children, n] } : g)));
+          setSceneGroups((prev) => (prev || []).map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...(g?.children || []), n] } : g)));
         }
         appendLog("Success", `Agent bulk-spawned ${ids.length} props`);
         return { spawned: ids.length, ids };
@@ -2178,7 +2178,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         if (p.rot) allowed.rot = { x: Number(p.rot.x ?? 0), y: Number(p.rot.y ?? 0), z: Number(p.rot.z ?? 0) };
         for (const k of ["visible", "physics", "mass", "collision", "tag", "name"]) if (p[k] !== undefined) allowed[k] = p[k];
         if (String(n.id).startsWith("spawn-chess-") && snap().isPlaying) throw new Error("chess board is locked during Play");
-        setSceneGroups((prev) => prev.map((g) => ({ ...g, children: g.children.map((c) => (c.id === n.id ? { ...c, ...allowed } : c)) })));
+        setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((c) => (c?.id === n.id ? { ...c, ...allowed } : c)) })));
         return `patched ${n.name}: ${Object.keys(allowed).join(", ")}`;
       }
       case "remove_prop": {
@@ -2187,7 +2187,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         const n = findByName(id);
         if (!n) throw new Error(`prop not found: ${id}`);
         const gone = n.name;
-        setSceneGroups((prev) => prev.map((g) => ({ ...g, children: g.children.filter((c) => c.id !== id) })));
+        setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).filter((c) => c?.id !== id) })));
         return `removed ${gone}`;
       }
       case "saveScene": {
@@ -2705,8 +2705,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     pushUndoSnapshot(sceneRef.current.sceneGroups);
     const snapshot = () => {
       const s = sceneRef.current;
-      const actors = s.sceneGroups.flatMap((g) => g.children).map((c) => `${c.id} "${c.name}" @(${c.pos.x},${c.pos.y},${c.pos.z})${c.visible === false ? " [hidden]" : ""}`);
-      const sel = s.sceneGroups.flatMap((g) => g.children).find((c) => c.id === s.selectedNodeId);
+      const actors = (s.sceneGroups || []).flatMap((g) => g?.children || []).map((c) => `${c?.id} "${c?.name}" @(${c?.pos?.x},${c?.pos?.y},${c?.pos?.z})${c?.visible === false ? " [hidden]" : ""}`);
+      const sel = (s.sceneGroups || []).flatMap((g) => g?.children || []).find((c) => c && c.id === s.selectedNodeId);
       const recentErrors = consoleLogs.filter((l) => l.type === "Warning").slice(-3).map((l) => l.text);
       const activeCode = s.activeJsxCode !== null ? s.activeJsxCode : "";
       const activeName = s.activeJsxName || (s.snakesActive ? "SnakesAndLadders3D.jsx" : "GameComponent.jsx");
@@ -3160,12 +3160,21 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
   // Helper to find currently selected node object across groups
   const findNodeById = (id) => {
-    for (const group of sceneGroups) {
-      for (const child of group.children) {
-        if (child.id === id) return child;
+    if (Array.isArray(sceneGroups)) {
+      for (const group of sceneGroups) {
+        if (group && Array.isArray(group.children)) {
+          for (const child of group.children) {
+            if (child && child.id === id) return child;
+          }
+        }
+      }
+      for (const group of sceneGroups) {
+        if (group && Array.isArray(group.children) && group.children.length > 0) {
+          return group.children[0];
+        }
       }
     }
-    return sceneGroups[1].children[0];
+    return PLAYER;
   };
 
   const selectedNode = findNodeById(selectedNodeId);
@@ -3179,7 +3188,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   ];
   const [meshMenuOpen, setMeshMenuOpen] = useState(false);
   const meshFileRef = useRef(null);
-  const importedModelNodes = sceneGroups.flatMap((g) => g.children).filter((c) => c.modelUrl);
+  const importedModelNodes = (sceneGroups || []).flatMap((g) => g?.children || []).filter((c) => c && c.modelUrl);
   const meshSwappable = selectedNode && String(selectedNode.id).startsWith("spawn-");
   const assignMesh = (entry) => {
     updateSelectedNode({ mesh: entry.mesh, modelUrl: undefined, textureUrl: undefined, modelFormat: undefined });
@@ -3284,10 +3293,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     pushUndoSnapshot(sceneGroups);
     let targetName = nodeId;
     setSceneGroups((prev) =>
-      prev.map((g) => {
-        const found = g.children.find((c) => c.id === nodeId);
+      (prev || []).map((g) => {
+        const found = (g?.children || []).find((c) => c?.id === nodeId);
         if (found) targetName = found.name;
-        return { ...g, children: g.children.filter((c) => c.id !== nodeId) };
+        return { ...g, children: (g?.children || []).filter((c) => c?.id !== nodeId) };
       })
     );
     if (selectedNodeId === nodeId) {
@@ -3299,7 +3308,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Real boot diagnostics — renderer, platform, scene stats (no fake Vulkan/shaders)
   useEffect(() => {
     const boot = [];
-    const actors = sceneGroups.flatMap((g) => g.children);
+    const actors = (sceneGroups || []).flatMap((g) => g?.children || []);
     boot.push({ type: "Info", text: "Spider Engine 0.9.0 (React + Three.js, WebGL)" });
     boot.push({ type: "Info", text: `Platform: ${navigator.platform} — ${window.electron ? "Electron" : "Web"} shell` });
     try {
@@ -3319,7 +3328,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       let dead = 0;
       const out = groups.map((g) => ({
         ...g,
-        children: g.children.map((n) => {
+        children: (g?.children || []).map((n) => {
           let node = n;
           for (const key of ["modelUrl", "textureUrl"]) {
             if (typeof node[key] === "string" && node[key].startsWith("blob:")) {
@@ -3360,9 +3369,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     window.spiderEngine = {
       version: "0.9.0",
       listScene: () =>
-        sceneGroups.flatMap((g) => g.children).map((c) => ({
-          id: c.id, name: c.name, visible: c.visible,
-          pos: c.pos, rot: c.rot, scale: c.scale, mesh: c.mesh, tag: c.tag
+        (sceneGroups || []).flatMap((g) => g?.children || []).map((c) => ({
+          id: c?.id, name: c?.name, visible: c?.visible,
+          pos: c?.pos, rot: c?.rot, scale: c?.scale, mesh: c?.mesh, tag: c?.tag
         })),
       spawnObject: (name) => {
         const q = String(name || "box").toLowerCase();
@@ -3373,9 +3382,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       },
       moveObject: (id, x, y, z) => {
         let found = false;
-        setSceneGroups((prev) => prev.map((g) => ({
+        setSceneGroups((prev) => (prev || []).map((g) => ({
           ...g,
-          children: g.children.map((c) => {
+          children: (g?.children || []).map((c) => {
             if (c.id !== id && c.name !== id) return c;
             found = true;
             return { ...c, pos: { x: Number(x ?? c.pos.x), y: Number(y ?? c.pos.y), z: Number(z ?? c.pos.z) } };
@@ -3490,19 +3499,19 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         mat0: "M_Target_Red", mat1: "M_Target_Base", anim: "None",
         physics: false, mass: 50, collision: "BlockAll"
       }));
-      const groups = full.map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...g.children, ...targets] } : g));
+      const groups = full.map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...(g?.children || []), ...targets] } : g));
       return { groups, select: "weapon" };
     }
     if (tpl === "fpp") {
       // FPP Shooting: hero hidden (you ARE the camera) — open Game View to play
-      const groups = full.map((g) => ({ ...g, children: g.children.map((c) => (c.id === "player" ? { ...c, visible: false } : c)) }));
+      const groups = full.map((g) => ({ ...g, children: (g?.children || []).map((c) => (c.id === "player" ? { ...c, visible: false } : c)) }));
       return { groups, select: "camera" };
     }
     if (tpl === "racing") {
       // Racing: hero on the boat, checkpoints are the coins — vehicles pre-selected
       const groups = full.map((g) => ({
         ...g,
-        children: g.children.map((c) => (c.id === "player" ? { ...c, pos: { x: 24, y: 0, z: 60 } } : c))
+        children: (g?.children || []).map((c) => (c.id === "player" ? { ...c, pos: { x: 24, y: 0, z: 60 } } : c))
       }));
       return { groups, select: "vehicles" };
     }
@@ -3643,7 +3652,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const out = [];
     for (const g of groups) {
       const children = [];
-      for (const n of g.children) {
+      for (const n of (g?.children || [])) {
         let node = n;
         for (const key of ["modelUrl", "textureUrl"]) {
           const url = node[key];
@@ -3688,8 +3697,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         const data = JSON.parse(reader.result);
         if (!data.groups || !Array.isArray(data.groups)) throw new Error("bad file");
         setSceneGroups(data.groups);
-        setSelectedNodeId(data.groups[1]?.children[0]?.id || "player");
-        appendLog("Success", `Scene opened: ${file.name} (${data.groups.flatMap((g) => g.children).length} actors)`);
+        setSelectedNodeId(data.groups[1]?.children?.[0]?.id || data.groups[0]?.children?.[0]?.id || "player");
+        appendLog("Success", `Scene opened: ${file.name} (${((data.groups || []).flatMap((g) => g?.children || [])).length} actors)`);
       } catch {
         appendLog("Warning", `Could not open ${file.name} — not a ${sceneFileName} file`);
       }
@@ -3746,9 +3755,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Update node properties from Inspector or Play Mode
   const updateSelectedNode = (updater) => {
     setSceneGroups((prevGroups) =>
-      prevGroups.map((group) => ({
+      (prevGroups || []).map((group) => ({
         ...group,
-        children: group.children.map((node) =>
+        children: (group?.children || []).map((node) =>
           node.id === selectedNodeId
             ? typeof updater === "function"
               ? updater(node)
@@ -3789,16 +3798,16 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Toggle any node by id (used by Fog pill — doesn't steal selection)
   const setNodeVisibility = (id, visible) => {
     setSceneGroups((prev) =>
-      prev.map((g) => ({ ...g, children: g.children.map((n) => (n.id === id ? { ...n, visible } : n)) }))
+      (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((n) => (n.id === id ? { ...n, visible } : n)) }))
     );
   };
   const updateSelectedNodeFog = (visible) => setNodeVisibility("fog", visible);
   const toggleNodeVisibility = (e, nodeId) => {
     e.stopPropagation();
     setSceneGroups((prevGroups) =>
-      prevGroups.map((group) => ({
+      (prevGroups || []).map((group) => ({
         ...group,
-        children: group.children.map((node) =>
+        children: (group?.children || []).map((node) =>
           node.id === nodeId ? { ...node, visible: !node.visible } : node
         )
       }))
@@ -3854,7 +3863,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       setSceneGroups(groups);
       appendLog("Success", `Embedded ${embedded} session asset${embedded > 1 ? "s" : ""} — build is portable`);
     }
-    const actors = groups.flatMap((g) => g.children);
+    const actors = (groups || []).flatMap((g) => g?.children || []);
     const bodies = actors.filter((a) => a.physics).length;
     const stamp = new Date().toLocaleTimeString();
     appendLog("Info", `Starting Build: ${sceneLabel} (${actors.length} actors, ${bodies} physics bodies)...`);
@@ -3907,8 +3916,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     };
 
     setSceneGroups((prev) =>
-      prev.map((g, idx) =>
-        idx === 0 ? { ...g, expanded: true, children: [...g.children, newNode] } : g
+      (prev || []).map((g, idx) =>
+        idx === 0 ? { ...g, expanded: true, children: [...(g?.children || []), newNode] } : g
       )
     );
     setSelectedNodeId(newId);
@@ -3958,13 +3967,13 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       // Circle colliders for BlockAll actors — computed from the LATEST scene each tick
       let blockers = [];
       setSceneGroups((prevGroups) => {
-        blockers = prevGroups
-          .flatMap((g) => g.children)
-          .filter((c) => c.visible !== false && c.collision === "BlockAll" && c.id !== PLAYER.id)
-          .map((c) => ({ x: c.pos.x, z: c.pos.z, r: Math.max(c.scale.x, c.scale.z) * 0.8 + 0.5 }));
-        return prevGroups.map((group) => ({
+        blockers = (prevGroups || [])
+          .flatMap((g) => g?.children || [])
+          .filter((c) => c && c.visible !== false && c.collision === "BlockAll" && c.id !== PLAYER.id)
+          .map((c) => ({ x: c.pos?.x || 0, z: c.pos?.z || 0, r: Math.max(c.scale?.x || 1, c.scale?.z || 1) * 0.8 + 0.5 }));
+        return (prevGroups || []).map((group) => ({
           ...group,
-          children: group.children.map((node) => {
+          children: (group?.children || []).map((node) => {
             // Play: WASD drives the hero (+jump gravity, +BlockAll collision)
             if (isPlaying && node.id === PLAYER.id) {
               const step = PLAYER.moveStep;
@@ -4045,7 +4054,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
   const handleShoot = useCallback((hitId) => {
     tutorialStats.current.shots++;
     if (hitId && String(hitId).startsWith("spawn-target-")) {
-      setSceneGroups((prev) => prev.map((g) => ({ ...g, children: g.children.map((c) => (c.id === hitId ? { ...c, visible: false } : c)) })));
+      setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((c) => (c.id === hitId ? { ...c, visible: false } : c)) })));
       setScore((s) => {
         const ns = s + 50;
         appendLog("Success", `Target destroyed +50 — score ${ns}`);
@@ -4066,7 +4075,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     }
     if (!step.check) return;
     const st = tutorialStats.current;
-    const targets = sceneGroups.flatMap((g) => g.children).filter((c) => String(c.id).startsWith("spawn-target-"));
+    const targets = (sceneGroups || []).flatMap((g) => g?.children || []).filter((c) => c && String(c.id).startsWith("spawn-target-"));
     const done =
       step.check === "moved" ? st.moved :
       step.check === "jumped" ? st.maxY > 0.5 :
@@ -4085,7 +4094,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
   }, [sceneGroups, score, coins, isPlaying, tutorial]);
   useEffect(() => {
     if (!isPlaying) return;
-    const p = sceneGroups.flatMap((g) => g.children).find((c) => c.id === PLAYER.id);
+    const p = (sceneGroups || []).flatMap((g) => g?.children || []).find((c) => c && c.id === PLAYER.id);
     if (!p) return;
     const hits = coins.filter((c) => !c.taken && Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < COIN_RULES.pickupRadius && p.pos.y < COIN_RULES.maxPickupHeight);
     if (hits.length === 0) return;
@@ -4210,7 +4219,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       return close();
     }
     if (label.startsWith("Current Project")) {
-      const n = sceneGroups.flatMap((g) => g.children).length;
+      const n = ((sceneGroups || []).flatMap((g) => g?.children || [])).length;
       appendLog("Info", `Current project: "${currentProject?.name}" — ${n} actors, autosaved locally`);
       return close();
     }
@@ -4830,9 +4839,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       </div>
 
                       <div className="pl-2 space-y-0.5">
-                        {sceneGroups.map((group) => {
-                          const filteredChildren = group.children.filter((c) =>
-                            c.name.toLowerCase().includes(hierarchySearch.toLowerCase())
+                        {(sceneGroups || []).map((group) => {
+                          const filteredChildren = (group?.children || []).filter((c) =>
+                            c && c.name?.toLowerCase().includes(hierarchySearch.toLowerCase())
                           );
                           if (hierarchySearch && filteredChildren.length === 0) return null;
 
@@ -6150,8 +6159,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     {[
                       { name: "3D Shapes", count: PRIMITIVE_SHAPES.length },
                       { name: "Scripts & JSX", count: projectScriptFiles.length },
-                      { name: "Characters", count: sceneGroups[1]?.children.length || 0 },
-                      { name: "Props", count: sceneGroups[0]?.children.filter((c) => String(c.id).startsWith("spawn-")).length || 0 },
+                      { name: "Characters", count: (sceneGroups?.[1]?.children || []).length },
+                      { name: "Props", count: (sceneGroups?.[0]?.children || []).filter((c) => c && String(c.id).startsWith("spawn-")).length },
                       { name: "Vehicles", count: 1 },
                       { name: "Weapons", count: 1 },
                       { name: "Audio", count: audioAssets.length }
@@ -6268,8 +6277,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     </div>
                   ) : activeFolder === "Characters" || activeFolder === "Weapons" || activeFolder === "Vehicles" ? (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {sceneGroups
-                        .flatMap((g) => g.children)
+                      {(sceneGroups || [])
+                        .flatMap((g) => g?.children || [])
                         .filter((c) =>
                           activeFolder === "Characters"
                             ? ["player", "camera", "npcs"].includes(c.id)
@@ -6293,11 +6302,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      {sceneGroups[0]?.children.filter((c) => String(c.id).startsWith("spawn-") && c.name.toLowerCase().includes(assetSearch.toLowerCase())).length === 0 ? (
+                      {(sceneGroups?.[0]?.children || []).filter((c) => c && String(c.id).startsWith("spawn-") && c.name?.toLowerCase().includes(assetSearch.toLowerCase())).length === 0 ? (
                         <div className="text-[11px] text-slate-400">No spawned props yet — click a 3D Shape or press Add Shape.</div>
                       ) : (
-                        sceneGroups[0].children
-                          .filter((c) => String(c.id).startsWith("spawn-") && c.name.toLowerCase().includes(assetSearch.toLowerCase()))
+                        (sceneGroups?.[0]?.children || [])
+                          .filter((c) => c && String(c.id).startsWith("spawn-") && c.name?.toLowerCase().includes(assetSearch.toLowerCase()))
                           .map((c) => (
                             <div
                               key={c.id}
@@ -6455,7 +6464,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
                 <span className="hidden md:inline">Folder: <span className="font-semibold text-slate-700">{activeFolder}</span></span>
                 <span className="hidden md:inline">•</span>
-                <span>{sceneGroups.flatMap((g) => g.children).length} Actors</span>
+                <span>{((sceneGroups || []).flatMap((g) => g?.children || [])).length} Actors</span>
               </div>
             </div>
           )}
@@ -7639,7 +7648,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 )}
                 {settingsSection === "Scene & Data" && (
                   <div className="max-w-md space-y-3 text-slate-600">
-                    <div>{sceneGroups.flatMap((g) => g.children).length} actors · {audioAssets.length} audio · {buildLogs.length} builds logged</div>
+                    <div>{((sceneGroups || []).flatMap((g) => g?.children || [])).length} actors · {audioAssets.length} audio · {buildLogs.length} builds logged</div>
                     <div className="flex flex-wrap gap-1.5">
                       <button onClick={handleSaveScene} className="px-3 py-1.5 text-[11px] font-semibold bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 rounded-lg cursor-pointer">Save scene.json</button>
                       <button onClick={() => importFileRef.current?.click()} className="px-3 py-1.5 text-[11px] font-semibold bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 border border-slate-200 rounded-lg cursor-pointer">Open / Import…</button>
