@@ -1132,13 +1132,13 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     setAiAttachedImage(null);
     aiAttachedImageRef.current = null;
 
-    const promptText = raw || (currentImg ? `Visually analyze this attached image "${currentImg.name}". Recreate its structures, lighting, colors, and mood into an interactive 3D scene/game with procedural sound effects (Web Audio API) using render_jsx!` : "");
+    const promptText = raw || (currentImg ? `Visually analyze this attached reference image "${currentImg.name}". Recreate its exact 3D visual scene, architecture, environment, lighting, colors, and atmospheric mood with procedural sound (Web Audio API) using render_jsx!` : "");
     const q = promptText.toLowerCase();
 
     // Multi-chat / message queuing: chat with agent while working without stopping streaming!
     if (aiThinking) {
       appendLog("Info", `Live mid-stream message delivered: "${promptText}"`);
-      pushMsg("You", promptText, true);
+      pushMsg(promptText, "Queued: message received and forwarded to agent.", true);
       messageQueueRef.current.push(promptText);
       setQueuedMessages([...messageQueueRef.current]);
       setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
@@ -2727,7 +2727,6 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     setActiveAgentQuestion(null);
     const steps = GAME_STEPS;
     appendLog("Info", `Agent started: "${goal}"${initialImageUrl ? " (with vision image)" : ""}`);
-    pushMsg("You", goal + (initialImageUrl ? "\n\n[Attached image for Vision Analysis]" : ""));
     agentUndoRef.current = JSON.stringify(sceneRef.current.sceneGroups);
     pushUndoSnapshot(sceneRef.current.sceneGroups);
     const snapshot = () => {
@@ -2835,7 +2834,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
                 ? [
                     {
                       type: "text",
-                      text: `GOAL: ${task}\n\nVISION & AUDIO INSTRUCTION:\n1. Visually inspect and analyze this attached reference image in detail. Extract its theme, color palette, lighting, architecture, ground terrain, silhouettes, and props.\n2. Synthesize a matching interactive 3D game world using render_jsx.\n3. INTEGRATE PROCEDURAL SOUND EFFECTS (Web Audio API with AudioContext and oscillators) for jump, move, collision, collect, or ambient audio!\n\nReply with exactly one JSON object.`
+                      text: `GOAL: ${task}\n\nSTRICT VISUAL REPLICATION INSTRUCTION (MATCH THE IMAGE EXACTLY):\n1. LOOK AT THE ATTACHED IMAGE CAREFULLY. The user explicitly instructed: "see image and generate exact like that image only not how it wishes". DO NOT freestyle or invent arbitrary objects.\n2. Recreate the EXACT architecture, towers, floating islands, cityscape, buildings, clouds, ground terrain, lighting angles, color palette, fog, and skybox visible in this image.\n3. DO NOT add unwanted mini-game mechanics (no score, no lives, no coins, no game-over screen). Recreate the exact visual scene in high fidelity.\n4. Provide smooth <OrbitControls makeDefault enableDamping dampingFactor={0.05} /> so the user can orbit, pan, and view the reconstructed 3D scene from all angles.\n5. Include procedural atmospheric ambient sound (Web Audio API with AudioContext and gentle ambient drone/wind/reverb synth) matching the image's environment.\n\nReply with exactly one JSON object.`
                     },
                     { type: "image_url", image_url: { url: imgUrl } }
                   ]
@@ -7242,7 +7241,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   {aiHistory.map((h, i) => (
                     <div key={i} className="space-y-1.5 group/msg">
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-xs">{h.q}</div>
+                        <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-xs">
+                          {h.q === "You" ? (h.a && h.a.length < 140 ? h.a : "User Request") : h.q}
+                        </div>
                       </div>
 
                       {/* Thought block if present */}
@@ -7542,25 +7543,23 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 placeholder={aiThinking ? "Agent is working... chat anytime without stopping stream" : "Type a message or / for skills"}
                 className="flex-1 text-[11px] px-2.5 py-2 bg-slate-100 rounded-full border border-transparent focus:outline-none focus:border-indigo-300"
               />
-              {aiThinking ? (
-                <div className="flex items-center gap-1 shrink-0">
-                  {aiPrompt.trim() && (
-                    <button type="submit" className="p-1.5 text-indigo-600 hover:text-indigo-700 cursor-pointer" title="Queue follow-up">
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={stopAgent}
-                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
-                    title="Stop agent execution"
-                  >
-                    <Square className="w-3 h-3 fill-rose-600" />
-                  </button>
-                </div>
-              ) : (
-                <button type="submit" className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer" title="Send">
-                  <Send className="w-3.5 h-3.5" />
+              {/* Primary submit button is ALWAYS in the form so Enter never defaults to Stop button */}
+              <button
+                type="submit"
+                className={`p-1.5 transition ${aiPrompt.trim() || aiAttachedImage ? "text-indigo-600 hover:text-indigo-700 cursor-pointer" : "text-slate-300 cursor-not-allowed"}`}
+                title={aiThinking ? "Queue follow-up" : "Send"}
+                disabled={!aiPrompt.trim() && !aiAttachedImage}
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+              {aiThinking && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); stopAgent(); }}
+                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
+                  title="Stop agent execution"
+                >
+                  <Square className="w-3 h-3 fill-rose-600" />
                 </button>
               )}
             </form>
