@@ -210,8 +210,10 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
 
     const handleResize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
+      const w = canvas.parentElement ? canvas.parentElement.clientWidth : window.innerWidth;
+      const h = canvas.parentElement ? canvas.parentElement.clientHeight : window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
       ctx.scale(dpr, dpr);
     };
 
@@ -220,8 +222,8 @@ const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }
 
     const render = (now) => {
       const elapsed = (now - startTime) * 0.001;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = canvas.parentElement ? canvas.parentElement.clientWidth : window.innerWidth;
+      const h = canvas.parentElement ? canvas.parentElement.clientHeight : window.innerHeight;
       const data = sceneDataRef.current;
 
       if (!data) {
@@ -918,8 +920,9 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
 
   // Mouse Parallax Handler
   const handleMouseMove = (e) => {
-    const x = e.clientX / window.innerWidth;
-    const y = e.clientY / window.innerHeight;
+    const rect = e.currentTarget ? e.currentTarget.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+    const x = (e.clientX - rect.left) / (rect.width || 1);
+    const y = (e.clientY - rect.top) / (rect.height || 1);
     setMousePos({ x, y });
   };
 
@@ -984,7 +987,7 @@ export default function App({ onLaunchGame, onClose, isStandalone = false } = {}
   return (
     <div
       onMouseMove={handleMouseMove}
-      className="relative w-screen h-screen overflow-hidden bg-[#03070e] text-stone-100 select-none font-sans"
+      className="relative w-full h-full min-h-[500px] overflow-hidden bg-[#03070e] text-stone-100 select-none font-sans"
     >
       {/* Google Fonts Injection for authentic distressed title & classic serif UI typography */}
       <style>{`

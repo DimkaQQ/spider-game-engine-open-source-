@@ -657,7 +657,7 @@ function AgentQuestionCard({ questionData, onAnswer }) {
 export default function App() {
   // Navigation & Tabs State
   const [activeLeftRail, setActiveLeftRail] = useState("Scene");
-  const [viewportTab, setViewportTab] = useState("Viewport"); // Viewport, Cinematic, Game View
+  const [viewportTab, setViewportTab] = useState("Title Menu"); // Title Menu, Viewport, Cinematic, Game View
   const [bottomTab, setBottomTab] = useState("Content Browser"); // Content Browser, Console, Build Log
   const [rightTab, setRightTab] = useState("Inspector"); // Inspector, World Settings
   const [activeFolder, setActiveFolder] = useState("3D Shapes");
@@ -3443,7 +3443,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   }, [projects, currentProjectId]);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
-  const [showStartup, setShowStartup] = useState(!isStandaloneChess);
+  const [showStartup, setShowStartup] = useState(false);
   // (Native splash window now handles launch — see electron/splash.html)
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectTemplate, setNewProjectTemplate] = useState("normal");
@@ -3452,6 +3452,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const expandEditor = () => {
     try { window.spiderShell?.projectOpened?.(); } catch {}
   };
+  useEffect(() => {
+    expandEditor();
+  }, []);
   // Write a file into the project's own folder when it has one, else fall back to download
   // Project folder on demand — Ask AI can create files in it, picking it if unset
   const ensureProjectRoot = async () => {
@@ -3532,7 +3535,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return { groups: full, select: "player" }; // normal third person
   };
   // Per-project UI memory — each project keeps its own panel layout (own index in storage)
-  const DEFAULT_UI = { hierarchyOpen: true, inspectorOpen: true, bottomLeftOpen: true, consoleOpen: true, viewportTab: "Viewport", bottomTab: "Content Browser", rightTab: "Inspector" };
+  const DEFAULT_UI = { hierarchyOpen: true, inspectorOpen: true, bottomLeftOpen: true, consoleOpen: true, viewportTab: "Title Menu", bottomTab: "Content Browser", rightTab: "Inspector" };
   const applyUi = (ui) => {
     const u = { ...DEFAULT_UI, ...(ui || {}) };
     setHierarchyOpen(u.hierarchyOpen);
