@@ -1,27 +1,123 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  Volume2,
-  VolumeX,
-  Camera,
-  Shield,
-  Sliders,
-  Award,
-  LogOut,
-  Play,
-  PlusCircle,
-  FolderOpen,
-  Sparkles,
-  Check,
-  RotateCcw,
-  X
-} from 'lucide-react';
-import { sfx } from '../engine/audioSynthesizer.js';
+import { Volume2, VolumeX, Camera, Shield, Sliders, Award, LogOut, Play, PlusCircle, FolderOpen, Sparkles, Check, RotateCcw } from 'lucide-react';
+
+// ==========================================
+// WEB AUDIO API SOUND SYNTHESIZER (AAA UI SFX)
+// ==========================================
+class SoundEffects {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+  }
+
+  init() {
+    if (!this.ctx && typeof window !== 'undefined') {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  playHover() {
+    if (this.muted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      
+      // Subtle airy high-tech/fantasy metallic shimmer + low thump
+      const osc1 = this.ctx.createOscillator();
+      const osc2 = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(140, now);
+      osc1.frequency.exponentialRampToValueAtTime(65, now + 0.09);
+
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(1200, now);
+      osc2.frequency.exponentialRampToValueAtTime(1800, now + 0.06);
+
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+      const gain2 = this.ctx.createGain();
+      gain2.gain.setValueAtTime(0.015, now);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+      osc1.connect(gain);
+      osc2.connect(gain2);
+      gain.connect(this.ctx.destination);
+      gain2.connect(this.ctx.destination);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 0.09);
+      osc2.stop(now + 0.06);
+    } catch (e) {
+      // Ignore audio errors if blocked by autoplay policy
+    }
+  }
+
+  playSelect() {
+    if (this.muted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+
+      // Cinematic resonant chord chime + deep impact
+      const freqs = [220, 440, 659.25, 880];
+      freqs.forEach((f, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = idx === 0 ? 'sine' : 'triangle';
+        osc.frequency.setValueAtTime(f, now);
+        osc.frequency.exponentialRampToValueAtTime(f * 1.015, now + 0.45);
+
+        gain.gain.setValueAtTime(idx === 0 ? 0.12 : 0.03, now);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.45);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.46);
+      });
+    } catch (e) {}
+  }
+
+  playBack() {
+    if (this.muted) return;
+    try {
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.18);
+
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.19);
+    } catch (e) {}
+  }
+}
+
+const sfx = new SoundEffects();
 
 // ==========================================
 // PROCEDURAL 2D CANVAS CITY & CHARACTER SCENE
 // (Faithfully recreates the Knowledge Park night scene)
 // ==========================================
-export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, customBgUrl = '', bokehIntensity = 1 }) => {
+const ProceduralNightCityCanvas = ({ mousePos, customBgUrl, bokehIntensity = 1 }) => {
   const canvasRef = useRef(null);
   const sceneDataRef = useRef(null);
 
@@ -324,6 +420,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
       ctx.restore();
 
       // 5. WARM FAIRY-LIGHT STREET TREES & BLUE STREETLAMPS
+      // Streetlamps cyan glow
       const streetLamps = [
         { x: 0.445, y: 0.455 },
         { x: 0.585, y: 0.575 },
@@ -417,7 +514,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
         ctx.stroke();
       });
 
-      // 7. LONE HOODED WAYFARER SILHOUETTE IN LONG DARK TRENCH COAT
+      // 7. LONE HOODED WAYFARER SILHOUETTE IN LONG DARK TRENCH COAT (CENTER FOREGROUND)
       const charX = w * 0.518 + px * 0.85;
       const charBottomY = h * 0.915 + py * 0.55;
       const charScale = Math.min(w / 1366, h / 768) * 1.05;
@@ -439,6 +536,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
 
       // Boots & Legs
       ctx.fillStyle = '#070b10';
+      // Left leg & boot
       ctx.beginPath();
       ctx.moveTo(-26, -155);
       ctx.lineTo(-10, -155);
@@ -448,6 +546,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
       ctx.closePath();
       ctx.fill();
 
+      // Right leg & boot
       ctx.beginPath();
       ctx.moveTo(6, -155);
       ctx.lineTo(22, -155);
@@ -458,7 +557,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
       ctx.closePath();
       ctx.fill();
 
-      // Billowing Long Tactical Trench Coat
+      // Billowing Long Tactical Trench Coat (with dramatic right-side wind flare like the reference)
       const coatGrad = ctx.createLinearGradient(-45, -310, 85, -70);
       coatGrad.addColorStop(0, '#0d1520');
       coatGrad.addColorStop(0.45, '#070b11');
@@ -466,14 +565,15 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
       ctx.fillStyle = coatGrad;
 
       ctx.beginPath();
-      ctx.moveTo(-34, -305);
-      ctx.lineTo(28, -305);
-      ctx.lineTo(44, -225);
+      ctx.moveTo(-34, -305); // Left shoulder
+      ctx.lineTo(28, -305);  // Right shoulder
+      ctx.lineTo(44, -225);  // Right waist
+      // Dramatic flowing coat tail to the right
       ctx.quadraticCurveTo(82 + windSway * 0.6, -155, 118 + windSway, -96);
       ctx.lineTo(66 + windSway * 0.7, -75);
       ctx.lineTo(26 + windSway * 0.3, -110);
       ctx.lineTo(18, -90);
-      ctx.lineTo(-4, -125);
+      ctx.lineTo(-4, -125); // Center split
       ctx.lineTo(-16, -92);
       ctx.lineTo(-36 + windSway * 0.2, -102);
       ctx.quadraticCurveTo(-40, -175, -36, -225);
@@ -498,6 +598,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
 
       // Left & Right Armored Arms
       ctx.fillStyle = '#090e15';
+      // Left arm
       ctx.beginPath();
       ctx.moveTo(-34, -305);
       ctx.lineTo(-50, -240);
@@ -507,6 +608,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
       ctx.closePath();
       ctx.fill();
 
+      // Right arm
       ctx.beginPath();
       ctx.moveTo(28, -305);
       ctx.lineTo(46, -242);
@@ -539,6 +641,7 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
       ctx.closePath();
       ctx.fill();
 
+      // Subtle cyan rim light on right edge of hood
       ctx.strokeStyle = 'rgba(155, 220, 255, 0.45)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -610,12 +713,19 @@ export const ProceduralNightCityCanvas = ({ mousePos = { x: 0.5, y: 0.5 }, custo
   );
 };
 
-// Ornate SVG Elements
-export const ActiveStarIndicator = () => (
+// ==========================================
+// ORNATE SVG COMPONENTS (Exact match to image)
+// ==========================================
+
+// Glowing 4-Pointed Star Diamond Indicator next to active menu item
+const ActiveStarIndicator = () => (
   <div className="relative flex items-center justify-center w-6 h-6 mr-3 shrink-0">
+    {/* Outer warm flare */}
     <div className="absolute w-7 h-7 rounded-full bg-amber-300/35 blur-md animate-pulse" />
+    {/* Horizontal & vertical light rays */}
     <div className="absolute w-7 h-[1.5px] bg-gradient-to-r from-transparent via-amber-200 to-transparent" />
     <div className="absolute h-7 w-[1.5px] bg-gradient-to-b from-transparent via-amber-200 to-transparent" />
+    {/* Crisp 4-point diamond star SVG */}
     <svg viewBox="0 0 24 24" className="w-4 h-4 relative z-10 drop-shadow-[0_0_6px_rgba(255,220,130,0.95)]">
       <path
         d="M12 1 L14.8 9.2 L23 12 L14.8 14.8 L12 23 L9.2 14.8 L1 12 L9.2 9.2 Z"
@@ -627,7 +737,8 @@ export const ActiveStarIndicator = () => (
   </div>
 );
 
-export const TitleOrnateDivider = () => (
+// Ornate Divider under "TRY UR BEST" title
+const TitleOrnateDivider = () => (
   <div className="flex items-center justify-center w-full max-w-[330px] my-2.5 select-none">
     <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent via-[#c7a96b]/60 to-[#d4af37]/90" />
     <div className="mx-2 flex items-center space-x-1 text-[#dcb971]">
@@ -641,7 +752,8 @@ export const TitleOrnateDivider = () => (
   </div>
 );
 
-export const BottomGoldFiligree = () => (
+// Delicate Gold Filigree Dividers at the bottom-left of the menu list
+const BottomGoldFiligree = () => (
   <div className="mt-7 space-y-7 pl-2 select-none opacity-85">
     {[0, 1].map((idx) => (
       <div key={idx} className="flex items-center w-44">
@@ -655,7 +767,8 @@ export const BottomGoldFiligree = () => (
   </div>
 );
 
-export const WayfarerCrestSVG = () => (
+// Top-Right Crest Shield Emblem ("Wayfarer Level 12")
+const WayfarerCrestSVG = () => (
   <svg viewBox="0 0 48 54" className="w-9 h-10 shrink-0 drop-shadow-[0_2px_6px_rgba(212,175,55,0.35)]">
     <defs>
       <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -664,12 +777,14 @@ export const WayfarerCrestSVG = () => (
         <stop offset="100%" stopColor="#7e5b1b" />
       </linearGradient>
     </defs>
+    {/* Shield Outer */}
     <path
       d="M6 6 H42 V24 C42 37 24 47 24 49 C24 47 6 37 6 24 Z"
       fill="#0d131c"
       stroke="url(#goldGrad)"
       strokeWidth="2.2"
     />
+    {/* Shield Inner Border */}
     <path
       d="M10 10 H38 V23 C38 33.5 24 42 24 44 C24 42 10 33.5 10 23 Z"
       fill="none"
@@ -677,6 +792,7 @@ export const WayfarerCrestSVG = () => (
       strokeWidth="0.9"
       strokeDasharray="2 1"
     />
+    {/* Stylized Double-Winged Phoenix / Eagle Crest */}
     <path
       d="M24 14 L27 20 L34 16 L31 25 L35 29 L27 28 L24 37 L21 28 L13 29 L17 25 L14 16 L21 20 Z"
       fill="url(#goldGrad)"
@@ -685,7 +801,8 @@ export const WayfarerCrestSVG = () => (
   </svg>
 );
 
-export const CompassRoseSVG = () => (
+// Bottom-Right Ornate Compass Rose SVG inside "WELCOME, ADVENTURER" card
+const CompassRoseSVG = () => (
   <svg
     viewBox="0 0 100 100"
     className="w-20 h-20 shrink-0 text-[#d3ad5e] opacity-90 drop-shadow-[0_0_10px_rgba(211,173,94,0.25)] transition-transform duration-1000 group-hover:rotate-45"
@@ -697,6 +814,7 @@ export const CompassRoseSVG = () => (
         <stop offset="100%" stopColor="#6e5015" />
       </linearGradient>
     </defs>
+    {/* Outer & Inner Rings */}
     <circle cx="50" cy="50" r="36" fill="none" stroke="url(#compassGold)" strokeWidth="1.2" opacity="0.7" />
     <circle
       cx="50"
@@ -709,24 +827,30 @@ export const CompassRoseSVG = () => (
       opacity="0.65"
     />
     <circle cx="50" cy="50" r="14" fill="none" stroke="url(#compassGold)" strokeWidth="1" opacity="0.6" />
+
+    {/* Minor Diagonal Points */}
     <g transform="rotate(45 50 50)">
       <polygon points="50,12 54,44 50,50 46,44" fill="url(#compassGold)" opacity="0.75" />
       <polygon points="50,88 54,56 50,50 46,56" fill="url(#compassGold)" opacity="0.75" />
       <polygon points="12,50 44,46 50,50 44,54" fill="url(#compassGold)" opacity="0.75" />
       <polygon points="88,50 56,46 50,50 56,54" fill="url(#compassGold)" opacity="0.75" />
     </g>
+
+    {/* Major Cardinal Points */}
     <polygon points="50,4 55,43 50,50 45,43" fill="url(#compassGold)" />
     <polygon points="50,96 55,57 50,50 45,57" fill="url(#compassGold)" />
     <polygon points="4,50 43,45 50,50 43,55" fill="url(#compassGold)" />
     <polygon points="96,50 57,45 50,50 57,55" fill="url(#compassGold)" />
+
+    {/* Center Gem */}
     <circle cx="50" cy="50" r="3.5" fill="#fff6d6" stroke="#b38728" strokeWidth="1" />
   </svg>
 );
 
 // ==========================================
-// MAIN AAA GAME MENU COMPONENT
+// MAIN AAA GAME MENU APPLICATION
 // ==========================================
-export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = false }) {
+export default function App({ onLaunchGame, onClose, isStandalone = false } = {}) {
   const menuItems = [
     { id: 'continue', label: 'CONTINUE', icon: Play },
     { id: 'new_game', label: 'NEW GAME', icon: PlusCircle },
@@ -738,12 +862,13 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
   ];
 
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [activeModal, setActiveModal] = useState(null);
+  const [activeModal, setActiveModal] = useState(null); // null | 'continue' | 'new_game' | 'load_game' | 'settings' | 'photo_mode' | 'credits' | 'exit'
   const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 });
-  const [soundMuted, setSoundMuted] = useState(sfx.muted);
+  const [soundMuted, setSoundMuted] = useState(false);
   const [customBgUrl, setCustomBgUrl] = useState('');
   const [notification, setNotification] = useState(null);
 
+  // Interactive Settings State
   const [settings, setSettings] = useState({
     resolution: '3840 x 2160 (4K UHD)',
     rayTracing: 'ULTRA (PATH TRACING)',
@@ -753,6 +878,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
     masterVolume: 85,
   });
 
+  // Save Slots Data for "LOAD GAME"
   const [saveSlots, setSaveSlots] = useState([
     {
       id: 1,
@@ -790,12 +916,14 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
     }, 3200);
   }, []);
 
+  // Mouse Parallax Handler
   const handleMouseMove = (e) => {
     const x = e.clientX / window.innerWidth;
     const y = e.clientY / window.innerHeight;
     setMousePos({ x, y });
   };
 
+  // Trigger Menu Item Action
   const handleTriggerItem = useCallback(
     (index) => {
       const item = menuItems[index];
@@ -806,6 +934,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
     [menuItems]
   );
 
+  // Full Keyboard Navigation (Up/Down/W/S/Enter/Escape)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (activeModal) {
@@ -837,36 +966,27 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
       } else if (e.key === 'Escape') {
         e.preventDefault();
         sfx.playBack();
-        if (onClose) onClose();
+        showToast('Press EXIT TO DESKTOP or select an option.');
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeModal, selectedIndex, menuItems.length, handleTriggerItem, onClose]);
+  }, [activeModal, selectedIndex, menuItems.length, handleTriggerItem, showToast]);
 
   const toggleMute = () => {
-    const next = sfx.toggleMute();
-    setSoundMuted(next);
+    sfx.muted = !soundMuted;
+    setSoundMuted(!soundMuted);
   };
 
   const isPhotoMode = activeModal === 'photo_mode';
 
-  const handleStartPlay = (options = {}) => {
-    sfx.playSelect();
-    setActiveModal(null);
-    if (onLaunchGame) {
-      onLaunchGame(options);
-    } else {
-      showToast('Launching Knowledge Park Open World...');
-    }
-  };
-
   return (
     <div
       onMouseMove={handleMouseMove}
-      className="fixed inset-0 z-50 overflow-hidden bg-[#03070e] text-stone-100 select-none font-sans"
+      className="relative w-screen h-screen overflow-hidden bg-[#03070e] text-stone-100 select-none font-sans"
     >
+      {/* Google Fonts Injection for authentic distressed title & classic serif UI typography */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,400&family=Oswald:wght@700&display=swap');
 
@@ -888,7 +1008,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
         }
       `}</style>
 
-      {/* SVG Grunge Filter for distressed metallic title */}
+      {/* SVG Grunge Displacement Filter to give "TRY UR BEST" the exact weathered metallic texture */}
       <svg className="hidden">
         <defs>
           <filter id="grunge-roughness" x="-10%" y="-10%" width="120%" height="120%">
@@ -905,36 +1025,28 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
         bokehIntensity={settings.bokehIntensity}
       />
 
-      {/* 2. MAIN HUD OVERLAY */}
+      {/* 2. MAIN HUD OVERLAY (Hidden smoothly when inside Photo Mode) */}
       <div
         style={{ opacity: isPhotoMode ? 0 : settings.hudOpacity / 100 }}
         className={`relative z-10 w-full h-full flex flex-col justify-between px-7 py-6 sm:px-14 sm:py-10 transition-all duration-500 ${
           isPhotoMode ? 'pointer-events-none scale-105' : 'scale-100'
         }`}
       >
-        {/* TOP BAR */}
+        {/* TOP BAR: Sound Toggle & Top-Right Player Profile Badge ("Wayfarer Level 12") */}
         <div className="flex items-start justify-between w-full">
-          <div className="flex items-center space-x-3 opacity-75 hover:opacity-100 transition-opacity">
+          {/* Subtle Audio/Custom BG Quick Bar */}
+          <div className="flex items-center space-x-3 opacity-60 hover:opacity-100 transition-opacity">
             <button
               onClick={toggleMute}
               title={soundMuted ? 'Unmute UI Audio' : 'Mute UI Audio'}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded bg-black/50 border border-white/10 text-xs text-stone-300 hover:border-[#d4af37]/60 hover:text-white transition cursor-pointer"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-black/40 border border-white/10 text-xs text-stone-300 hover:border-[#d4af37]/60 hover:text-white transition"
             >
               {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-amber-400" /> : <Volume2 className="w-3.5 h-3.5 text-amber-400" />}
               <span className="aaa-serif tracking-wider text-[10px] uppercase">{soundMuted ? 'Audio Muted' : 'UI SFX On'}</span>
             </button>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="flex items-center space-x-1 px-2.5 py-1.5 rounded bg-black/50 border border-white/10 text-[10px] text-stone-300 hover:bg-white/10 transition cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Return to Editor</span>
-              </button>
-            )}
           </div>
 
-          {/* TOP-RIGHT BADGE: Wayfarer Level 12 */}
+          {/* TOP-RIGHT PLAYER BADGE (Exact match to reference image) */}
           <div
             onClick={() => {
               sfx.playSelect();
@@ -956,6 +1068,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
 
         {/* CENTER-LEFT TITLE & MENU NAVIGATION */}
         <div className="flex flex-col justify-center my-auto max-w-xl pl-1 sm:pl-4">
+          {/* DISTRESSED BLOCK TITLE: "TRY UR BEST" */}
           <div className="select-none">
             <h1
               style={{ filter: 'url(#grunge-roughness) drop-shadow(0 8px 24px rgba(0,0,0,0.95))' }}
@@ -963,7 +1076,11 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
             >
               TRY UR BEST
             </h1>
+
+            {/* Ornate Center Star Line Divider */}
             <TitleOrnateDivider />
+
+            {/* Subtitle: "AN OPEN WORLD ADVENTURE" */}
             <p className="aaa-serif text-[#c7a667] text-xs sm:text-[13.5px] tracking-[0.26em] uppercase font-medium pl-1 mb-7 drop-shadow">
               AN OPEN WORLD ADVENTURE
             </p>
@@ -983,20 +1100,26 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     }
                   }}
                   onClick={() => handleTriggerItem(idx)}
-                  className={`group relative flex items-center text-left py-2.5 px-3 transition-all duration-200 focus:outline-none cursor-pointer ${
+                  className={`group relative flex items-center text-left py-2.5 px-3 transition-all duration-200 focus:outline-none ${
                     isSelected ? 'pl-2' : 'pl-6 hover:pl-7'
                   }`}
                 >
+                  {/* Active Golden Horizontal Gradient Highlight Banner with Top & Bottom Hairline Borders */}
                   {isSelected && (
                     <div className="absolute inset-0 pointer-events-none">
+                      {/* Soft warm background sweep */}
                       <div className="w-full h-full bg-gradient-to-r from-[#d4a94e]/25 via-[#b58932]/12 to-transparent" />
+                      {/* Top gold gradient hairline */}
                       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#f3d285]/70 to-transparent" />
+                      {/* Bottom gold gradient hairline */}
                       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#f3d285]/70 to-transparent" />
                     </div>
                   )}
 
+                  {/* Glowing 4-Pointed Star Indicator on Active Item */}
                   {isSelected && <ActiveStarIndicator />}
 
+                  {/* Menu Item Text */}
                   <span
                     className={`aaa-serif relative z-10 text-sm sm:text-[15.5px] tracking-[0.16em] uppercase transition-all duration-200 ${
                       isSelected
@@ -1011,11 +1134,13 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
             })}
           </nav>
 
+          {/* Bottom-Left Delicate Gold Filigree Lines */}
           <BottomGoldFiligree />
         </div>
 
         {/* BOTTOM BAR: Welcome Adventurer Card & [ESC] BACK Prompt */}
         <div className="flex flex-col items-end justify-end ml-auto space-y-3.5 mt-4">
+          {/* WELCOME, ADVENTURER CARD */}
           <div
             onClick={() => {
               sfx.playSelect();
@@ -1023,6 +1148,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
             }}
             className="group relative cursor-pointer flex items-center justify-between w-full sm:w-[390px] px-6 py-4 bg-gradient-to-r from-[#080d15]/95 via-[#0d1624]/90 to-[#111c2d]/90 border border-white/10 hover:border-[#d4af37]/45 rounded-sm shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-md transition-all"
           >
+            {/* Left Content */}
             <div className="flex flex-col pr-4 space-y-1">
               <h3 className="aaa-serif text-[#d8b162] text-xs sm:text-[13px] tracking-[0.14em] uppercase font-semibold">
                 WELCOME, ADVENTURER
@@ -1031,24 +1157,27 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                 Thank you for being part of our journey. Your legend begins now.
               </p>
             </div>
+
+            {/* Right Compass Rose Emblem */}
             <CompassRoseSVG />
+
+            {/* Bottom Center Gold Diamond Accent on Card Border */}
             <div className="absolute -bottom-[1px] left-1/2 -translate-x-1/2 w-40 h-[1px] bg-gradient-to-r from-transparent via-[#e2bf75] to-transparent flex items-center justify-center">
               <span className="w-1.5 h-1.5 rotate-45 bg-[#f7dfa4] shadow-[0_0_6px_#f7dfa4]" />
             </div>
           </div>
 
+          {/* [ESC] BACK PROMPT */}
           <button
             onClick={() => {
               sfx.playBack();
               if (activeModal) {
                 setActiveModal(null);
-              } else if (onClose) {
-                onClose();
               } else {
                 showToast('Already at the Main Title Screen.');
               }
             }}
-            className="group flex items-center space-x-2.5 text-stone-300 hover:text-white transition cursor-pointer"
+            className="group flex items-center space-x-2.5 text-stone-300 hover:text-white transition"
           >
             <span className="px-2 py-0.5 text-[11px] font-medium tracking-wider uppercase bg-white/5 border border-stone-400/40 rounded-[3px] text-stone-200 group-hover:border-amber-300/70 group-hover:text-amber-200 transition">
               ESC
@@ -1076,7 +1205,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                 sfx.playBack();
                 setActiveModal(null);
               }}
-              className="px-3 py-1 bg-[#d4af37]/20 hover:bg-[#d4af37]/35 border border-[#d4af37]/60 text-amber-200 text-xs aaa-serif tracking-widest uppercase transition cursor-pointer"
+              className="px-3 py-1 bg-[#d4af37]/20 hover:bg-[#d4af37]/35 border border-[#d4af37]/60 text-amber-200 text-xs aaa-serif tracking-widest uppercase transition"
             >
               [ESC] Exit Photo Mode
             </button>
@@ -1084,13 +1213,14 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
         </div>
       )}
 
-      {/* 4. INTERACTIVE AAA SUB-MODALS */}
+      {/* 4. INTERACTIVE AAA SUB-MODALS (Continue, New Game, Load Game, Settings, Credits, Exit) */}
       {activeModal && !isPhotoMode && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-fadeIn">
           <div className="relative w-full max-w-2xl bg-gradient-to-b from-[#0b1320]/95 to-[#060a12]/98 border border-[#d4af37]/40 shadow-[0_25px_70px_rgba(0,0,0,0.95)] p-6 sm:p-9 text-stone-100">
+            {/* Top gold accent bar */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-2/3 h-[1px] bg-gradient-to-r from-transparent via-[#f3d285] to-transparent" />
 
-            {/* CONTINUE / NEW GAME */}
+            {/* CONTINUE / NEW GAME MODAL */}
             {(activeModal === 'continue' || activeModal === 'new_game') && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-white/10 pb-4">
@@ -1147,7 +1277,11 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     ].map((diff, i) => (
                       <div
                         key={diff.name}
-                        onClick={() => handleStartPlay({ difficulty: diff.name, mode: 'new_game' })}
+                        onClick={() => {
+                          sfx.playSelect();
+                          setActiveModal(null);
+                          showToast(`Starting New Game on ${diff.name} difficulty...`);
+                        }}
                         className={`cursor-pointer p-4 border transition-all ${
                           i === 1
                             ? 'bg-[#d4af37]/15 border-[#d4af37]'
@@ -1169,12 +1303,24 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                       sfx.playBack();
                       setActiveModal(null);
                     }}
-                    className="px-5 py-2 border border-white/15 hover:border-white/40 text-xs aaa-serif tracking-[0.18em] uppercase text-stone-300 cursor-pointer"
+                    className="px-5 py-2 border border-white/15 hover:border-white/40 text-xs aaa-serif tracking-[0.18em] uppercase text-stone-300"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={() => handleStartPlay({ mode: activeModal })}
+                    onClick={() => {
+                      sfx.playSelect();
+                      setActiveModal(null);
+                      if (onLaunchGame) {
+                        onLaunchGame(activeModal);
+                      } else {
+                        showToast(
+                          activeModal === 'continue'
+                            ? 'Loading Knowledge Park Sector...'
+                            : 'Initializing New World Seed...'
+                        );
+                      }
+                    }}
                     className="px-6 py-2 bg-gradient-to-r from-[#c79d42] to-[#9e7522] hover:from-[#ddb558] hover:to-[#b58930] text-black font-semibold text-xs aaa-serif tracking-[0.2em] uppercase shadow-lg cursor-pointer"
                   >
                     {activeModal === 'continue' ? 'Launch Game' : 'Start Journey'}
@@ -1183,7 +1329,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
               </div>
             )}
 
-            {/* LOAD GAME */}
+            {/* LOAD GAME MODAL */}
             {activeModal === 'load_game' && (
               <div className="space-y-5">
                 <div className="border-b border-white/10 pb-3">
@@ -1234,16 +1380,18 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                       sfx.playBack();
                       setActiveModal(null);
                     }}
-                    className="px-5 py-2 border border-white/15 hover:border-white/40 text-xs aaa-serif tracking-[0.18em] uppercase text-stone-300 cursor-pointer"
+                    className="px-5 py-2 border border-white/15 hover:border-white/40 text-xs aaa-serif tracking-[0.18em] uppercase text-stone-300"
                   >
                     Back
                   </button>
                   <button
                     onClick={() => {
                       const chosen = saveSlots.find((s) => s.active);
-                      handleStartPlay({ mode: 'load_game', slot: chosen });
+                      sfx.playSelect();
+                      setActiveModal(null);
+                      showToast(`Loaded: ${chosen?.title}`);
                     }}
-                    className="px-6 py-2 bg-gradient-to-r from-[#c79d42] to-[#9e7522] text-black font-semibold text-xs aaa-serif tracking-[0.2em] uppercase cursor-pointer"
+                    className="px-6 py-2 bg-gradient-to-r from-[#c79d42] to-[#9e7522] text-black font-semibold text-xs aaa-serif tracking-[0.2em] uppercase"
                   >
                     Load Selected Slot
                   </button>
@@ -1251,7 +1399,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
               </div>
             )}
 
-            {/* SETTINGS */}
+            {/* SETTINGS MODAL */}
             {activeModal === 'settings' && (
               <div className="space-y-5">
                 <div className="flex items-center justify-between border-b border-white/10 pb-3">
@@ -1267,6 +1415,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                 </div>
 
                 <div className="space-y-4 text-sm">
+                  {/* City Bokeh & Fairy Light Brilliance */}
                   <div className="flex items-center justify-between bg-black/35 p-3.5 border border-white/5">
                     <div>
                       <div className="aaa-serif text-xs tracking-[0.15em] text-stone-200 uppercase">
@@ -1289,6 +1438,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     />
                   </div>
 
+                  {/* HUD Opacity */}
                   <div className="flex items-center justify-between bg-black/35 p-3.5 border border-white/5">
                     <div>
                       <div className="aaa-serif text-xs tracking-[0.15em] text-stone-200 uppercase">
@@ -1309,6 +1459,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     />
                   </div>
 
+                  {/* Ray Tracing Preset */}
                   <div className="flex items-center justify-between bg-black/35 p-3.5 border border-white/5">
                     <span className="aaa-serif text-xs tracking-[0.15em] text-stone-200 uppercase">
                       RAY-TRACED PUDDLE REFLECTIONS
@@ -1316,7 +1467,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     <select
                       value={settings.rayTracing}
                       onChange={(e) => setSettings({ ...settings, rayTracing: e.target.value })}
-                      className="bg-[#0c1422] border border-[#d4af37]/40 px-3 py-1.5 text-xs aaa-serif tracking-wider text-amber-200 focus:outline-none cursor-pointer"
+                      className="bg-[#0c1422] border border-[#d4af37]/40 px-3 py-1.5 text-xs aaa-serif tracking-wider text-amber-200 focus:outline-none"
                     >
                       <option>ULTRA (PATH TRACING)</option>
                       <option>HIGH (RAY TRACED)</option>
@@ -1324,6 +1475,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     </select>
                   </div>
 
+                  {/* Custom Background Image URL Override */}
                   <div className="bg-black/35 p-3.5 border border-white/5 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="aaa-serif text-xs tracking-[0.15em] text-amber-300 uppercase">
@@ -1332,7 +1484,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                       {customBgUrl && (
                         <button
                           onClick={() => setCustomBgUrl('')}
-                          className="flex items-center space-x-1 text-xs text-stone-400 hover:text-white cursor-pointer"
+                          className="flex items-center space-x-1 text-xs text-stone-400 hover:text-white"
                         >
                           <RotateCcw className="w-3 h-3" />
                           <span>Reset to Procedural Scene</span>
@@ -1356,7 +1508,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                       setActiveModal(null);
                       showToast('Graphics & Interface settings applied.');
                     }}
-                    className="px-6 py-2 bg-gradient-to-r from-[#c79d42] to-[#9e7522] text-black font-semibold text-xs aaa-serif tracking-[0.2em] uppercase cursor-pointer"
+                    className="px-6 py-2 bg-gradient-to-r from-[#c79d42] to-[#9e7522] text-black font-semibold text-xs aaa-serif tracking-[0.2em] uppercase"
                   >
                     Apply & Close
                   </button>
@@ -1364,7 +1516,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
               </div>
             )}
 
-            {/* CREDITS */}
+            {/* CREDITS MODAL */}
             {activeModal === 'credits' && (
               <div className="space-y-6 text-center py-4">
                 <TitleOrnateDivider />
@@ -1377,7 +1529,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     <strong className="text-amber-200">World Architecture & Direction:</strong> Knowledge Park Interactive Studios
                   </p>
                   <p>
-                    <strong className="text-amber-200">Engine & WebGL Technology:</strong> Spider Game Engine v0.9.0
+                    <strong className="text-amber-200">Lead UI & Atmospheric Engineering:</strong> Crafted in React & HTML5 Procedural Canvas
                   </p>
                   <p>
                     <strong className="text-amber-200">Special Thanks:</strong> To every Wayfarer exploring the rain-lit streets.
@@ -1389,7 +1541,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                       sfx.playBack();
                       setActiveModal(null);
                     }}
-                    className="px-6 py-2 border border-[#d4af37]/60 text-xs aaa-serif tracking-[0.2em] text-amber-200 uppercase hover:bg-[#d4af37]/20 cursor-pointer"
+                    className="px-6 py-2 border border-[#d4af37]/60 text-xs aaa-serif tracking-[0.2em] text-amber-200 uppercase hover:bg-[#d4af37]/20"
                   >
                     Return to Menu
                   </button>
@@ -1397,7 +1549,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
               </div>
             )}
 
-            {/* EXIT */}
+            {/* EXIT TO DESKTOP MODAL */}
             {activeModal === 'exit' && (
               <div className="space-y-6 text-center py-3">
                 <h2 className="aaa-serif text-xl text-[#f3dca2] tracking-[0.2em] uppercase">
@@ -1412,7 +1564,7 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                       sfx.playBack();
                       setActiveModal(null);
                     }}
-                    className="px-6 py-2 border border-white/20 hover:border-white/50 text-xs aaa-serif tracking-[0.18em] uppercase text-stone-200 cursor-pointer"
+                    className="px-6 py-2 border border-white/20 hover:border-white/50 text-xs aaa-serif tracking-[0.18em] uppercase text-stone-200"
                   >
                     Stay in World
                   </button>
@@ -1420,8 +1572,11 @@ export default function GameMainMenu({ onLaunchGame, onClose, isStandalone = fal
                     onClick={() => {
                       sfx.playSelect();
                       setActiveModal(null);
-                      if (onClose) onClose();
-                      else showToast('Session closed safely. See you next time, Wayfarer.');
+                      if (onClose) {
+                        onClose();
+                      } else {
+                        showToast('Session closed safely. See you next time, Wayfarer.');
+                      }
                     }}
                     className="px-6 py-2 bg-red-900/80 hover:bg-red-800 border border-red-400/50 text-xs aaa-serif tracking-[0.18em] uppercase text-red-100 cursor-pointer"
                   >

@@ -351,9 +351,18 @@ export default function DynamicJsxRenderer({
 
   if (!ComponentToRender) return null;
 
+  const isDomApp = (code && (code.includes("<div") || code.includes("<canvas") || code.includes("ProceduralNightCityCanvas"))) &&
+    !code.includes("<mesh") && !code.includes("<group") && !code.includes("<ambientLight");
+
   return (
     <JsxErrorBoundary code={code} onError={onError}>
-      <ComponentToRender />
+      {isDomApp ? (
+        <Drei.Html fullscreen zIndexRange={[100, 0]} style={{ pointerEvents: 'auto', width: '100vw', height: '100vh', inset: 0 }}>
+          <ComponentToRender />
+        </Drei.Html>
+      ) : (
+        <ComponentToRender />
+      )}
     </JsxErrorBoundary>
   );
 }
