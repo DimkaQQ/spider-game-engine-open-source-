@@ -1072,7 +1072,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         if (dataUrl) {
           setAiAttachedImage({ name: file.name, url: dataUrl });
           aiAttachedImageRef.current = { name: file.name, url: dataUrl };
-          push(true, `Image attached for Vision Analysis! Ask AI to analyze this image.`);
+          appendLog("Success", `Image "${file.name}" attached for Vision Analysis`);
         }
       };
       reader.readAsDataURL(file);
