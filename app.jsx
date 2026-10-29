@@ -1055,9 +1055,26 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       appendLog(ok ? "Success" : "Warning", `Ask AI file: ${text}`);
       setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     };
-    if (/\.(glb|gltf|fbx|obj)$/i.test(file.name) || /\.(png|jpe?g|webp)$/i.test(file.name)) {
+
+    // Images: Read as base64 and attach directly for Vision Analysis by Muse / Meta model!
+    if (/\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result;
+        if (dataUrl) {
+          setAiAttachedImage({ name: file.name, url: dataUrl });
+          aiAttachedImageRef.current = { name: file.name, url: dataUrl };
+          push(true, `Image attached for Vision Analysis! Ask AI: "Analyze this image and build a 3D scene / game from it with sounds."`);
+          try { handleImportAssetFile(file); } catch {}
+        }
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    if (/\.(glb|gltf|fbx|obj)$/i.test(file.name)) {
       handleImportAssetFile(file);
-      push(true, `Accepted ${/model|glb|gltf|fbx|obj/i.test(file.name) ? "3D model" : "image"} — spawned into ${sceneLabel}.`);
+      push(true, `Accepted 3D model — spawned into ${sceneLabel}.`);
       return;
     }
     if (/\.(mp3|wav|ogg|m4a)$/i.test(file.name)) {
@@ -1069,11 +1086,11 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       push(true, `Audio "${entry.name}" imported — find it in Content Browser > Audio, press play to preview.`);
       return;
     }
-    push(false, `Rejected "${file.name}" — parser allows only 3D models (.glb .gltf .fbx .obj), images (.png .jpg .webp), audio (.mp3 .wav .ogg).`);
+    push(false, `Rejected "${file.name}" — parser allows 3D models (.glb .gltf .fbx .obj), images (.png .jpg .webp), audio (.mp3 .wav .ogg).`);
   };
 
-  // Ask AI — powered entirely by Meta API agent reasoning, no regex pattern matching
-  const runAskAi = async (raw, q) => {
+  // Ask AI — powered entirely by Meta API agent reasoning, no regex pattern interception
+  const runAskAi = async (raw, q, attachedImg) => {
     currentGoalRef.current = raw;
     if (!metaKeyRef.current) {
       setAiThinking(false);
@@ -1100,31 +1117,36 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       return;
     }
 
-    // Direct execution by Spider AI agent — no regex pattern interception
+    // Direct execution by Spider AI agent with image vision payload
     setAiPrompt("");
-    await runAgentGoal(raw);
+    await runAgentGoal(raw, attachedImg?.url);
   };
 
   const handleAskAiSubmit = (e, overrideText) => {
     e.preventDefault();
     try { e.target?.querySelector?.("input")?.blur(); } catch {}
     const raw = (overrideText ?? aiPrompt).trim();
-    const q = raw.toLowerCase();
-    if (!q) return;
+    const currentImg = aiAttachedImageRef.current;
+    if (!raw && !currentImg) return;
     setAiPrompt("");
+    setAiAttachedImage(null);
+    aiAttachedImageRef.current = null;
+
+    const promptText = raw || (currentImg ? `Visually analyze this attached image "${currentImg.name}". Recreate its structures, lighting, colors, and mood into an interactive 3D scene/game with procedural sound effects (Web Audio API) using render_jsx!` : "");
+    const q = promptText.toLowerCase();
 
     // Multi-chat / message queuing: chat with agent while working without stopping streaming!
     if (aiThinking) {
-      appendLog("Info", `Live mid-stream message delivered: "${raw}"`);
-      pushMsg("You", raw, true);
-      messageQueueRef.current.push(raw);
+      appendLog("Info", `Live mid-stream message delivered: "${promptText}"`);
+      pushMsg("You", promptText, true);
+      messageQueueRef.current.push(promptText);
       setQueuedMessages([...messageQueueRef.current]);
       setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
       return;
     }
 
-    appendLog("Info", `Ask AI: "${raw}"`);
-    setActiveQuery(raw);
+    appendLog("Info", `Ask AI: "${promptText}"${currentImg ? ` [Image attached: ${currentImg.name}]` : ""}`);
+    setActiveQuery(promptText);
     setAiThinking(true);
     setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     const effort = thinkLevel === "auto" ? "medium" : thinkLevel;
@@ -1132,12 +1154,12 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       const nodes = ((sceneGroups || []).flatMap((g) => g?.children || [])).length;
       const turns = aiHistory.length;
       const compacted = turns > 6 ? turns - 6 : 0;
-      appendLog("Info", `Reasoning (high): parsing "${raw}" against ${nodes} actors + ${PRIMITIVE_SHAPES.length} 3D primitives… context: ${turns} turns${compacted > 0 ? ` (${compacted} auto-compacted)` : ""}`);
+      appendLog("Info", `Reasoning (high): parsing "${promptText}" against ${nodes} actors + ${PRIMITIVE_SHAPES.length} 3D primitives… context: ${turns} turns${compacted > 0 ? ` (${compacted} auto-compacted)` : ""}`);
     }
     // Thinking shimmer window — then the router runs for real
     setTimeout(async () => {
       try {
-        await runAskAi(raw, q);
+        await runAskAi(promptText, q, currentImg);
         if (effort === "high") appendLog("Info", `Reasoning (high): done — see reply above.`);
       } catch (err) {
         appendLog("Warning", `Ask AI error: ${err?.message || err}`);
@@ -1389,6 +1411,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const [copiedMsg, setCopiedMsg] = useState(null); // index of just-copied bubble
   const [pendingConfirm, setPendingConfirm] = useState(null); // {label, run} Claude-Code-style yes/no
   const aiFileRef = useRef(null);
+  const [aiAttachedImage, setAiAttachedImage] = useState(null); // { name, url } for multimodal Vision analysis
+  const aiAttachedImageRef = useRef(null);
+  aiAttachedImageRef.current = aiAttachedImage;
   const [audioAssets, setAudioAssets] = useState([]); // imported audio: {id,name,url}
   // Meta API key — encrypted at rest (OS keychain), plaintext lives only in memory
   const metaKeyRef = useRef(null);
@@ -1607,7 +1632,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       { role: "user", content: prompt }
     ];
 
-    let maxTokens = 4096;
+    let maxTokens = 8192;
     let messages = compactMetaMessages(rawMessages, 24000);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     let lastError = null;
@@ -1616,9 +1641,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const fallbackCandidates = [
       chosenModel,
       ...(chosenModel.includes("contributor") ? [chosenModel.replace("-contributor", "")] : []),
+      "muse-wonder",
       "muse-spark-1.3",
-      "muse-spark-1.2",
-      "muse-wonder"
+      "muse-spark-1.2"
     ].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
     for (let attempt = 1; attempt <= 4; attempt++) {
@@ -1631,7 +1656,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         try { appendLog("Warning", `Meta API retry (attempt 2) — switching to model "${currentModel}"...`); } catch {}
         await sleep(600);
         messages = compactMetaMessages(rawMessages, 16000);
-        maxTokens = 4096;
+        maxTokens = 8192;
       } else if (attempt === 3) {
         try { appendLog("Warning", `Meta API retry (attempt 3) — trying with simplified message payload on "${currentModel}"...`); } catch {}
         await sleep(1000);
@@ -1641,7 +1666,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           { role: "system", content: typeof sysMsg.content === "string" ? sysMsg.content.slice(0, 8000) : sys },
           { role: "user", content: typeof lastUser.content === "string" ? lastUser.content : String(prompt || "") }
         ];
-        maxTokens = 2048;
+        maxTokens = 4096;
       } else if (attempt === 4) {
         try { appendLog("Warning", `Meta API retry (attempt 4) — single-turn developer context prompt on "${currentModel}"...`); } catch {}
         await sleep(1500);
@@ -1649,7 +1674,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         messages = [
           { role: "user", content: `Context: ${sys.slice(0, 3000)}\n\nGoal: ${typeof lastUser.content === "string" ? lastUser.content : prompt}` }
         ];
-        maxTokens = 2048;
+        maxTokens = 4096;
       }
 
       const shouldStream = opts.stream !== false && attempt === 1;
@@ -2682,7 +2707,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     }
   };
   // Agent run — ReAct loop with the harness; steps stream to chat + Console
-  const runAgentGoal = async (goal) => {
+  const runAgentGoal = async (goal, initialImageUrl = null) => {
     currentGoalRef.current = goal;
     if (!metaKeyRef.current) {
       say("Agent needs a Meta API key — paste one in Settings > AI & Keys first.", false);
@@ -2701,7 +2726,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     setActiveAgentPermission(null);
     setActiveAgentQuestion(null);
     const steps = GAME_STEPS;
-    appendLog("Info", `Agent started: "${goal}"`);
+    appendLog("Info", `Agent started: "${goal}"${initialImageUrl ? " (with vision image)" : ""}`);
+    pushMsg("You", goal + (initialImageUrl ? "\n\n[Attached image for Vision Analysis]" : ""));
     agentUndoRef.current = JSON.stringify(sceneRef.current.sceneGroups);
     pushUndoSnapshot(sceneRef.current.sceneGroups);
     const snapshot = () => {
@@ -2800,9 +2826,21 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
             : "") + GAME_BUILDER_PRIMER;
         let messages;
         if (history.length === 0) {
+          const imgUrl = initialImageUrl;
           messages = [
             { role: "system", content: sys },
-            { role: "user", content: `GOAL: ${task}\nReply with exactly one JSON object.` }
+            {
+              role: "user",
+              content: imgUrl
+                ? [
+                    {
+                      type: "text",
+                      text: `GOAL: ${task}\n\nVISION & AUDIO INSTRUCTION:\n1. Visually inspect and analyze this attached reference image in detail. Extract its theme, color palette, lighting, architecture, ground terrain, silhouettes, and props.\n2. Synthesize a matching interactive 3D game world using render_jsx.\n3. INTEGRATE PROCEDURAL SOUND EFFECTS (Web Audio API with AudioContext and oscillators) for jump, move, collision, collect, or ambient audio!\n\nReply with exactly one JSON object.`
+                    },
+                    { type: "image_url", image_url: { url: imgUrl } }
+                  ]
+                : `GOAL: ${task}\nReply with exactly one JSON object.`
+            }
           ];
         } else {
           messages = [
@@ -7473,6 +7511,25 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 </div>
               )}
             </div>
+            {/* Attached Image for Vision Analysis Preview */}
+            {aiAttachedImage && (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 mx-2 mb-1 bg-indigo-50/90 border border-indigo-200/80 rounded-xl text-xs text-indigo-800 shadow-2xs">
+                <img src={aiAttachedImage.url} alt="attached" className="w-8 h-8 rounded-lg object-cover border border-indigo-300 shrink-0" />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-bold text-[11px] truncate">{aiAttachedImage.name}</span>
+                  <span className="text-[9px] text-indigo-600 font-medium">Ready for Vision analysis & 3D sound synthesis</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setAiAttachedImage(null); aiAttachedImageRef.current = null; }}
+                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer font-bold"
+                  title="Remove image"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleAskAiSubmit} className="p-2 border-t-0 border-slate-100 flex items-center gap-1.5 bg-white">
               {/* + opens the file manager for ANY file — parser allowlists models/images/audio */}
               <button type="button" onClick={() => aiFileRef.current?.click()} title="Attach any file — models, images, audio accepted" className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-base leading-none">+</button>
