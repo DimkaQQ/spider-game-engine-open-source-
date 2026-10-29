@@ -4514,64 +4514,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </button>
             </div>
           </nav>
-
-          {/* Quick Browser Launchers */}
-          <div className="hidden lg:flex items-center gap-1.5 ml-1">
-            <button
-              onClick={() => setShowStartup(true)}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200/80 transition cursor-pointer"
-              title="Open Project Browser (Switch / Manage Projects)"
-            >
-              <FolderKanban className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Project Browser</span>
-            </button>
-            <button
-              onClick={() => {
-                setBottomLeftOpen((p) => !p);
-                setBottomTab("Content Browser");
-              }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
-                bottomLeftOpen
-                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/80"
-              }`}
-              title="Toggle Content Browser (Asset & Project files) — Hotkey: B"
-            >
-              <Folder className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Content Browser</span>
-            </button>
-          </div>
           <input ref={importFileRef} type="file" accept=".json,.glb,.gltf,.fbx,.obj,.png,.jpg,.jpeg,.webp" className="hidden" onChange={(e) => { handleImportAssetFile(e.target.files?.[0]); e.target.value = ""; }} />
         </div>
 
-        {/* Right: Direct Game, Play, Build, Settings & Window Controls */}
+        {/* Right: Play, Build, Settings & Window Controls */}
         <div className="flex items-center gap-2">
-          {/* DIRECT GAME BUTTON: PC Only, hidden on phones */}
-          {!isMobile && (
-            <button
-              onClick={() => handleLaunchDirectGame()}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-950/20 active:scale-95"
-              title="🎮 Direct Game: Instantly launch and play the complete 3D game with all project files linked"
-            >
-              <Gamepad2 className="w-3.5 h-3.5 fill-current" />
-              <span>Direct Game</span>
-            </button>
-          )}
-
-          {/* ENV MODE TOGGLE BUTTON */}
-          <button
-            onClick={toggleEnvMode}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer ${
-              isEnvMode
-                ? "bg-emerald-600 text-white shadow-emerald-500/20 font-bold"
-                : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-            }`}
-            title="Toggle Environment Mode (Clean, full-screen 3D Canvas without editor clutter)"
-          >
-            <Eye className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Env Mode</span>
-          </button>
-
           <button
             onClick={handleTogglePlay}
             className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer ${
