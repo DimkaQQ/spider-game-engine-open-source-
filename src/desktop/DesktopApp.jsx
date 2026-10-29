@@ -94,6 +94,7 @@ import {
 import { starterWorld } from "../mobile/store.js";
 import "./desktop.css";
 import { SpiderMark, M4Mark } from "./Logo.jsx";
+import AutoTooltips from "./Tooltips.jsx";
 
 // Default level is a plain starter scene (ground, a few shapes, hero, coins).
 // The full demo world (forest, rocks, water) stays available for the shooter/racing templates.
@@ -3012,7 +3013,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
         setViewportTab("Game View");
         setArtifactViewMode("preview");
-        appendLog("Success", `🎮 Direct Game Launched: "${root.name}" with ${files.length} linked project files!`);
+        appendLog("Success", `Direct Game Launched: "${root.name}" with ${files.length} linked project files!`);
       } else {
         if (window.spiderShell?.readProjectFile && currentProject?.root) {
           window.spiderShell.readProjectFile(currentProject.root, "GameComponent.jsx").then((res) => {
@@ -3021,7 +3022,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
               setActiveJsxName("GameComponent.jsx");
               setSelectedScriptNames(new Set(["GameComponent.jsx"]));
               setViewportTab("Game View");
-              appendLog("Success", `🎮 Direct Game Loaded from disk: GameComponent.jsx`);
+              appendLog("Success", `Direct Game Loaded from disk: GameComponent.jsx`);
             } else {
               appendLog("Warning", "No playable game component found yet. Ask Muse AI: 'create a 3D chess game'!");
             }
@@ -4390,6 +4391,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#f0f2f8] text-slate-800 select-none font-sans overflow-hidden antialiased">
+      <AutoTooltips />
       {/* Startup — small Unreal-style project picker dialog (same compact 560x360 size as splash) */}
       {showStartup && !newProjectOpen && (
         <div className="absolute inset-0 z-50 bg-slate-900/35 backdrop-blur-xs flex items-center justify-center p-3">
@@ -4667,12 +4669,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </span>
                 </div>
 
-                {/* 5. spider os - COMING SOON */}
+                {/* 5. Spider OS - COMING SOON */}
                 <div className="flex items-center justify-between px-3 py-2 opacity-50 cursor-not-allowed select-none">
                   <div className="flex items-center gap-2.5">
                     <Globe className="w-4 h-4 text-slate-400 shrink-0" />
                     <div>
-                      <div className="font-semibold text-slate-700">spider os</div>
+                      <div className="font-semibold text-slate-700">Spider OS</div>
                       <div className="text-[10px] text-slate-400">Spider OS Native</div>
                     </div>
                   </div>
@@ -5359,7 +5361,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       </span>
                       <span className="text-xs text-slate-200 font-semibold truncate max-w-[130px] sm:max-w-none">{activeJsxName || (snakesActive ? "SnakesAndLadders3D.jsx" : "GameComponent.jsx")}</span>
                       <span className="hidden sm:inline-block text-[10px] text-slate-400 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700 font-mono">
-                        📁 {selectedScriptFolder}
+                        {selectedScriptFolder}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-400 ml-auto">
@@ -5446,7 +5448,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur-md rounded-xl border border-emerald-500/40 text-white z-30 shadow-xl text-xs font-mono">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                         <Gamepad2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="font-semibold text-emerald-300">🎮 Direct Game:</span>
+                        <span className="font-semibold text-emerald-300">Direct Game:</span>
                         <span className="text-slate-200">{activeJsxName || "GameComponent.jsx"}</span>
                         {selectedScriptNames.size > 1 && (
                           <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800 font-mono font-bold">
@@ -5491,7 +5493,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           title="Direct Game Mode: Immediately open and run full 3D game"
                         >
                           <Gamepad2 className="w-4 h-4 text-emerald-400" />
-                          <span>🎮 Direct Game ({projectScriptFiles.length} files)</span>
+                          <span>Direct Game ({projectScriptFiles.length} files)</span>
                         </button>
                         <button
                           onClick={() => setIsDirectGameOverlayCollapsed(true)}
@@ -5674,7 +5676,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       title="Exit Environment Mode"
                     >
                       <Eye className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>🌿 Env Mode</span>
+                      <span>Env Mode</span>
                       <span className="text-[10px] text-slate-400 ml-1">✕ Exit</span>
                     </button>
                   </div>
@@ -6111,8 +6113,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 </div>
 
                 {/* Search Assets */}
-                <div className="flex items-center gap-2 min-w-0 shrink">
-                  <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/60 w-44 min-w-[96px] shrink">
+                <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
+                  <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200/60 flex-1 max-w-[240px] min-w-[96px]">
                     <Search className="w-3 h-3 text-slate-400 shrink-0" />
                     <input
                       type="text"
@@ -6277,7 +6279,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                                 <span className="truncate">{file.name}</span>
                               </div>
                               <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60 text-[10px]">
-                                <span className="text-slate-500 truncate font-mono">📁 {file.folder}</span>
+                                <span className="text-slate-500 truncate font-mono">{file.folder}</span>
                                 {isSelected ? (
                                   <span className="flex items-center gap-1 text-emerald-600 font-bold">
                                     <Check className="w-3 h-3" /> Selected ✓
@@ -6468,7 +6470,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   title="Toggle Content / Project Browser (Hotkey: B)"
                 >
                   <Folder className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>📁 Project / Content Browser</span>
+                  <span>Project / Content Browser</span>
                   <span className="hidden sm:inline text-[10px] text-slate-400 font-mono ml-0.5">(B)</span>
                 </button>
 
@@ -6752,7 +6754,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       title={meshSwappable ? "Swap mesh — live in viewport" : "Core actor mesh is fixed (spawn a prop to swap meshes)"}
                       className={`w-full flex items-center justify-between bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200/80 text-[11px] font-medium ${meshSwappable ? "hover:border-indigo-300 cursor-pointer" : "cursor-default"}`}
                     >
-                      <span className="truncate">{selectedNode.modelUrl ? `📦 ${selectedNode.mesh}` : selectedNode.mesh}</span>
+                      <span className="truncate">{selectedNode.modelUrl ? selectedNode.mesh : selectedNode.mesh}</span>
                       {meshSwappable && <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition ${meshMenuOpen ? "rotate-180" : ""}`} />}
                     </button>
                     {meshMenuOpen && meshSwappable && (
@@ -6776,7 +6778,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                                 onClick={() => assignImportedMesh(n)}
                                 className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-indigo-50 hover:text-indigo-700 transition cursor-pointer truncate"
                               >
-                                📦 {n.mesh}
+                                {n.mesh}
                               </button>
                             ))}
                           </>
@@ -7069,7 +7071,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer select-none transition ${permissionMode === "secure" ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100" : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"}`}
                   title={permissionMode === "secure" ? "Secure Mode: Asks for permission before writing files or altering the scene. Click to toggle." : "Auto-Accept: Autonomous mode. Click to toggle."}
                 >
-                  {permissionMode === "secure" ? "🛡️ Secure" : "⚡ Auto"}
+                  {permissionMode === "secure" ? "Secure" : "Auto"}
                 </button>
                 {!isMobile && (
                   <button
@@ -7088,11 +7090,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             {isMobile && aiHistory.length <= 1 && (
               <div className="px-3 py-2 bg-slate-50/60 border-b border-slate-100 flex gap-1.5 overflow-x-auto no-scrollbar shrink-0">
                 {[
-                  "🏎️ Touch 3D Runner (Tap Jump)",
-                  "🎲 Touch 3D Ludo Board",
-                  "♟️ Tap 3D Chess Game",
-                  "🐍 Touch Snakes & Ladders",
-                  "⚡ Touch Coin Collector Arena"
+                  "Touch 3D Runner (Tap Jump)",
+                  "Touch 3D Ludo Board",
+                  "Tap 3D Chess Game",
+                  "Touch Snakes & Ladders",
+                  "Touch Coin Collector Arena"
                 ].map((promptText) => (
                   <button
                     key={promptText}
@@ -7200,7 +7202,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       {/* Thought block if present */}
                       {h.thought && (
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium px-2 py-0.5">
-                          <span>🧠</span>
+                          <Cpu className="w-3 h-3 shrink-0 text-slate-400" />
                           <span className="font-semibold text-slate-700">Thought</span>
                           <span className="text-slate-400 truncate">— {h.thought}</span>
                         </div>
@@ -7793,7 +7795,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           <span>Agent Security & File Permissions</span>
                         </div>
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${permissionMode === "secure" ? "bg-amber-50 text-amber-800 border-amber-300" : "bg-emerald-50 text-emerald-700 border-emerald-200"}`}>
-                          {permissionMode === "secure" ? "🛡️ Secure Mode" : "⚡ Auto-Accept"}
+                          {permissionMode === "secure" ? "Secure Mode" : "Auto-Accept"}
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-500 leading-normal">
@@ -7810,7 +7812,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           className={`p-2.5 rounded-xl border text-left cursor-pointer transition ${permissionMode === "secure" ? "border-indigo-600 bg-white shadow-xs ring-1 ring-indigo-500/20" : "border-slate-200 bg-white hover:border-slate-300"}`}
                         >
                           <div className="font-bold text-[11px] text-slate-800 flex items-center gap-1">
-                            <span>🛡️</span> Secure Mode
+                            <Shield className="w-3 h-3 text-indigo-600" /> Secure Mode
                           </div>
                           <div className="text-[10px] text-slate-400 mt-1 leading-snug">Strictly asks for user approval before writing files or making critical changes.</div>
                         </button>
@@ -7824,7 +7826,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           className={`p-2.5 rounded-xl border text-left cursor-pointer transition ${permissionMode === "auto" ? "border-indigo-600 bg-white shadow-xs ring-1 ring-indigo-500/20" : "border-slate-200 bg-white hover:border-slate-300"}`}
                         >
                           <div className="font-bold text-[11px] text-slate-800 flex items-center gap-1">
-                            <span>⚡</span> Auto-Accept
+                            <Zap className="w-3 h-3 text-amber-500" /> Auto-Accept
                           </div>
                           <div className="text-[10px] text-slate-400 mt-1 leading-snug">Automatically accepts permissions so the agent builds and writes files without pausing.</div>
                         </button>

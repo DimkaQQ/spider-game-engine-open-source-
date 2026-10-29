@@ -20,3 +20,25 @@
 /* no side scrollbars anywhere in the editor; wheel / touchpad / drag still scroll */
 .sp-desk * { scrollbar-width: none; -ms-overflow-style: none; }
 .sp-desk *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* hover tooltips */
+.sp-tip {
+  position: fixed; z-index: 9999; transform: translate(-50%, -100%);
+  max-width: 240px; padding: 5px 9px; border-radius: 7px;
+  background: #0f172a; color: #f8fafc; font: 600 11px/1.3 system-ui, sans-serif;
+  pointer-events: none; white-space: nowrap; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.28);
+  animation: sp-tip-in 120ms ease-out both;
+}
+.sp-tip.is-below { transform: translate(-50%, 0); }
+@keyframes sp-tip-in { from { opacity: 0; } }
+
+/* inspector rows must never run past the panel edge */
+.sp-desk fieldset { min-width: 0; }
+.sp-desk fieldset * { min-width: 0; }
+.sp-desk fieldset select,
+.sp-desk fieldset input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) { max-width: 100%; }
+
+/* number fields: no spinner arrows eating the digits */
+.sp-desk input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.sp-desk input[type="number"]::-webkit-inner-spin-button,
+.sp-desk input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
