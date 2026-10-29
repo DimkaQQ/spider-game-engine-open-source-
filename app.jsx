@@ -3407,7 +3407,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   }, [projects, currentProjectId]);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
-  const [showStartup, setShowStartup] = useState(false);
+  const [showStartup, setShowStartup] = useState(!isStandaloneChess);
   // (Native splash window now handles launch — see electron/splash.html)
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectTemplate, setNewProjectTemplate] = useState("normal");
@@ -4338,24 +4338,24 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#f0f2f8] text-slate-800 select-none font-sans overflow-hidden antialiased">
-      {/* Startup — small Unreal-style project picker dialog */}
+      {/* Startup — small Unreal-style project picker dialog (same compact 560x360 size as splash) */}
       {showStartup && !newProjectOpen && (
-        <div className="absolute inset-0 z-50 bg-white flex items-stretch justify-stretch">
-          <div className="w-full h-full bg-white overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between pl-4 pr-2 pt-2 shrink-0">
+        <div className="absolute inset-0 z-50 bg-slate-900/35 backdrop-blur-xs flex items-center justify-center p-3">
+          <div className="w-[560px] h-[360px] max-w-full max-h-full bg-white rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 shrink-0 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-extrabold text-[11px]">S</div>
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-extrabold text-[11px] shadow-sm">S</div>
                 <span className="font-extrabold text-[12px] text-slate-900">Project Browser</span>
                 <span className="text-[10px] text-slate-400">Which project are we opening?</span>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => { setNewProjectName(""); setNewProjectTemplate("normal"); setNewProjectRoot(""); setNewProjectOpen(true); expandEditor(); }} className="px-2 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer">+ New</button>
-                <button onClick={() => { setShowStartup(false); expandEditor(); setTimeout(() => { folderModeRef.current = "project"; folderInputRef.current?.click(); }, 250); }} className="px-2 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer">Open Folder…</button>
-                <button onClick={() => { setShowStartup(false); expandEditor(); }} className="px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer transition">✕ Close</button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => { setNewProjectName(""); setNewProjectTemplate("normal"); setNewProjectRoot(""); setNewProjectOpen(true); expandEditor(); }} className="px-2.5 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer shadow-2xs transition">+ New</button>
+                <button onClick={() => { setShowStartup(false); expandEditor(); setTimeout(() => { folderModeRef.current = "project"; folderInputRef.current?.click(); }, 250); }} className="px-2.5 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer shadow-2xs transition">Open Folder…</button>
+                <button onClick={() => { setShowStartup(false); expandEditor(); }} className="px-2.5 py-1 text-[11px] font-bold text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg cursor-pointer transition">✕ Close</button>
               </div>
             </div>
             <div className="px-4 py-2 space-y-2 overflow-y-auto flex-1">
-              {[...projects].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 3).map((p) => (
+              {[...projects].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).map((p) => (
                 deletingId === p.id ? (
                   <div key={p.id} className="p-3 rounded-xl border-2 border-rose-300 bg-rose-50/60">
                     <div className="text-[12px] font-bold text-rose-800">Delete “{p.name}”?</div>
@@ -4421,8 +4421,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 )
               ))}
             </div>
-            <div className="px-4 pb-3 pt-1 shrink-0">
-              <button onClick={() => { setShowStartup(false); expandEditor(); }} className="w-full py-2 text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl cursor-pointer">
+            <div className="px-4 pb-3 pt-2 shrink-0 border-t border-slate-100 bg-slate-50/50">
+              <button onClick={() => { setShowStartup(false); expandEditor(); }} className="w-full py-2 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl shadow-xs cursor-pointer transition">
                 Continue{currentProject ? ` — ${currentProject.name}` : ""}
               </button>
             </div>

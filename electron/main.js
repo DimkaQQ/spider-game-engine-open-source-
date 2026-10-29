@@ -131,7 +131,7 @@ function createSplash() {
   const splash = new BrowserWindow({
     width: 560,
     height: 360,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#ffffff',
     resizable: false,
     frame: false,
     center: true,
@@ -144,18 +144,22 @@ function createSplash() {
 }
 
 function createWindow(splash) {
+  const standaloneConfigPath = path.join(__dirname, '../standalone-config.json')
+  const isStandalone = fs.existsSync(standaloneConfigPath) || process.argv.includes('--standalone')
+
   const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 1024,
-    minHeight: 680,
-    backgroundColor: '#0f172a',
+    width: isStandalone ? 1440 : 560,
+    height: isStandalone ? 900 : 360,
+    minWidth: isStandalone ? 1024 : 560,
+    minHeight: isStandalone ? 680 : 360,
+    useContentSize: true,
+    backgroundColor: '#ffffff',
     autoHideMenuBar: true,
     show: false,
     center: true,
     minimizable: true,
-    maximizable: true,
-    resizable: true,
+    maximizable: isStandalone,
+    resizable: isStandalone,
     icon: path.join(__dirname, '../build/icon-square.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -165,21 +169,6 @@ function createWindow(splash) {
     },
   })
 
-  win.webContents.on('console-message', (_e, level, message, line, sourceId) => {
-    if (
-      message.includes('unsupported GPOS') ||
-      message.includes('unsupported GSUB') ||
-      message.includes('LookupType') ||
-      message.includes('removeChild') ||
-      message.includes('Electron Security Warning')
-    ) {
-      return;
-    }
-    console.log(`[Renderer ${level}] ${message} (${sourceId}:${line})`);
-  });
-
-  const standaloneConfigPath = path.join(__dirname, '../standalone-config.json')
-  const isStandalone = fs.existsSync(standaloneConfigPath) || process.argv.includes('--standalone')
   if (isStandalone) {
     win.setTitle('Spider Chess 3D')
   }
@@ -214,7 +203,9 @@ function createWindow(splash) {
       splash.close()
     }
     win.show()
-    win.maximize()
+    if (isStandalone) {
+      win.maximize()
+    }
     win.focus()
   })
 
@@ -222,7 +213,9 @@ function createWindow(splash) {
     if (splash && !splash.isDestroyed()) splash.close()
     if (!win.isDestroyed() && !win.isVisible()) {
       win.show()
-      win.maximize()
+      if (isStandalone) {
+        win.maximize()
+      }
       win.focus()
     }
   }, 2500)
@@ -509,6 +502,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     try {
       const win = BrowserWindow.fromWebContents(e.sender);
       if (win && !win.isDestroyed()) {
+        win.setMinimumSize(1024, 680);
         win.setResizable(true);
         win.setMinimizable(true);
         win.setMaximizable(true);
