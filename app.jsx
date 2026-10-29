@@ -1400,23 +1400,23 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     try {
       const saved = localStorage.getItem("spider-meta-model");
       if (saved) return saved;
-      return "muse-spark-1.3";
+      return "muse-wonder";
     }
-    catch { return "muse-spark-1.3"; }
+    catch { return "muse-wonder"; }
   });
   const [metaModels, setMetaModels] = useState(() => {
     try {
       const raw = localStorage.getItem("spider-meta-models");
       const arr = raw ? JSON.parse(raw) : [];
       if (Array.isArray(arr) && arr.length > 0) return arr;
-      return ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"];
-    } catch { return ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"]; }
+      return ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"];
+    } catch { return ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]; }
   });
   // Friendly names for Meta models — fetched list stays source of truth (declared after state: no TDZ)
   const friendlyModel = (id) => {
     const low = String(id).toLowerCase();
-    if (low.includes("wonder-full") || (low.includes("wonder") && low.includes("full"))) return { name: "Wonder Full", desc: "Most advanced, hardest tasks" };
-    if (low.includes("wonder")) return { name: "Wonder", desc: "Complex tasks, plans & delegates" };
+    if (low.includes("wonder-full") || (low.includes("wonder") && low.includes("full"))) return { name: "Muse Wonder Full", desc: "Most advanced, hardest tasks" };
+    if (low.includes("wonder")) return { name: "Muse Wonder", desc: "Complex tasks, plans & autonomous generation" };
     if (low.includes("1.3") && low.includes("contributor")) return { name: "Spark 1.3 Contributor", desc: "Agentic coding, contributor tier" };
     if (low.includes("1.3")) return { name: "Spark 1.3", desc: "High-capacity agentic reasoning (Official)" };
     if (low.includes("1.2")) return { name: "Spark 1.2", desc: "Fast answers" };
@@ -1426,11 +1426,11 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return { name: pretty.charAt(0).toUpperCase() + pretty.slice(1), desc: "Meta model" };
   };
   const chatModels = (metaModels.length > 0 ? metaModels : []).filter((id) => id.toLowerCase().includes("spark") || id.toLowerCase().includes("wonder") || id.toLowerCase().includes("contributor") || id.toLowerCase().includes("llama"));
-  const modelChoices = chatModels.length > 0 ? chatModels : (metaModels.length > 0 ? metaModels : ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"]);
+  const modelChoices = chatModels.length > 0 ? chatModels : (metaModels.length > 0 ? metaModels : ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]);
   const effectiveModel = metaModel && modelChoices.includes(metaModel)
     ? metaModel
-    : (modelChoices[0] || "muse-spark-1.3");
-  const effectiveFriendly = effectiveModel ? friendlyModel(effectiveModel).name : "Spark 1.3";
+    : (modelChoices.includes("muse-wonder") ? "muse-wonder" : modelChoices[0] || "muse-wonder");
+  const effectiveFriendly = effectiveModel ? friendlyModel(effectiveModel).name : "Muse Wonder";
 
   // Meta keys must be pure header-safe text — strip invisible copy-paste junk
   const sanitizeKey = (s) => String(s || "").replace(/[\s\u200B-\u200D\uFEFF\u00A0]+/g, "").trim();
@@ -1484,8 +1484,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         setMetaModels(ids);
         try { localStorage.setItem("spider-meta-models", JSON.stringify(ids)); } catch {}
         setMetaModel((cur) => {
-          if (cur && ids.includes(cur)) return cur;
-          const chosen = ids.find((id) => id.includes("1.3")) || ids[0] || "muse-spark-1.3";
+          if (cur && (ids.includes(cur) || cur === "muse-wonder")) return cur;
+          const chosen = ids.find((id) => id.includes("wonder")) || ids.find((id) => id.includes("1.3")) || ids[0] || "muse-wonder";
           try { localStorage.setItem("spider-meta-model", chosen); } catch {}
           return chosen;
         });
@@ -7437,14 +7437,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     <div className="absolute bottom-7 right-0 w-60 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50 max-h-64 overflow-y-auto">
                       <button
                         type="button"
-                        onClick={() => { setMetaModel("muse-spark-1.3-contributor"); try { localStorage.setItem("spider-meta-model", "muse-spark-1.3-contributor"); } catch {} setModelMenuOpen(false); appendLog("Info", "Spider AI model → Spark 1.3 Contributor"); }}
+                        onClick={() => { setMetaModel("muse-wonder"); try { localStorage.setItem("spider-meta-model", "muse-wonder"); } catch {} setModelMenuOpen(false); appendLog("Info", "Spider AI model → Muse Wonder"); }}
                         className="w-full text-left px-3 py-2 hover:bg-slate-50 transition cursor-pointer"
                       >
                         <div className="text-[11px] font-semibold text-slate-800 flex items-center justify-between">
-                          <span>Auto (Spark 1.3 Contributor)</span>
-                          {(!metaModel || metaModel.includes("contributor")) && <Check className="w-3.5 h-3.5 text-slate-800" />}
+                          <span>Muse Wonder (Creative & Autonomous)</span>
+                          {metaModel === "muse-wonder" && <Check className="w-3.5 h-3.5 text-indigo-600" />}
                         </div>
-                        <div className="text-[10px] text-slate-400">Strictly locked to Spark 1.3 Contributor</div>
+                        <div className="text-[10px] text-slate-400">Complex tasks, full games & autonomous planning</div>
                       </button>
                       {modelChoices.length === 0 && (
                         <div className="px-3 py-2 text-[11px] text-slate-400">No models loaded yet — paste key in Settings → AI & Keys.</div>
