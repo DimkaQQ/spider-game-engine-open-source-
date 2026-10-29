@@ -16,7 +16,7 @@
  * ============================================================================
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import GameViewport from "./src/engine/GameViewport.jsx";
+import GameViewport, { viewportApi } from "./src/engine/GameViewport.jsx";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, extractCodeFromRaw } from "./src/engine/agentHarness.js";
 import { GAME_WORLD } from "./src/game/index.js";
@@ -81,6 +81,13 @@ const SPAWNABLES = [
   { mesh: "ramp", name: "Ramp", color: "#8b5cf6" },
 ];
 
+const QUICK_TASKS = [
+  { label: "♟️ Chess", task: "3D chess board with full rules, tap pieces to move, blue restart button" },
+  { label: "🎲 Ludo", task: "3D ludo board 52 tiles staggered elevations, 4 colored pawns, tap dice to roll and tap pawn to move" },
+  { label: "🪙 Coins", task: "arena 20x20 green ground blue walls, ball hero, 8 gold coins, tap to jump swipe to steer, score HUD" },
+  { label: "🚀 Shooter", task: "spaceship shooter, drag to move touch to shoot, enemies drones, score and lives HUD" },
+];
+
 export default function App() {
   const [tab, setTab] = useState("game");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -94,6 +101,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState([]);
   const [fps, setFps] = useState(0);
+  const [shot, setShot] = useState(null);
   const logRef = useRef(null);
   const keysPressed = useMemo(() => ({}), []);
 
@@ -149,6 +157,20 @@ export default function App() {
     );
     setSelectedId((cur) => (cur === id ? "player" : cur));
     pushLog(`－ removed`);
+  }, [pushLog]);
+
+  const handleShot = useCallback(() => {
+    try {
+      const url = viewportApi?.capture ? viewportApi.capture(false, 640) : null;
+      if (url) {
+        setShot(url);
+        pushLog("📸 screenshot taken");
+      } else {
+        pushLog("✗ camera not ready — open Игра tab first");
+      }
+    } catch (e) {
+      pushLog(`✗ shot: ${String(e?.message || e)}`);
+    }
   }, [pushLog]);
 
   const handleRender = useCallback(() => {
@@ -214,6 +236,14 @@ export default function App() {
           <span className="spider-fps">{fps > 0 ? `${fps} FPS` : ""}</span>
         </div>
         <div className="spider-top-actions">
+          <button
+            type="button"
+            className="spider-chip-btn"
+            onClick={handleShot}
+            aria-label="Screenshot"
+          >
+            <Camera className="w-4 h-4" />
+          </button>
           <button
             type="button"
             className={`spider-chip-btn ${isPlaying ? "is-live" : ""}`}
@@ -348,6 +378,18 @@ export default function App() {
             <div className="spider-pane-row">
               <span className="spider-pane-title">Рендер из слов</span>
             </div>
+            <div className="spider-spawn-grid">
+              {QUICK_TASKS.map((q) => (
+                <button
+                  key={q.label}
+                  type="button"
+                  onClick={() => setTask(q.task)}
+                  className="spider-spawn-btn"
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
             <div className="spider-render-box">
               <textarea
                 className="spider-task"
@@ -374,6 +416,14 @@ export default function App() {
                 <div key={i}>{l}</div>
               ))}
             </div>
+            {shot && (
+              <div className="spider-shot">
+                <img src={shot} alt="Viewport screenshot" />
+                <button type="button" className="spider-chip-btn" onClick={() => setShot(null)}>
+                  Закрыть
+                </button>
+              </div>
+            )}
           </section>
         )}
       </main>
