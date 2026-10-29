@@ -243,6 +243,7 @@ if (typeof window !== "undefined" && !window.spiderShell) {
 
 // Left Navigation Items
 const LEFT_RAIL_ITEMS = [
+  { id: "Projects", icon: FolderKanban },
   { id: "Scene", icon: Box },
   { id: "Assets", icon: Folder },
   { id: "Materials", icon: Globe },
@@ -4190,6 +4191,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
   // Menu bar actions — every item executes a real editor operation
   const handleMenuAction = (menu, label) => {
     const close = () => setOpenMenu(null);
+    if (label === "Project Browser (Switch / Manage Projects)" || label === "Project Browser") {
+      setShowStartup(true);
+      return close();
+    }
     if (label.startsWith("Current Project")) {
       const n = sceneGroups.flatMap((g) => g.children).length;
       appendLog("Info", `Current project: "${currentProject?.name}" — ${n} actors, autosaved locally`);
@@ -4243,7 +4248,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
   // Left rail — each tool opens the panel it actually controls
   const handleRailAction = (id) => {
-    if (id === "Scene") { setHierarchyOpen(true); setLeftPanelTab("hierarchy"); }
+    if (id === "Projects") { setShowStartup(true); }
+    else if (id === "Scene") { setHierarchyOpen(true); setLeftPanelTab("hierarchy"); }
     else if (id === "Scripting") {
       setHierarchyOpen(true);
       setLeftPanelTab("scripts");
@@ -4253,13 +4259,18 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       setBottomLeftOpen(true);
       appendLog("Success", `Scripting mode activated: ${projectScriptFiles.length} JSX scripts loaded across folders`);
     }
-    else if (id === "Assets" || id === "Models" || id === "Textures") { setBottomTab("Content Browser"); setActiveFolder(id === "Assets" ? "3D Shapes" : id); }
-    else if (id === "Materials") { setRightTab("Inspector"); setBottomTab("Content Browser"); }
+    else if (id === "Assets" || id === "Models" || id === "Textures" || id === "Content Browser") {
+      setBottomTab("Content Browser");
+      setBottomLeftOpen(true);
+      if (id === "Assets") setActiveFolder("3D Shapes");
+      else if (id !== "Content Browser") setActiveFolder(id);
+    }
+    else if (id === "Materials") { setRightTab("Inspector"); setBottomTab("Content Browser"); setBottomLeftOpen(true); }
     else if (id === "Animation") { setRightTab("Inspector"); }
     else if (id === "Physics") { setRightTab("Inspector"); setSelectedNodeId("player"); }
-    else if (id === "AI") { setConsoleOpen(true); setBottomTab("Content Browser"); appendLog("Info", "AI panel: use Console commands (help) to drive AI/scene scripting"); }
+    else if (id === "AI") { setConsoleOpen(true); setBottomTab("Content Browser"); setBottomLeftOpen(true); appendLog("Info", "AI panel: use Console commands (help) to drive AI/scene scripting"); }
     else if (id === "Maps") { setRightTab("World Settings"); }
-    else if (id === "UI" || id === "VFX" || id === "Audio" || id === "Plugins") { setBottomTab("Content Browser"); }
+    else if (id === "UI" || id === "VFX" || id === "Audio" || id === "Plugins") { setBottomTab("Content Browser"); setBottomLeftOpen(true); }
   };
 
   // Render Clean Geometric 3D Thumbnail for Primitives
@@ -4339,6 +4350,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               <div className="flex items-center gap-1">
                 <button onClick={() => { setNewProjectName(""); setNewProjectTemplate("normal"); setNewProjectRoot(""); setNewProjectOpen(true); expandEditor(); }} className="px-2 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer">+ New</button>
                 <button onClick={() => { setShowStartup(false); expandEditor(); setTimeout(() => { folderModeRef.current = "project"; folderInputRef.current?.click(); }, 250); }} className="px-2 py-1 text-[11px] font-bold bg-white border border-slate-200 rounded-lg hover:border-indigo-300 hover:text-indigo-700 cursor-pointer">Open Folder…</button>
+                <button onClick={() => { setShowStartup(false); expandEditor(); }} className="px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer transition">✕ Close</button>
               </div>
             </div>
             <div className="px-4 py-2 space-y-2 overflow-y-auto flex-1">
@@ -4438,14 +4450,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
           {/* Menu Links — real dropdown actions */}
           <nav className="hidden md:flex items-center gap-1 ml-3 text-xs text-slate-600 font-medium relative">
             {[
-              { id: "File", items: [`Current Project: ${currentProject?.name || "—"}`, "New Project", "Open Folder as Project…", ...projects.map((p) => `Open Project: ${p.name}`), "Close Project"] },
+              { id: "File", items: ["Project Browser (All Projects)", `Current Project: ${currentProject?.name || "—"}`, "New Project", "Open Folder as Project…", ...projects.map((p) => `Open Project: ${p.name}`), "Close Project"] },
               { id: "Edit", items: ["Undo", "Redo", "Duplicate Selected", "Delete Selected"] },
               { id: "Scene", items: ["Show Hierarchy (H)", "Focus Player", "Reset Sun Time"] },
               { id: "Object", items: ["Spawn Random Prop", "Toggle Visibility", "Reset Transform"] },
               { id: "Game", items: ["Play / Stop", "Reset Score"] },
               { id: "Build", items: ["Build + Export scene.json"] },
               { id: "Tools", items: ["Screenshot PNG", "Clear Console"] },
-              { id: "Window", items: ["Inspector Tab", "World Settings Tab", "Content Browser Tab", "Build Log Tab", "Console Tab"] },
+              { id: "Window", items: ["Project Browser", "Content Browser Tab", "Inspector Tab", "World Settings Tab", "Build Log Tab", "Console Tab"] },
               { id: "Help", items: ["Console Commands", "About Spider Engine"] }
             ].map((menu) => (
               <div key={menu.id} className="relative">
@@ -4501,6 +4513,33 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </button>
             </div>
           </nav>
+
+          {/* Quick Browser Launchers */}
+          <div className="hidden lg:flex items-center gap-1.5 ml-1">
+            <button
+              onClick={() => setShowStartup(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200/80 transition cursor-pointer"
+              title="Open Project Browser (Switch / Manage Projects)"
+            >
+              <FolderKanban className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Project Browser</span>
+            </button>
+            <button
+              onClick={() => {
+                setBottomLeftOpen((p) => !p);
+                setBottomTab("Content Browser");
+              }}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                bottomLeftOpen
+                  ? "bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/80"
+              }`}
+              title="Toggle Content Browser (Asset & Project files) — Hotkey: B"
+            >
+              <Folder className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Content Browser</span>
+            </button>
+          </div>
           <input ref={importFileRef} type="file" accept=".json,.glb,.gltf,.fbx,.obj,.png,.jpg,.jpeg,.webp" className="hidden" onChange={(e) => { handleImportAssetFile(e.target.files?.[0]); e.target.value = ""; }} />
         </div>
 
@@ -5591,6 +5630,17 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       <Sliders className="w-3.5 h-3.5 text-cyan-400" />
                       <span>Inspect</span>
                     </button>
+                    <button
+                      onClick={() => {
+                        setBottomLeftOpen((p) => !p);
+                        setBottomTab("Content Browser");
+                      }}
+                      className="px-2 py-1.5 rounded-xl text-[11px] font-bold text-amber-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
+                      title="Toggle Project / Content Browser"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Files</span>
+                    </button>
                   </div>
                 )}
 
@@ -6014,7 +6064,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
           <div className="flex-1 flex gap-1.5 min-h-[210px]">
             {/* CONTENT BROWSER / BUILD LOG PANEL — tabs switch this panel, Console lives right */}
             {bottomLeftOpen ? (
-            <section className="flex-[1.65] bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden">
+              <>
+                {isMobile && (
+                  <div
+                    className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs"
+                    onClick={() => setBottomLeftOpen(false)}
+                  />
+                )}
+                <section className={`${isMobile ? "fixed inset-x-0 bottom-0 z-50 max-h-[85vh] rounded-t-2xl shadow-2xl" : "flex-[1.65] rounded-xl"} bg-white/95 border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden`}>
               {/* Top Tabs + Action Buttons */}
               <div className="h-9 px-3 border-b border-slate-100 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1">
@@ -6300,6 +6357,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 </div>
               </div>
             </section>
+            </>
             ) : null}
 
             {/* CONSOLE LOGGER PANEL */}
@@ -6388,6 +6446,58 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             ) : null}
           </div>
           ) : null}
+
+          {/* PERSISTENT DOCK STRIP: Always visible at bottom so Content/Project Browser never vanishes! */}
+          {!isEnvMode && (
+            <div className="h-8 bg-white/95 rounded-xl border border-slate-200/80 px-2.5 flex items-center justify-between shrink-0 shadow-2xs select-none">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    setBottomLeftOpen((p) => !p);
+                    setBottomTab("Content Browser");
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    bottomLeftOpen
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  }`}
+                  title="Toggle Content / Project Browser (Hotkey: B)"
+                >
+                  <Folder className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>📁 Project / Content Browser</span>
+                  <span className="hidden sm:inline text-[10px] text-slate-400 font-mono ml-0.5">(B)</span>
+                </button>
+
+                <button
+                  onClick={() => setConsoleOpen((p) => !p)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    consoleOpen
+                      ? "bg-indigo-50 text-indigo-700 border border-indigo-200/80 shadow-2xs"
+                      : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                  }`}
+                  title="Toggle Terminal Console (Hotkey: ~ or C)"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Console</span>
+                </button>
+
+                <button
+                  onClick={() => setShowStartup(true)}
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700"
+                  title="Open Project Manager / Project Browser dialog"
+                >
+                  <FolderKanban className="w-3.5 h-3.5 text-violet-600" />
+                  <span>Project: {currentProject?.name || "Untitled"} ▾</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium">
+                <span className="hidden md:inline">Folder: <span className="font-semibold text-slate-700">{activeFolder}</span></span>
+                <span className="hidden md:inline">•</span>
+                <span>{sceneGroups.flatMap((g) => g.children).length} Actors</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 3. RIGHT INSPECTOR / WORLD SETTINGS SIDEBAR */}
