@@ -19,8 +19,8 @@ import DynamicJsxRenderer from "./DynamicJsxRenderer.jsx";
 const WORLD = 0.12;
 const DEG = Math.PI / 180;
 
-// Shared API for honest screenshot capture (set from inside Canvas).
-export const viewportApi = { capture: null };
+// Shared API for honest screenshot capture & canvas stream recording (set from inside Canvas).
+export const viewportApi = { capture: null, canvas: null, getCanvas: null };
 // Set while a TransformControls drag is active so smoothing doesn't fight the user.
 let transforming = false;
 
@@ -131,6 +131,8 @@ function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo, hasCh
 function CaptureApi() {
   const gl = useThree((s) => s.gl);
   useEffect(() => {
+    viewportApi.canvas = gl.domElement;
+    viewportApi.getCanvas = () => gl.domElement;
     viewportApi.capture = (download = false, maxWidth = 640) => {
       try {
         let url = gl.domElement.toDataURL("image/jpeg", 0.82);
@@ -158,6 +160,8 @@ function CaptureApi() {
     };
     return () => {
       viewportApi.capture = null;
+      viewportApi.canvas = null;
+      viewportApi.getCanvas = null;
     };
   }, [gl]);
   return null;

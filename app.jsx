@@ -85,6 +85,7 @@ import {
   Minimize2,
   Edit3,
   FolderKanban,
+  Video,
   X
 } from "lucide-react";
 import { sfx } from "./src/engine/audioSynthesizer.js";
@@ -3224,6 +3225,124 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const consoleEndRef = useRef(null);
   const viewportRef = useRef(null);
 
+  // 3D Viewport Pure Canvas MP4 Recorder (captures ONLY inside 3D viewport canvas)
+  const [isViewportRecording, setIsViewportRecording] = useState(false);
+  const [viewportRecordSeconds, setViewportRecordSeconds] = useState(0);
+  const viewportRecorderRef = useRef(null);
+  const viewportRecordChunksRef = useRef([]);
+  const viewportRecordTimerRef = useRef(null);
+
+  const startViewportRecording = useCallback(() => {
+    const canvas = viewportApi.getCanvas?.() || viewportApi.canvas || document.querySelector("canvas");
+    if (!canvas) {
+      appendLog("Warning", "Viewport 3D canvas not ready for recording.");
+      return;
+    }
+
+    try {
+      const stream = canvas.captureStream ? canvas.captureStream(60) : canvas.mozCaptureStream?.(60);
+      if (!stream) {
+        appendLog("Warning", "Could not capture 3D Viewport stream.");
+        return;
+      }
+
+      // Prioritize MP4 container formats, fallback to webm
+      const mimeTypes = [
+        "video/mp4;codecs=avc1",
+        "video/mp4",
+        "video/webm;codecs=h264",
+        "video/webm;codecs=vp9",
+        "video/webm"
+      ];
+      let selectedMime = "";
+      for (const m of mimeTypes) {
+        if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) {
+          selectedMime = m;
+          break;
+        }
+      }
+
+      const options = selectedMime
+        ? { mimeType: selectedMime, videoBitsPerSecond: 8000000 }
+        : { videoBitsPerSecond: 8000000 };
+
+      const rec = new MediaRecorder(stream, options);
+      viewportRecordChunksRef.current = [];
+
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          viewportRecordChunksRef.current.push(e.data);
+        }
+      };
+
+      rec.onstop = () => {
+        clearInterval(viewportRecordTimerRef.current);
+        setIsViewportRecording(false);
+        setViewportRecordSeconds(0);
+
+        if (viewportRecordChunksRef.current.length === 0) {
+          appendLog("Warning", "No video frames captured in recording.");
+          return;
+        }
+
+        const blob = new Blob(viewportRecordChunksRef.current, { type: selectedMime || "video/mp4" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, "0");
+        const filename = `SpiderEngine_Viewport_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}.mp4`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1200);
+
+        const mb = (blob.size / (1024 * 1024)).toFixed(2);
+        appendLog("Success", `Viewport video exported: "${filename}" (${mb} MB, 60 FPS MP4)`);
+      };
+
+      rec.start(100); // 100ms slices
+      viewportRecorderRef.current = rec;
+      setIsViewportRecording(true);
+      setViewportRecordSeconds(0);
+      viewportRecordTimerRef.current = setInterval(() => {
+        setViewportRecordSeconds((s) => s + 1);
+      }, 1000);
+
+      appendLog("Info", "Started recording 3D Viewport canvas (60 FPS)... Click Stop to export MP4 video.");
+    } catch (err) {
+      appendLog("Warning", `Could not start Viewport recording: ${err?.message || err}`);
+      setIsViewportRecording(false);
+    }
+  }, []);
+
+  const stopViewportRecording = useCallback(() => {
+    if (viewportRecorderRef.current && viewportRecorderRef.current.state !== "inactive") {
+      try {
+        viewportRecorderRef.current.stop();
+      } catch (e) {
+        setIsViewportRecording(false);
+      }
+    }
+  }, []);
+
+  const toggleViewportRecording = useCallback(() => {
+    if (isViewportRecording) {
+      stopViewportRecording();
+    } else {
+      startViewportRecording();
+    }
+  }, [isViewportRecording, startViewportRecording, stopViewportRecording]);
+
+  const formatRecordTime = (sec) => {
+    const m = Math.floor(sec / 60).toString().padStart(2, "0");
+    const s = (sec % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
   // Fullscreen toggle for the 3D viewport panel
   const toggleViewportFullscreen = () => {
     if (!viewportRef.current) return;
@@ -3497,6 +3616,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           return { ok: false, error: String(e) };
         }
       },
+      startRecording: () => { startViewportRecording(); return { ok: true }; },
+      stopRecording: () => { stopViewportRecording(); return { ok: true }; },
       tool: async (name, args) => runAgentTool(name, args || {})
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5992,6 +6113,30 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         className="flex items-center gap-1.5 px-2.5 py-1 bg-white/90 backdrop-blur-md hover:bg-white rounded-lg text-[11px] font-semibold text-slate-800 shadow-sm border border-white/50 cursor-pointer"
                       >
                         <span>Fog</span>
+                      </button>
+
+                      {/* Right of Fog: Viewport 3D Canvas MP4 Video Recorder */}
+                      <button
+                        onClick={toggleViewportRecording}
+                        title={isViewportRecording ? "Click to Stop and Export MP4 Video" : "Record Viewport 3D Canvas to MP4 Video"}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold shadow-sm border transition cursor-pointer select-none ${
+                          isViewportRecording
+                            ? "bg-rose-600 text-white border-rose-500 shadow-rose-500/40"
+                            : "bg-white/90 backdrop-blur-md hover:bg-white text-slate-800 border-white/50"
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${isViewportRecording ? "bg-white animate-ping" : "bg-rose-500"}`} />
+                        {isViewportRecording ? (
+                          <>
+                            <span className="font-mono text-[10.5px]">REC {formatRecordTime(viewportRecordSeconds)}</span>
+                            <span className="text-[9px] bg-rose-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider text-white">Stop</span>
+                          </>
+                        ) : (
+                          <>
+                            <Video className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Record MP4</span>
+                          </>
+                        )}
                       </button>
                     </div>
 

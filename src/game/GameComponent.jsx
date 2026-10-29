@@ -1,17 +1,13 @@
-import React from 'react';
-import { OrbitControls } from '@react-three/drei';
-
-export default function GameComponent() {
-  return (
-    <group>
-      <color attach="background" args={['#0f172a']} />
-      <OrbitControls makeDefault target={[0, 0, 0]} />
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[5, 10, 5]} intensity={1} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial color="#1e293b" />
-      </mesh>
-    </group>
-  );
+import React,{useRef,useMemo} from 'react';
+import {useFrame} from '@react-three/fiber';
+import {OrbitControls,PerspectiveCamera} from '@react-three/drei';
+import * as THREE from 'three';
+export default function GameComponent(){
+ const disk=useRef(),disk2=useRef(),ring=useRef(),glow=useRef(),clouds=useRef(),spiral=useRef(),snowRef=useRef();
+ const tex=useMemo(()=>{const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c)},[]);
+ const P=useMemo(()=>{const n=3500,pos=new Float32Array(n*3),col=new Float32Array(n*3),cc=new THREE.Color();for(let i=0;i<n;i++){const arm=i%3,r=2.8+Math.pow(Math.random(),.7)*22,a=arm*2.09+r*.28+(Math.random()-.5)*.5;pos.set([Math.cos(a)*r,(Math.random()-.5)*(1+r*.1),Math.sin(a)*r*.42],i*3);cc.setHSL((.58+Math.random()*.5)%1,1,.65+Math.random()*.25);col.set([cc.r,cc.g,cc.b],i*3)}const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('color',new THREE.BufferAttribute(col,3));return g},[]);
+ const SN=useMemo(()=>{const n=2500,pos=new Float32Array(n*3);for(let i=0;i<n;i++)pos.set([(Math.random()-.5)*150,Math.random()*44-3,(Math.random()-.5)*120-6],i*3);const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));return{g,n}},[]);
+ const CL=useMemo(()=>Array.from({length:18},(_,i)=>{const s=i%2?1:-1;return{x:s*(14+Math.random()*38),y:8+Math.random()*11,z:-14-Math.random()*28,s:.7+Math.random()*.9,p:Array.from({length:4},(_,j)=>[(j-1.5)*1.3,(Math.random()-.5)*.5,(Math.random()-.5)*.8,1.1+Math.random()*1.1])}}),[]);
+ useFrame((s,dt0)=>{const t=s.clock.elapsedTime,dt=Math.min(dt0,.033);if(disk.current)disk.current.rotation.z=t*1.1;if(disk2.current)disk2.current.rotation.z=-t*1.5;if(ring.current)ring.current.rotation.z=t*2;if(spiral.current)spiral.current.rotation.y=t*.12;if(glow.current){const k=1+Math.sin(t*2.2)*.08;glow.current.scale.set(k,k,k)}if(clouds.current)clouds.current.children.forEach((g,i)=>{g.position.x+=dt*(1.2+(i%4)*.3);if(g.position.x>75)g.position.x=-75});const a=SN.g.attributes.position.array;for(let i=0;i<SN.n;i++){a[i*3+1]-=dt*(3+(i%5)*.7);a[i*3]+=dt*2.5;if(a[i*3+1]<-3){a[i*3+1]=42;a[i*3]=(Math.random()-.5)*150}if(a[i*3]>80)a[i*3]=-80}SN.g.attributes.position.needsUpdate=true});
+ return(<><color attach='background' args={['#ff9ecb']}/><fog attach='fog' args={['#ffc2dd',28,115]}/><PerspectiveCamera makeDefault position={[0,4.5,16]} fov={55}/><OrbitControls makeDefault target={[0,0.5,0]} enableDamping autoRotate autoRotateSpeed={.6} minDistance={6} maxDistance={55} maxPolarAngle={Math.PI/1.65}/><ambientLight intensity={1.1} color='#ffffff'/><directionalLight position={[8,16,8]} intensity={2} color='#fff1f2'/><points geometry={SN.g}><pointsMaterial size={.55} map={tex} color='#ffffff' transparent opacity={.95} depthWrite={false}/></points><group position={[0,-3.8,0]}><mesh rotation={[-Math.PI/2,0,0]}><circleGeometry args={[80,64]}/><meshStandardMaterial color='#38bdf8' emissive='#0284c7' emissiveIntensity={.7} roughness={.25}/></mesh><mesh position={[0,.08,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[5,75,64]}/><meshBasicMaterial color='#bae6fd' transparent opacity={.35} side={2} depthWrite={false}/></mesh></group><group><mesh><sphereGeometry args={[1.9,48,48]}/><meshBasicMaterial color='#fffbeb'/></mesh><mesh><sphereGeometry args={[2.05,32,32]}/><meshBasicMaterial color='#fde68a' transparent opacity={.85}/></mesh><group ref={glow}><mesh><sphereGeometry args={[3.4,24,24]}/><meshBasicMaterial color='#fde047' transparent opacity={.22} depthWrite={false}/></mesh><mesh><sphereGeometry args={[5,24,24]}/><meshBasicMaterial color='#f472b6' transparent opacity={.12} depthWrite={false}/></mesh><mesh><sphereGeometry args={[6.8,24,24]}/><meshBasicMaterial color='#67e8f9' transparent opacity={.07} depthWrite={false}/></mesh></group><mesh ref={ring} rotation={[.35,.2,0]}><torusGeometry args={[2.4,.06,10,100]}/><meshBasicMaterial color='#ffffff'/></mesh><mesh ref={disk} rotation={[Math.PI/2.22,0,0]}><torusGeometry args={[4.6,.55,14,110]}/><meshStandardMaterial color='#ff4fb8' emissive='#ff00aa' emissiveIntensity={2.4} roughness={.25}/></mesh><mesh ref={disk2} rotation={[Math.PI/2.22,0,0]}><torusGeometry args={[6.4,.24,10,110]}/><meshStandardMaterial color='#22d3ee' emissive='#0284c7' emissiveIntensity={1.8} transparent opacity={.95}/></mesh></group><group ref={clouds}>{CL.map((c,i)=>(<group key={i} position={[c.x,c.y,c.z]} scale={c.s}>{c.p.map((p,j)=>(<mesh key={j} position={[p[0],p[1],p[2]]} scale={[1,.55,1]}><sphereGeometry args={[p[3],14,14]}/><meshStandardMaterial color='#ffffff' emissive='#fbcfe8' emissiveIntensity={.35} transparent opacity={.82} roughness={1}/></mesh>))}</group>))}</group><points ref={spiral} geometry={P}><pointsMaterial size={.34} map={tex} vertexColors transparent opacity={.95} depthWrite={false} blending={THREE.AdditiveBlending}/></points></>)
 }
