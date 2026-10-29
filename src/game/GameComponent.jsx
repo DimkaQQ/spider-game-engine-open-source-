@@ -1,8 +1,17 @@
-import React,{useRef,useEffect} from 'react';
-import {useFrame,useThree} from '@react-three/fiber';
-import {OrbitControls,PerspectiveCamera} from '@react-three/drei';
-import * as THREE from 'three';
-const T=[[0,5,16,1.15],[-6,3,23,1],[-3,0,27,1.08],[3,-1,25,1],[6.5,2,20,.92],[9.5,-3,23,1],[-9.5,-2,21,.92],[12.5,0,17,.85],[-12.5,4,18,.82],[1,-6,29,1.05],[5.5,-7,26,.95],[-5,-7,24,.9],[10.5,-8,21,.9],[-10.5,-9,25,.95],[15,-6,19,.8],[-15.5,-4,16,.78],[3.5,8,13.5,.92],[-8,8,14.5,.82],[14,6,14,.7],[-14,9,12,.68]];
-const C=Array.from({length:120},(_,i)=>[((i*23)%38)-19,1+((i*7)%5)*.6,11-((i*19)%28),2.2+((i*11)%30)/8,i%3]);
-function Tower({t}){const[x,z,h,s]=t;return(<group position={[x,0,z]} scale={s}><mesh position={[0,h/2,0]} castShadow><boxGeometry args={[2.2,h,2.2]}/><meshStandardMaterial color="#846a49" roughness={.85}/></mesh><mesh position={[1,h*.31,.35]} castShadow><boxGeometry args={[.95,h*.62,.95]}/><meshStandardMaterial color="#957856" roughness={.85}/></mesh><mesh position={[-.25,h*.42,1.13]}><boxGeometry args={[.6,h*.58,.07]}/><meshStandardMaterial color="#6f583c" roughness={.9}/></mesh><mesh position={[.55,h*.72,-1.13]}><boxGeometry args={[.5,h*.4,.07]}/><meshStandardMaterial color="#755f42" roughness={.9}/></mesh><mesh position={[0,h+1.25,0]}><cylinderGeometry args={[.045,.06,2.5,6]}/><meshStandardMaterial color="#11100e"/></mesh><mesh position={[0,h+2.62,0]}><sphereGeometry args={[.19,10,10]}/><meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={3.5}/></mesh></group>)}
-export default function GameComponent(){const cl=useRef(),au=useRef(false),sc=useThree(s=>s.scene);useEffect(()=>{sc.background=new THREE.Color('#0a1424');sc.fog=new THREE.Fog('#0a1424',32,72)},[sc]);useFrame(s=>{if(cl.current){cl.current.position.x=Math.sin(s.clock.elapsedTime*.07)*.7;cl.current.position.z=Math.cos(s.clock.elapsedTime*.05)*.3}});const amb=()=>{if(au.current)return;au.current=true;try{const A=new(window.AudioContext||window.webkitAudioContext)(),g=A.createGain();g.gain.value=.045;g.connect(A.destination);[52,78,104].forEach((f,i)=>{const o=A.createOscillator(),og=A.createGain();o.type=i?'sine':'triangle';o.frequency.value=f;og.gain.value=.3;o.connect(og);og.connect(g);o.start()})}catch(e){}};return(<group onPointerDown={amb}><PerspectiveCamera makeDefault position={[9,14.5,27]} fov={48} near={.1} far={200}/><ambientLight intensity={.95} color="#c7d3e8"/><directionalLight position={[-10,22,12]} intensity={1.7} color="#ffe3b3" castShadow/><OrbitControls makeDefault enableDamping dampingFactor={.05} target={[0,11,-1]} maxPolarAngle={Math.PI/1.85} minDistance={8} maxDistance={60}/><mesh position={[0,-.4,-2]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[90,70]}/><meshStandardMaterial color="#0a1220"/></mesh>{T.map((t,i)=><Tower key={i} t={t}/>)}<group ref={cl}>{C.map((c,i)=><mesh key={i} position={[c[0],c[1],c[2]]} scale={[c[3],c[3]*.36,c[3]*.82]}><sphereGeometry args={[1,14,10]}/><meshStandardMaterial color={c[4]==0?'#f4e9cf':c[4]==1?'#eee0bf':'#e7d6b2'} roughness={1} emissive="#ffeec2" emissiveIntensity={.08}/></mesh>)}</group></group>)}
+import React from 'react';
+import { OrbitControls } from '@react-three/drei';
+
+export default function GameComponent() {
+  return (
+    <group>
+      <color attach="background" args={['#0f172a']} />
+      <OrbitControls makeDefault target={[0, 0, 0]} />
+      <ambientLight intensity={0.7} />
+      <directionalLight position={[5, 10, 5]} intensity={1} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+        <planeGeometry args={[20, 20]} />
+        <meshStandardMaterial color="#1e293b" />
+      </mesh>
+    </group>
+  );
+}
