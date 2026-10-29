@@ -2,11 +2,186 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Eye, 
   Sparkles, 
-  RotateCcw
+  RotateCcw,
+  Zap,
+  Radio,
+  Shield,
+  Volume2,
+  VolumeX,
+  Compass,
+  Award,
+  Terminal,
+  Cpu,
+  MapPin,
+  ChevronRight,
+  X
 } from 'lucide-react';
 
-// --- CUSTOM SVG ASSETS FOR EXACT HUD MATCHING ---
+// ============================================================================
+// 1. WEB AUDIO SYNTHESIS ENGINE (Footsteps, Rain, EMP, Collision Audio)
+// ============================================================================
+class WayfarerAudio {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+    this.rainGain = null;
+    this.initialized = false;
+  }
 
+  init() {
+    if (this.initialized) return;
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      this.ctx = new AudioCtx();
+      this.initialized = true;
+
+      // Ambient rain sound
+      const bufferSize = this.ctx.sampleRate * 2;
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+      noise.loop = true;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1100, this.ctx.currentTime);
+      filter.Q.setValueAtTime(0.8, this.ctx.currentTime);
+
+      this.rainGain = this.ctx.createGain();
+      this.rainGain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+
+      noise.connect(filter);
+      filter.connect(this.rainGain);
+      this.rainGain.connect(this.ctx.destination);
+      noise.start();
+    } catch {}
+  }
+
+  playFootstep(isSprint = false) {
+    if (!this.ctx || this.muted) return;
+    try {
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime((isSprint ? 140 : 110) + Math.random() * 25, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + 0.08);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, now);
+      gain.gain.setValueAtTime(isSprint ? 0.08 : 0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } catch {}
+  }
+
+  playJump() {
+    if (!this.ctx || this.muted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(170, now);
+      osc.frequency.exponentialRampToValueAtTime(390, now + 0.15);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.17);
+    } catch {}
+  }
+
+  playLanding() {
+    if (!this.ctx || this.muted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(95, now);
+      osc.frequency.exponentialRampToValueAtTime(25, now + 0.12);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } catch {}
+  }
+
+  playCarBump() {
+    if (!this.ctx || this.muted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(85, now);
+      osc.frequency.exponentialRampToValueAtTime(22, now + 0.22);
+      gain.gain.setValueAtTime(0.16, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    } catch {}
+  }
+
+  playEmpBlast() {
+    if (!this.ctx || this.muted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(280, now);
+      osc.frequency.exponentialRampToValueAtTime(32, now + 0.45);
+      gain.gain.setValueAtTime(0.28, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.52);
+    } catch {}
+  }
+
+  playChime(success = true) {
+    if (!this.ctx || this.muted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const notes = success ? [523.25, 659.25, 783.99, 1046.50] : [330, 290, 220];
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+        gain.gain.setValueAtTime(0.12, now + idx * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.28);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.08);
+        osc.stop(now + idx * 0.08 + 0.3);
+      });
+    } catch {}
+  }
+}
+
+const audio = new WayfarerAudio();
+
+// ============================================================================
+// 2. SVG ASSETS & ICONS
+// ============================================================================
 const DiamondIcon = ({ className = "w-6 h-6" }) => (
   <svg viewBox="0 0 32 32" className={className} fill="none">
     {/* Outer ornate diamond */}
@@ -83,87 +258,170 @@ const HoodedAvatarSVG = () => (
   </svg>
 );
 
+
+
+// ============================================================================
+// 3. STORY ACTS & OPEN-WORLD CAMPAIGN (30+ MIN PLAYTIME)
+// ============================================================================
+const STORY_ACTS = [
+  {
+    act: 1,
+    district: "Knowledge Park Boulevard",
+    targetZ: 120,
+    title: "Investigate the Signal in Knowledge Park",
+    details: "Sprint down Knowledge Park boulevard to the Skybridge Access Terminal at Z = 120m.",
+    sender: "INCOMING MESSAGE",
+    transmission: "Welcome back, Wayfarer. A rogue encrypted signal has appeared in Knowledge Park. Investigate the terminal.",
+    xpReward: 350,
+    terminalId: "term_1"
+  },
+  {
+    act: 2,
+    district: "Nexus Highway Interchange",
+    targetZ: 650,
+    title: "Deactivate Nexus Highway Jammer",
+    details: "Evade moving highway traffic and neutralise the signal jammer at Z = 650m.",
+    sender: "CIPHER // ENCRYPTED",
+    transmission: "Aegis security has activated highway patrol drones. Press [E] for EMP Shockwave to disable them.",
+    xpReward: 500,
+    terminalId: "term_2"
+  },
+  {
+    act: 3,
+    district: "Aegis Corporate Plaza",
+    targetZ: 1600,
+    title: "Infiltrate Aegis Data Substation",
+    details: "Reach the grand corporate plaza and override the security substation at Z = 1600m.",
+    sender: "WAYFARER SYNDICATE",
+    transmission: "You have breached Aegis territory. Use [Q] Cyber Scanner to reveal hidden Data Shards.",
+    xpReward: 750,
+    terminalId: "term_3"
+  },
+  {
+    act: 4,
+    district: "Old Cyber Bazaar",
+    targetZ: 2800,
+    title: "Locate the Underground Bazaar Merchant",
+    details: "Reach the neon alley bazaar at Z = 2800m. Spend Energy Cores on suit and stamina upgrades.",
+    sender: "BAZAAR FIXER",
+    transmission: "Over here, Wayfarer. My shop is behind the neon signs. Upgrade your gear before the final spire.",
+    xpReward: 1000,
+    terminalId: "term_4"
+  },
+  {
+    act: 5,
+    district: "Apex Spire - Knowledge Core",
+    targetZ: 4500,
+    title: "Override the Knowledge Grid Core",
+    details: "Reach the Apex Spire at Z = 4500m, evade the heavy Overseer Drone, and trigger master override.",
+    sender: "SYSTEM OVERRIDE READY",
+    transmission: "The final core is within reach. Connect all shards to free the Knowledge Park network!",
+    xpReward: 2000,
+    terminalId: "term_5"
+  }
+];
+
+// World Data Shards
+const WORLD_DATA_SHARDS = [
+  { id: 'shard_1', z: 340, x: -65, name: 'Nexus Route Key', collected: false },
+  { id: 'shard_2', z: 880, x: 75, name: 'Aegis Security Firmware', collected: false },
+  { id: 'shard_3', z: 1850, x: -80, name: 'Corporate Grid Map', collected: false },
+  { id: 'shard_4', z: 3100, x: 70, name: 'Bazaar Black-Market Code', collected: false },
+  { id: 'shard_5', z: 4350, x: -60, name: 'Apex Master Encryption Key', collected: false }
+];
+
+// World Terminals
+const WORLD_TERMINALS = [
+  { id: 'term_1', z: 120, x: -65, name: 'Skybridge Network Hub', hacked: false },
+  { id: 'term_2', z: 650, x: 70, name: 'Nexus Jammer Pedestal', hacked: false },
+  { id: 'term_3', z: 1600, x: -70, name: 'Aegis Substation Console', hacked: false },
+  { id: 'term_4', z: 2800, x: 75, name: 'Bazaar Vendor Terminal', hacked: false },
+  { id: 'term_5', z: 4500, x: 0, name: 'Apex Core Master Terminal', hacked: false }
+];
+
 export default function App() {
-  // --- INTERACTIVE RPG STATE ---
-  const [hp, setHp] = useState(73);
-  const [stamina, setStamina] = useState(86);
-  const [level, setLevel] = useState(12);
-  // x: lateral road/plaza position, y: forward/backward depth along the road
-  const [playerPos, setPlayerPos] = useState({ x: 0, y: 0, angle: 0, walkCycle: 0 });
-  const [activeKeys, setActiveKeys] = useState({
-    w: false,
-    a: false,
-    s: false,
-    d: false,
-    shift: false,
-    space: false,
+  // Player State
+  const [playerPos, setPlayerPos] = useState({
+    x: 0,
+    z: 15, // Forward world distance along boulevard
+    y: 0,  // Lateral offset on road
+    angle: 0,
+    walkCycle: 0,
+    jumpY: 0,
+    vy: 0,
+    isGrounded: true
   });
-  const [isJumping, setIsJumping] = useState(false);
+
+  const [hp, setHp] = useState(100);
+  const [stamina, setStamina] = useState(100);
+  const [maxStamina, setMaxStamina] = useState(100);
+  const [level, setLevel] = useState(12);
+  const [xp, setXp] = useState(350);
+  const [energyCores, setEnergyCores] = useState(3);
+  const [currentActIdx, setCurrentActIdx] = useState(0);
+  const [dataShards, setDataShards] = useState(WORLD_DATA_SHARDS);
+  const [terminals, setTerminals] = useState(WORLD_TERMINALS);
+
+  // Abilities
+  const [empCooldown, setEmpCooldown] = useState(0);
+  const [scannerPulse, setScannerPulse] = useState(false);
+  const [empShockwave, setEmpShockwave] = useState(null);
+  const [screenToast, setScreenToast] = useState(null);
+  const [activeModal, setActiveModal] = useState(null); // 'hack' | 'vendor' | 'victory'
   const [hudVisible, setHudVisible] = useState(true);
   const [rainIntensity, setRainIntensity] = useState(1);
-  const [messageIndex, setMessageIndex] = useState(0);
-  const [scannerPulse, setScannerPulse] = useState(false);
 
   const canvasRef = useRef(null);
+  const activeKeys = useRef({
+    w: false, a: false, s: false, d: false,
+    shift: false, space: false, e: false, q: false, f: false
+  });
+  const stepTimerRef = useRef(0);
 
-  const messages = [
-    {
-      sender: 'INCOMING MESSAGE',
-      text: 'Welcome back. Something has changed in Knowledge Park.',
-      objective: 'Investigate the signal in Knowledge Park'
-    },
-    {
-      sender: 'ENCRYPTED TRANSMISSION',
-      text: 'The neural spire ahead is broadcasting on an ancient frequency.',
-      objective: 'Walk down the Knowledge Park avenue'
-    },
-    {
-      sender: 'WAYFARER NETWORK',
-      text: 'Security patrols have doubled near the wet transit concourse.',
-      objective: 'Evade surveillance & reach the terminal'
-    }
-  ];
+  const currentAct = STORY_ACTS[currentActIdx] || STORY_ACTS[STORY_ACTS.length - 1];
 
-  // --- KEYBOARD LISTENERS FOR LIVE ROAD MOVEMENT ---
+  // Sound init gesture
+  useEffect(() => {
+    const handleGesture = () => {
+      audio.init();
+      window.removeEventListener('keydown', handleGesture);
+      window.removeEventListener('mousedown', handleGesture);
+    };
+    window.addEventListener('keydown', handleGesture);
+    window.addEventListener('mousedown', handleGesture);
+    return () => {
+      window.removeEventListener('keydown', handleGesture);
+      window.removeEventListener('mousedown', handleGesture);
+    };
+  }, []);
+
+  // Keyboard handlers
   useEffect(() => {
     const handleKeyDown = (e) => {
-      const key = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd'].includes(key)) {
-        setActiveKeys((prev) => ({ ...prev, [key]: true }));
-      } else if (e.key === 'Shift') {
-        setActiveKeys((prev) => ({ ...prev, shift: true }));
-      } else if (e.code === 'Space') {
+      audio.init();
+      const k = e.key.toLowerCase();
+      if (k === 'w' || e.key === 'ArrowUp') activeKeys.current.w = true;
+      if (k === 's' || e.key === 'ArrowDown') activeKeys.current.s = true;
+      if (k === 'a' || e.key === 'ArrowLeft') activeKeys.current.a = true;
+      if (k === 'd' || e.key === 'ArrowRight') activeKeys.current.d = true;
+      if (e.key === 'Shift') activeKeys.current.shift = true;
+      if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
-        setActiveKeys((prev) => ({ ...prev, space: true }));
         triggerJump();
-      } else if (key === 'arrowup') {
-        setActiveKeys((prev) => ({ ...prev, w: true }));
-      } else if (key === 'arrowdown') {
-        setActiveKeys((prev) => ({ ...prev, s: true }));
-      } else if (key === 'arrowleft') {
-        setActiveKeys((prev) => ({ ...prev, a: true }));
-      } else if (key === 'arrowright') {
-        setActiveKeys((prev) => ({ ...prev, d: true }));
       }
+      if (k === 'e') triggerEmp();
+      if (k === 'q') triggerScanner();
+      if (k === 'f') triggerInteract();
+      if (e.key === 'Escape') setActiveModal(null);
     };
 
     const handleKeyUp = (e) => {
-      const key = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd'].includes(key)) {
-        setActiveKeys((prev) => ({ ...prev, [key]: false }));
-      } else if (e.key === 'Shift') {
-        setActiveKeys((prev) => ({ ...prev, shift: false }));
-      } else if (e.code === 'Space') {
-        setActiveKeys((prev) => ({ ...prev, space: false }));
-      } else if (key === 'arrowup') {
-        setActiveKeys((prev) => ({ ...prev, w: false }));
-      } else if (key === 'arrowdown') {
-        setActiveKeys((prev) => ({ ...prev, s: false }));
-      } else if (key === 'arrowleft') {
-        setActiveKeys((prev) => ({ ...prev, a: false }));
-      } else if (key === 'arrowright') {
-        setActiveKeys((prev) => ({ ...prev, d: false }));
-      }
+      const k = e.key.toLowerCase();
+      if (k === 'w' || e.key === 'ArrowUp') activeKeys.current.w = false;
+      if (k === 's' || e.key === 'ArrowDown') activeKeys.current.s = false;
+      if (k === 'a' || e.key === 'ArrowLeft') activeKeys.current.a = false;
+      if (k === 'd' || e.key === 'ArrowRight') activeKeys.current.d = false;
+      if (e.key === 'Shift') activeKeys.current.shift = false;
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -172,111 +430,240 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, []);
+  }, [playerPos.isGrounded, empCooldown, activeModal]);
 
+  // Jump trigger
   const triggerJump = () => {
-    setIsJumping((currentlyJumping) => {
-      if (!currentlyJumping) {
-        setStamina((prev) => Math.max(5, prev - 10));
-        setTimeout(() => setIsJumping(false), 550);
-        return true;
-      }
-      return currentlyJumping;
+    if (activeModal) return;
+    setPlayerPos((prev) => {
+      if (!prev.isGrounded) return prev;
+      audio.playJump();
+      return { ...prev, vy: 7.2, isGrounded: false };
     });
   };
 
-  // --- GAME LOOP FOR WALKING ON THE ROAD & STAMINA ---
+  // EMP trigger
+  const triggerEmp = () => {
+    if (empCooldown > 0 || activeModal) return;
+    setEmpCooldown(9);
+    audio.playEmpBlast();
+    setEmpShockwave({ radius: 10, maxRadius: 280, alpha: 1 });
+    setScreenToast("⚡ EMP SHOCKWAVE DISCHARGED — SURVEILLANCE DRONES DISABLED!");
+    setTimeout(() => setScreenToast(null), 3000);
+  };
+
+  // Scanner trigger
+  const triggerScanner = () => {
+    if (scannerPulse || activeModal) return;
+    audio.playChime(true);
+    setScannerPulse(true);
+    setTimeout(() => setScannerPulse(false), 1200);
+  };
+
+  // Interact trigger
+  const triggerInteract = () => {
+    if (activeModal) return;
+
+    // Check terminal within 35 meters or near current objective target
+    const nearTerm = terminals.find((t) => Math.abs(t.z - playerPos.z) < 35);
+    if (nearTerm || Math.abs(currentAct.targetZ - playerPos.z) < 35) {
+      const termToHack = nearTerm || terminals.find((t) => t.id === currentAct.terminalId);
+      if (termToHack && termToHack.id === 'term_4') {
+        setActiveModal('vendor');
+        audio.playChime(true);
+        return;
+      }
+      setActiveModal('hack');
+      audio.playChime(true);
+      return;
+    }
+
+    // Check collectible shard within 25 meters
+    const nearShard = dataShards.find((s) => !s.collected && Math.abs(s.z - playerPos.z) < 25);
+    if (nearShard) {
+      setDataShards((prev) => prev.map((s) => s.id === nearShard.id ? { ...s, collected: true } : s));
+      setEnergyCores((c) => c + 1);
+      setXp((x) => x + 250);
+      audio.playChime(true);
+      setScreenToast(`💾 RECOVERED DATA SHARD: ${nearShard.name} (+1 CORE, +250 XP)`);
+      setTimeout(() => setScreenToast(null), 3500);
+      return;
+    }
+
+    // Check parked sports coupe
+    if (Math.abs(45 - playerPos.z) < 20 && playerPos.x > 35) {
+      audio.playCarBump();
+      setScreenToast("🚗 BLACK SPORTS COUPE: Biometric security active. Registered to Knowledge Park Transit.");
+      setTimeout(() => setScreenToast(null), 2500);
+    }
+  };
+
+  // Hack complete
+  const handleHackSuccess = () => {
+    const curTerm = terminals.find((t) => t.id === currentAct.terminalId);
+    if (curTerm) {
+      setTerminals((prev) => prev.map((t) => t.id === curTerm.id ? { ...t, hacked: true } : t));
+    }
+    setActiveModal(null);
+    audio.playChime(true);
+    setXp((x) => x + currentAct.xpReward);
+
+    if (currentActIdx < STORY_ACTS.length - 1) {
+      setCurrentActIdx((i) => i + 1);
+      setScreenToast(`🎉 ACT ${currentAct.act} COMPLETE! UNLOCKED: ${STORY_ACTS[currentActIdx + 1].district}`);
+    } else {
+      setActiveModal('victory');
+    }
+  };
+
+  // Level Up Check
+  useEffect(() => {
+    if (xp >= 1000) {
+      setLevel((l) => l + 1);
+      setXp((x) => x - 1000);
+      setMaxStamina((s) => s + 20);
+      setHp(100);
+      audio.playChime(true);
+      setScreenToast("⭐ WAYFARER LEVEL UP! MAX STAMINA & HP RESTORED");
+      setTimeout(() => setScreenToast(null), 4000);
+    }
+  }, [xp]);
+
+  // EMP Cooldown
+  useEffect(() => {
+    if (empCooldown <= 0) return;
+    const t = setInterval(() => setEmpCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearInterval(t);
+  }, [empCooldown]);
+
+  // ============================================================================
+  // 4. REALISTIC KINEMATICS, COLLISION & OPEN-WORLD FORWARD MOVEMENT LOOP
+  // ============================================================================
   useEffect(() => {
     const interval = setInterval(() => {
-      const isMoving = activeKeys.w || activeKeys.a || activeKeys.s || activeKeys.d;
-      const isSprinting = isMoving && activeKeys.shift && stamina > 2;
+      if (activeModal) return;
 
-      // Update Stamina
+      const keys = activeKeys.current;
+      const isMoving = keys.w || keys.a || keys.s || keys.d;
+      const isSprinting = isMoving && keys.shift && stamina > 2;
+
+      // Stamina update
       setStamina((prev) => {
-        if (isSprinting) return Math.max(0, prev - 1.1);
-        if (isMoving) return Math.min(100, prev + 0.15);
-        return Math.min(100, prev + 0.7);
+        if (isSprinting) return Math.max(0, prev - 0.7);
+        if (isMoving) return Math.min(maxStamina, prev + 0.12);
+        return Math.min(maxStamina, prev + 0.4);
       });
 
-      // Update Player Road Coordinates & Walk Animation Cycle
-      if (isMoving) {
-        const speed = isSprinting ? 2.4 : 1.25;
-        setPlayerPos((prev) => {
-          let dx = 0;
-          let dy = 0;
-          if (activeKeys.w) dy += speed;
-          if (activeKeys.s) dy -= speed;
-          if (activeKeys.a) dx -= speed;
-          if (activeKeys.d) dx += speed;
+      // EMP Shockwave expansion
+      setEmpShockwave((prev) => {
+        if (!prev) return null;
+        const nextR = prev.radius + 6;
+        if (nextR > prev.maxRadius) return null;
+        return { ...prev, radius: nextR, alpha: Math.max(0, 1 - nextR / prev.maxRadius) };
+      });
 
-          let newAngle = prev.angle;
-          if (dx !== 0 || dy !== 0) {
-            newAngle = Math.atan2(dx, dy) * (180 / Math.PI);
+      // Kinematics & Collision
+      setPlayerPos((prev) => {
+        const speed = isSprinting ? 2.6 : 1.35;
+        let dx = 0;
+        let dz = 0; // Forward travel in meters!
+
+        if (keys.w) dz += speed * 0.8;
+        if (keys.s) dz -= speed * 0.55;
+        if (keys.a) dx -= speed * 0.95;
+        if (keys.d) dx += speed * 0.95;
+
+        // Vertical Jump / Gravity Physics
+        let newJumpY = prev.jumpY + prev.vy;
+        let newVy = prev.vy - 0.65; // Gravity
+        let grounded = false;
+
+        if (newJumpY <= 0) {
+          newJumpY = 0;
+          newVy = 0;
+          grounded = true;
+          if (!prev.isGrounded) audio.playLanding();
+        }
+
+        // Candidate next positions
+        let nextX = prev.x + dx;
+        let nextZ = Math.max(0, prev.z + dz); // INFINITE FORWARD TRAVEL!
+
+        // --- SOLID COLLISION RESOLUTION ---
+        // 1. Sidewalk Curbs / Road Boundaries
+        if (nextX < -155) nextX = -155;
+        if (nextX > 175) nextX = 175;
+
+        // 2. Parked Sports Coupe Solid Collision at Z = 45m, X: [65, 145]
+        if (Math.abs(45 - nextZ) < 5.5 && nextX > 65 && nextX < 145) {
+          // Rebound deflection
+          if (keys.w) nextZ = 39.5;
+          if (keys.s) nextZ = 50.5;
+          if (keys.d) nextX = 65;
+          audio.playCarBump();
+        }
+
+        // Footstep Audio Synchronization
+        if (grounded && isMoving) {
+          stepTimerRef.current += (isSprinting ? 1.6 : 1.0);
+          if (stepTimerRef.current > 18) {
+            stepTimerRef.current = 0;
+            audio.playFootstep(isSprinting);
           }
+        }
 
-          return {
-            x: Math.max(-140, Math.min(180, prev.x + dx)),
-            y: Math.max(-45, Math.min(115, prev.y + dy)),
-            angle: newAngle,
-            walkCycle: prev.walkCycle + (isSprinting ? 0.42 : 0.24)
-          };
-        });
-      }
-    }, 30);
+        let newAngle = prev.angle;
+        if (dx !== 0 || dz !== 0) {
+          newAngle = Math.atan2(dx, dz) * (180 / Math.PI);
+        }
+
+        return {
+          x: nextX,
+          z: nextZ,
+          y: 0,
+          jumpY: newJumpY,
+          vy: newVy,
+          angle: newAngle,
+          walkCycle: prev.walkCycle + (isSprinting ? 0.38 : 0.22),
+          isGrounded: grounded
+        };
+      });
+    }, 25);
 
     return () => clearInterval(interval);
-  }, [activeKeys, stamina]);
+  }, [stamina, maxStamina, activeModal]);
 
-  // --- PROCEDURAL 3D ROAD, WET PLAZA, TRAFFIC & HOODED WAYFARER CANVAS ---
+  // ============================================================================
+  // 5. PROCEDURAL 3D ROAD, SKYSCRAPER SKYLINE & HOODED WAYFARER CANVAS
+  // ============================================================================
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let animationFrameId;
 
-    // Raindrops & Puddle Ripples
-    const raindrops = Array.from({ length: 180 }, () => ({
-      x: Math.random() * 1920,
-      y: Math.random() * 1080,
-      length: 15 + Math.random() * 18,
-      speed: 15 + Math.random() * 10
-    }));
-
-    const ripples = Array.from({ length: 40 }, () => ({
-      x: Math.random() * 1920,
-      y: 600 + Math.random() * 460,
-      radius: Math.random() * 18,
-      maxRadius: 12 + Math.random() * 24,
-      speed: 0.25 + Math.random() * 0.35
-    }));
-
-    // Skyscraper Definitions
+    // Building definitions for procedural skyline
     const buildingDefs = [
-      { x: -30, y: -40, w: 330, h: 630, color: '#0a101d', winColor1: '#fde68a', winColor2: '#38bdf8', rows: 28, cols: 8 },
-      // Iconic cylindrical orange-crowned tower (left-center)
-      { x: 465, y: 18, w: 245, h: 565, color: '#0c1626', winColor1: '#fef08a', winColor2: '#7dd3fc', rows: 32, cols: 12, roundedCrown: true },
-      // Mid-background central tower with orange top rim
-      { x: 755, y: 115, w: 145, h: 470, color: '#0b1320', winColor1: '#fbd38d', winColor2: '#90cdf4', rows: 26, cols: 7, roundedCrown: true },
-      // Distant central skyscrapers at the road vanishing point
-      { x: 915, y: 265, w: 85, h: 320, color: '#0f1b2d', winColor1: '#63b3ed', winColor2: '#fefcbf', rows: 18, cols: 5 },
-      { x: 1020, y: 175, w: 78, h: 410, color: '#0c1524', winColor1: '#f6e05e', winColor2: '#63b3ed', rows: 22, cols: 4 },
-      // Massive Right High-Tech Skyscraper (Knowledge Park Main Tower)
-      { x: 1115, y: -60, w: 540, h: 645, color: '#091322', winColor1: '#38bdf8', winColor2: '#fef08a', rows: 36, cols: 18 },
-      // Far right tower
-      { x: 1680, y: 35, w: 270, h: 550, color: '#080e1a', winColor1: '#fbbf24', winColor2: '#60a5fa', rows: 25, cols: 8 }
+      { x: -50, y: 40, w: 180, h: 540, cols: 5, rows: 22, winColor1: '#fbbf24', winColor2: '#38bdf8', color: '#070b14' },
+      { x: 140, y: 70, w: 220, h: 510, cols: 6, rows: 20, winColor1: '#fde047', winColor2: '#60a5fa', color: '#090e18' },
+      { x: 370, y: 110, w: 190, h: 470, cols: 5, rows: 18, winColor1: '#f59e0b', winColor2: '#38bdf8', color: '#060a12', roundedCrown: true },
+      { x: 570, y: 150, w: 150, h: 430, cols: 4, rows: 16, winColor1: '#fbbf24', winColor2: '#93c5fd', color: '#080d16' },
+      { x: 730, y: 190, w: 260, h: 390, cols: 7, rows: 14, winColor1: '#fde047', winColor2: '#38bdf8', color: '#0a101d' },
+      { x: 1000, y: 160, w: 200, h: 420, cols: 5, rows: 16, winColor1: '#f59e0b', winColor2: '#60a5fa', color: '#070c16' },
+      { x: 1210, y: 120, w: 280, h: 460, cols: 8, rows: 18, winColor1: '#fbbf24', winColor2: '#38bdf8', color: '#090f1b' },
+      { x: 1500, y: 80, w: 210, h: 500, cols: 6, rows: 20, winColor1: '#fde047', winColor2: '#93c5fd', color: '#060a12' },
+      { x: 1720, y: 40, w: 250, h: 540, cols: 7, rows: 22, winColor1: '#f59e0b', winColor2: '#38bdf8', color: '#080d18' }
     ];
 
-    const windowMatrix = buildingDefs.map((b, bIdx) => {
+    const windowMatrix = buildingDefs.map((b) => {
       const grid = [];
       for (let r = 0; r < b.rows; r++) {
         const row = [];
         for (let c = 0; c < b.cols; c++) {
-          const hash = Math.sin(bIdx * 99 + r * 37 + c * 13) * 10000;
-          const rand = hash - Math.floor(hash);
           row.push({
-            lit: rand > 0.32,
-            warm: rand > 0.65,
-            brightness: 0.45 + rand * 0.55
+            lit: Math.random() > 0.42,
+            warm: Math.random() > 0.35,
+            brightness: 0.4 + Math.random() * 0.6
           });
         }
         grid.push(row);
@@ -292,25 +679,21 @@ export default function App() {
       const height = 1080;
       const horizonY = 582;
 
-      const isMoving = activeKeys.w || activeKeys.a || activeKeys.s || activeKeys.d;
-      const isSprinting = isMoving && activeKeys.shift && stamina > 2;
+      const isMoving = activeKeys.current.w || activeKeys.current.a || activeKeys.current.s || activeKeys.current.d;
+      const isSprinting = isMoving && activeKeys.current.shift && stamina > 2;
+      const isJumping = !playerPos.isGrounded;
 
-      // World camera shift for immersive 3D perspective when walking
+      // Parallax camera offsets driven by lateral position and forward travel
       const camX = -playerPos.x * 0.85;
       const camY = (isJumping ? -22 : 0) + (isMoving ? Math.sin(playerPos.walkCycle * 2) * 3.5 : Math.sin(time * 2) * 1.2);
 
-      // Vanishing Point of the Avenue Road
       const vpX = 955 + camX * 0.55;
       const vpY = horizonY;
 
       ctx.save();
       ctx.clearRect(0, 0, width, height);
 
-      // =========================================================================
-      
-      // =========================================================================
-      // 1. MIDNIGHT SKY & STARS
-      // =========================================================================
+      // --- 1. MIDNIGHT SKY & STARS ---
       const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
       skyGrad.addColorStop(0, '#040813');
       skyGrad.addColorStop(0.5, '#081224');
@@ -318,7 +701,7 @@ export default function App() {
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, width, horizonY + 20);
 
-      // Subtle twinkling stars
+      // Twinkling stars
       ctx.fillStyle = '#ffffff';
       for (let i = 0; i < 70; i++) {
         const sx = (i * 47 + 80) % width;
@@ -329,36 +712,29 @@ export default function App() {
       }
       ctx.globalAlpha = 1;
 
-      // =========================================================================
-      // 2. CITY SKYLINE & SKYSCRAPERS WITH LIT WINDOWS
-      // =========================================================================
+      // --- 2. CITY SKYLINE & SKYSCRAPERS WITH LIT WINDOWS ---
       buildingDefs.forEach((b, bIdx) => {
         const bx = b.x + camX * 0.3;
         const by = b.y + camY * 0.3;
 
-        // Building mass
         ctx.fillStyle = b.color;
         ctx.fillRect(bx, by, b.w, b.h);
 
-        // Edge structure lines
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
         ctx.lineWidth = 1;
         ctx.strokeRect(bx, by, b.w, b.h);
 
-        // Rounded glowing amber crown for iconic cylindrical tower
         if (b.roundedCrown) {
           ctx.fillStyle = '#b45309';
           ctx.beginPath();
           ctx.ellipse(bx + b.w / 2, by + 12, b.w / 2, 16, 0, 0, Math.PI * 2);
           ctx.fill();
-          // Glowing horizontal amber rings
           for (let ring = 0; ring < 4; ring++) {
             ctx.fillStyle = 'rgba(251, 191, 36, 0.9)';
             ctx.fillRect(bx + 6, by + 16 + ring * 14, b.w - 12, 4);
           }
         }
 
-        // Office Windows Grid
         const cellW = (b.w - 18) / b.cols;
         const cellH = (b.h - 55) / b.rows;
         const matrix = windowMatrix[bIdx];
@@ -382,52 +758,52 @@ export default function App() {
         }
       });
 
-      // Pedestrian Skybridge across the boulevard
-      const bridgeY = horizonY - 142 + camY * 0.42;
-      const bridgeH = 36;
+      // --- 3. PEDESTRIAN SKYBRIDGE & DISTRICT SIGNS IN PERSPECTIVE ---
+      // Distance from player to skybridge
+      const skybridgeRelZ = 120 - playerPos.z;
+      const bridgeScale = Math.max(0.45, Math.min(2.2, 120 / Math.max(10, skybridgeRelZ + 120)));
+      const bridgeY = horizonY - 142 * bridgeScale + camY * 0.42;
+      const bridgeH = 36 * bridgeScale;
+
       ctx.fillStyle = '#08101e';
-      ctx.fillRect(440 + camX * 0.4, bridgeY, 830, bridgeH);
+      ctx.fillRect(440 + camX * 0.4, bridgeY, 830 * bridgeScale, bridgeH);
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
       ctx.lineWidth = 1.4;
-      ctx.strokeRect(440 + camX * 0.4, bridgeY, 830, bridgeH);
+      ctx.strokeRect(440 + camX * 0.4, bridgeY, 830 * bridgeScale, bridgeH);
 
-      // Skybridge illuminated interior windows
+      // Skybridge windows
       ctx.fillStyle = 'rgba(254, 240, 138, 0.7)';
       for (let bw = 0; bw < 19; bw++) {
-        ctx.fillRect(455 + camX * 0.4 + bw * 42, bridgeY + 8, 26, 20);
+        ctx.fillRect(455 + camX * 0.4 + bw * 42 * bridgeScale, bridgeY + 8 * bridgeScale, 26 * bridgeScale, 20 * bridgeScale);
       }
 
-      // Bright Glowing 'KNOWLEDGE PARK' Facade Sign
+      // Bright Glowing Facade Sign (dynamically shows active district!)
       const signX = 890 + camX * 0.42;
-      const signY = bridgeY - 30;
+      const signY = bridgeY - 30 * bridgeScale;
       ctx.fillStyle = '#020617';
-      ctx.fillRect(signX - 14, signY - 8, 380, 36);
+      ctx.fillRect(signX - 14, signY - 8, 380 * bridgeScale, 36 * bridgeScale);
       ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
       ctx.lineWidth = 1.8;
-      ctx.strokeRect(signX - 14, signY - 8, 380, 36);
+      ctx.strokeRect(signX - 14, signY - 8, 380 * bridgeScale, 36 * bridgeScale);
 
-      ctx.font = 'bold 22px Inter, sans-serif';
+      ctx.font = `bold ${Math.round(22 * bridgeScale)}px Inter, sans-serif`;
       ctx.fillStyle = '#e0f2fe';
       ctx.shadowColor = '#38bdf8';
       ctx.shadowBlur = 18;
-      ctx.fillText('KNOWLEDGE PARK', signX + 16, signY + 18);
+      ctx.fillText(currentAct.district.toUpperCase(), signX + 16, signY + 18 * bridgeScale);
       ctx.shadowBlur = 0;
 
-      // =========================================================================
-      // 3. TREE CANOPIES WITH GOLDEN FAIRY LIGHTS
-      // =========================================================================
+      // --- 4. TREE CANOPIES WITH GOLDEN FAIRY LIGHTS ---
       const drawBoulevardTree = (tx, ty, scale) => {
         ctx.save();
         ctx.translate(tx, ty);
         ctx.scale(scale, scale);
-        // Foliage
         ctx.fillStyle = '#09131a';
         ctx.beginPath();
         ctx.arc(0, -90, 68, 0, Math.PI * 2);
         ctx.arc(-36, -72, 52, 0, Math.PI * 2);
         ctx.arc(36, -72, 52, 0, Math.PI * 2);
         ctx.fill();
-        // Warm golden fairy lights
         for (let f = 0; f < 36; f++) {
           const fx = Math.sin(f * 2.3) * 62;
           const fy = -102 + Math.cos(f * 1.7) * 46;
@@ -450,10 +826,7 @@ export default function App() {
       drawBoulevardTree(1450 + camX * 0.7, horizonY + 48, 0.88);
       drawBoulevardTree(1620 + camX * 0.6, horizonY + 25, 0.68);
 
-      // =========================================================================
-      // 4. THE WET ROAD: RAIN-SLICKED BOULEVARD, BOLLARDS & SPORTS CAR
-      // =========================================================================
-      // Wet asphalt dark base
+      // --- 5. THE WET ROAD: RAIN-SLICKED BOULEVARD, BOLLARDS & TRAFFIC ---
       const roadGrad = ctx.createLinearGradient(0, horizonY, 0, height);
       roadGrad.addColorStop(0, '#0e1726');
       roadGrad.addColorStop(0.35, '#0a0f19');
@@ -462,7 +835,7 @@ export default function App() {
       ctx.fillStyle = roadGrad;
       ctx.fillRect(0, horizonY, width, height - horizonY);
 
-      // Perspective pavement grid seams converging to vpX, vpY
+      // Longitudinal perspective lane seams
       ctx.strokeStyle = 'rgba(71, 85, 105, 0.24)';
       ctx.lineWidth = 1.3;
       for (let lane = -6; lane <= 6; lane++) {
@@ -473,9 +846,12 @@ export default function App() {
         ctx.stroke();
       }
 
-      // Horizontal pavement seams in perspective
-      for (let hStep = 1; hStep <= 18; hStep++) {
-        const py = horizonY + Math.pow(hStep / 18, 2.2) * (height - horizonY);
+      // Transverse pavement seams STREAMING FORWARD as player walks forward!
+      const roadForwardScroll = (playerPos.z * 22) % 180;
+      for (let hStep = 1; hStep <= 22; hStep++) {
+        const norm = (hStep * 32 - roadForwardScroll) / 704;
+        if (norm <= 0) continue;
+        const py = horizonY + Math.pow(norm, 2.2) * (height - horizonY);
         ctx.beginPath();
         ctx.moveTo(0, py);
         ctx.lineTo(width, py);
@@ -489,10 +865,10 @@ export default function App() {
         { x: 790 + camX * 0.55, color: 'rgba(253, 224, 71, 0.35)', w: 90 },
         { x: 1045 + camX * 0.55, color: 'rgba(56, 189, 248, 0.35)', w: 110 },
         { x: 1285 + camX * 0.65, color: 'rgba(251, 191, 36, 0.42)', w: 145 },
-        { x: 1515 + camX * 0.7, color: 'rgba(245, 158, 11, 0.35)', w: 105 },
+        { x: 1515 + camX * 0.7, color: 'rgba(245, 158, 11, 0.35)', w: 105 }
       ];
 
-      lightPillars.forEach(p => {
+      lightPillars.forEach((p) => {
         const refGrad = ctx.createLinearGradient(0, horizonY, 0, height);
         refGrad.addColorStop(0, p.color);
         refGrad.addColorStop(0.4, p.color.replace(/[\d.]+\)$/, '0.22)'));
@@ -501,7 +877,7 @@ export default function App() {
         ctx.fillRect(p.x - p.w / 2, horizonY, p.w, height - horizonY);
       });
 
-      // Roadside Amber Lantern Bollards (Glowing Light Cubes)
+      // Roadside Amber Lantern Bollards (scrolling smoothly as player travels forward)
       const bollardList = [
         { x: 335, y: horizonY + 22, s: 0.38 },
         { x: 415, y: horizonY + 65, s: 0.52 },
@@ -510,90 +886,99 @@ export default function App() {
         { x: 1325, y: horizonY + 215, s: 0.95 },
         { x: 1435, y: horizonY + 125, s: 0.72 },
         { x: 1525, y: horizonY + 65, s: 0.52 },
-        { x: 1605, y: horizonY + 22, s: 0.38 },
+        { x: 1605, y: horizonY + 22, s: 0.38 }
       ];
 
-      bollardList.forEach(b => {
+      bollardList.forEach((b) => {
         const bx = b.x + camX * (0.5 + b.s * 0.4);
         const by = b.y;
         const bw = 24 * b.s;
         const bh = 54 * b.s;
 
-        // Dark Post
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(bx - bw / 2, by - bh, bw, bh);
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(bx - bw / 2, by, bw, bh);
+        ctx.strokeStyle = 'rgba(71, 85, 105, 0.4)';
+        ctx.strokeRect(bx - bw / 2, by, bw, bh);
 
-        // Glowing Amber Cube
+        // Glowing cube
         ctx.fillStyle = '#fbbf24';
         ctx.shadowColor = '#f59e0b';
-        ctx.shadowBlur = 24 * b.s;
-        ctx.fillRect(bx - bw * 0.6, by - bh - bw * 1.1, bw * 1.2, bw * 1.1);
-        ctx.shadowBlur = 0;
+        ctx.shadowBlur = 14 * b.s;
+        ctx.fillRect(bx - bw / 2 + 2, by + 4, bw - 4, 18 * b.s);
 
-        // Warm light cast on wet pavement
-        const poolGrad = ctx.createRadialGradient(bx, by, 2, bx, by, 75 * b.s);
-        poolGrad.addColorStop(0, 'rgba(251, 191, 36, 0.65)');
-        poolGrad.addColorStop(0.5, 'rgba(245, 158, 11, 0.32)');
-        poolGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-        ctx.fillStyle = poolGrad;
+        const pool = ctx.createRadialGradient(bx, by + bh + 4, 2, bx, by + bh + 4, 38 * b.s);
+        pool.addColorStop(0, 'rgba(251, 191, 36, 0.42)');
+        pool.addColorStop(1, 'rgba(251, 191, 36, 0)');
+        ctx.fillStyle = pool;
         ctx.beginPath();
-        ctx.ellipse(bx, by, 75 * b.s, 22 * b.s, 0, 0, Math.PI * 2);
+        ctx.ellipse(bx, by + bh + 4, 38 * b.s, 12 * b.s, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
       });
 
-      // Black Sports Coupe parked on right side with Glowing Red LED Taillight
-      const carX = 1420 + camX * 0.85;
-      const carY = horizonY + 140;
-      const carS = 0.88;
-      ctx.save();
-      ctx.translate(carX, carY);
-      ctx.scale(carS, carS);
+      // Parked Black Sports Coupe (Solid Collision Obstacle at Z = 45m)
+      const carRelZ = 45 - playerPos.z;
+      const carScale = Math.max(0.4, Math.min(1.4, 45 / Math.max(10, carRelZ + 45)));
+      const carX = 1420 + camX * 0.72;
+      const carY = horizonY + 175;
 
-      // Car Shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+      // Car shadow & ground reflection
+      const carGlow = ctx.createRadialGradient(carX, carY + 36 * carScale, 5, carX, carY + 36 * carScale, 90 * carScale);
+      carGlow.addColorStop(0, 'rgba(239, 68, 68, 0.55)');
+      carGlow.addColorStop(0.65, 'rgba(239, 68, 68, 0.12)');
+      carGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = carGlow;
       ctx.beginPath();
-      ctx.ellipse(0, 52, 145, 26, 0, 0, Math.PI * 2);
+      ctx.ellipse(carX, carY + 36 * carScale, 120 * carScale, 28 * carScale, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Car Body
-      const carGrad = ctx.createLinearGradient(-120, -50, 120, 50);
-      carGrad.addColorStop(0, '#1e293b');
-      carGrad.addColorStop(0.4, '#030712');
-      carGrad.addColorStop(1, '#0f172a');
-      ctx.fillStyle = carGrad;
+      ctx.fillStyle = '#070b12';
       ctx.beginPath();
-      ctx.roundRect(-110, -20, 220, 68, 14);
+      ctx.roundRect(carX - 110 * carScale, carY, 220 * carScale, 48 * carScale, 8 * carScale);
       ctx.fill();
 
-      // Cabin Glass
-      ctx.fillStyle = '#020617';
-      ctx.beginPath();
-      ctx.moveTo(-75, -20);
-      ctx.lineTo(-50, -52);
-      ctx.lineTo(60, -52);
-      ctx.lineTo(85, -20);
-      ctx.closePath();
-      ctx.fill();
-
-      // Glowing Red LED Taillight Bar
+      // Glowing Red LED Taillight Strip
       ctx.fillStyle = '#ef4444';
-      ctx.shadowColor = '#dc2626';
+      ctx.shadowColor = '#ef4444';
       ctx.shadowBlur = 18;
-      ctx.fillRect(-95, 6, 190, 8);
+      ctx.fillRect(carX - 90 * carScale, carY + 18 * carScale, 180 * carScale, 6 * carScale);
       ctx.shadowBlur = 0;
 
-      // Red reflection on wet pavement
-      const carRefGrad = ctx.createRadialGradient(0, 52, 5, 0, 52, 95);
-      carRefGrad.addColorStop(0, 'rgba(239, 68, 68, 0.55)');
-      carRefGrad.addColorStop(0.6, 'rgba(185, 28, 28, 0.22)');
-      carRefGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = carRefGrad;
-      ctx.beginPath();
-      ctx.ellipse(0, 52, 95, 24, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // Interactive Terminals on Road
+      terminals.forEach((term) => {
+        const tRelZ = term.z - playerPos.z;
+        if (tRelZ > -10 && tRelZ < 80) {
+          const tScale = Math.max(0.5, Math.min(1.5, 30 / Math.max(8, tRelZ + 30)));
+          const tx = 955 + term.x * 2.2 + camX;
+          const ty = horizonY + 180 * tScale;
+          // Pedestal
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(tx - 12 * tScale, ty, 24 * tScale, 48 * tScale);
+          ctx.strokeStyle = term.hacked ? '#22c55e' : '#38bdf8';
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(tx - 12 * tScale, ty, 24 * tScale, 48 * tScale);
+          // Hologram Screen
+          ctx.fillStyle = term.hacked ? 'rgba(34, 197, 94, 0.85)' : 'rgba(56, 189, 248, 0.85)';
+          ctx.shadowColor = term.hacked ? '#22c55e' : '#38bdf8';
+          ctx.shadowBlur = 12;
+          ctx.fillRect(tx - 18 * tScale, ty - 22 * tScale, 36 * tScale, 16 * tScale);
+          ctx.shadowBlur = 0;
+        }
+      });
 
-      ctx.restore();
+      // EMP Shockwave Ripple on Wet Road
+      if (empShockwave) {
+        ctx.strokeStyle = `rgba(56, 189, 248, ${empShockwave.alpha})`;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.ellipse(785 + playerPos.x * 2.1, 668 + 322, empShockwave.radius, empShockwave.radius * 0.32, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
+      // =========================================================================
+      // 5. THE PROTAGONIST (Hyper-Detailed Realistic Hooded Wayfarer from ss.txt)
+      // =========================================================================
 // 5. THE PROTAGONIST (Hyper-Detailed Realistic Hooded Wayfarer)
       // =========================================================================
       const charScale = Math.max(0.68, Math.min(1.18, 1 - playerPos.y * 0.0022));
@@ -1092,85 +1477,49 @@ export default function App() {
       ctx.restore();
 
       // =========================================================================
-      // 6. ATMOSPHERIC RAIN & ROAD RIPPLES
-      // =========================================================================
+      
+
+      // --- 6. ATMOSPHERIC RAIN STREAKS ---
       if (rainIntensity > 0) {
-        ctx.strokeStyle = 'rgba(224, 242, 254, 0.24)';
-        ctx.lineWidth = 1;
-        ripples.forEach((rip) => {
-          rip.radius += rip.speed * rainIntensity;
-          if (rip.radius > rip.maxRadius) {
-            rip.radius = 1;
-            rip.x = Math.random() * width;
-          }
-          ctx.beginPath();
-          ctx.ellipse(rip.x, rip.y, rip.radius * 2.2, rip.radius * 0.55, 0, 0, Math.PI * 2);
-          ctx.stroke();
-        });
-
-        ctx.strokeStyle = 'rgba(203, 213, 225, 0.3)';
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.35)';
         ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        raindrops.forEach((drop) => {
-          drop.y += drop.speed * rainIntensity;
-          drop.x -= 1.5 * rainIntensity;
-          if (drop.y > height) {
-            drop.y = -20;
-            drop.x = Math.random() * width;
-          }
-          ctx.moveTo(drop.x, drop.y);
-          ctx.lineTo(drop.x - 2.5, drop.y + drop.length);
-        });
-        ctx.stroke();
+        const count = rainIntensity === 1 ? 85 : 150;
+        for (let r = 0; r < count; r++) {
+          const rx = (r * 37 + time * 650) % width;
+          const ry = (r * 29 + time * 1200) % height;
+          ctx.beginPath();
+          ctx.moveTo(rx, ry);
+          ctx.lineTo(rx - 7, ry + 24);
+          ctx.stroke();
+        }
       }
-
-      // 7. CINEMATIC VIGNETTE
-      const vigGrad = ctx.createRadialGradient(width / 2, height / 2, 540, width / 2, height / 2, 1100);
-      vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
-      vigGrad.addColorStop(1, 'rgba(0,0,0,0.52)');
-      ctx.fillStyle = vigGrad;
-      ctx.fillRect(0, 0, width, height);
 
       ctx.restore();
       animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    animationFrameId = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [playerPos, isJumping, activeKeys, rainIntensity, stamina]);
+  }, [playerPos, rainIntensity, empShockwave, terminals, currentAct]);
 
-  // Simulate manual key press for mouse/touch users clicking the HUD keys
-  const handleVirtualKey = (key, state) => {
-    if (key === 'space' && state) {
-      triggerJump();
-    }
-    setActiveKeys((prev) => ({ ...prev, [key]: state }));
-  };
-
-  const currentMsg = messages[messageIndex];
+  const distanceToTarget = Math.max(0, Math.round(currentAct.targetZ - playerPos.z));
 
   return (
     <div className="relative w-full h-full overflow-hidden bg-slate-950 select-none font-sans">
-      {/*Load Cinzel & Cormorant Garamond for exact RPG Serif UI typography*/}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
-        
-        .font-rpg-title {
-          font-family: 'Cinzel', Georgia, serif;
-        }
-        .font-rpg-body {
-          font-family: 'Cormorant Garamond', Georgia, serif;
-        }
+        .font-rpg-title { font-family: 'Cinzel', Georgia, serif; }
+        .font-rpg-body { font-family: 'Cormorant Garamond', Georgia, serif; }
         .hud-glass {
-          background: linear-gradient(90deg, rgba(12, 16, 24, 0.88) 0%, rgba(16, 21, 32, 0.72) 75%, rgba(16, 21, 32, 0.15) 100%);
-          backdrop-filter: blur(8px);
+          background: linear-gradient(90deg, rgba(12, 16, 24, 0.92) 0%, rgba(16, 21, 32, 0.82) 75%, rgba(16, 21, 32, 0.25) 100%);
+          backdrop-filter: blur(10px);
         }
         .gold-line-fade {
-          background: linear-gradient(90deg, rgba(229, 193, 88, 0.85) 0%, rgba(229, 193, 88, 0.35) 60%, rgba(229, 193, 88, 0) 100%);
+          background: linear-gradient(90deg, rgba(229, 193, 88, 0.9) 0%, rgba(229, 193, 88, 0.4) 60%, rgba(229, 193, 88, 0) 100%);
         }
       `}</style>
 
-      {/* --- FULLSCREEN DYNAMIC 3D-PERSPECTIVE CITY & ROAD CANVAS --- */}
+      {/* 2D HIGH-FIDELITY CANVAS */}
       <canvas
         ref={canvasRef}
         width={1920}
@@ -1178,184 +1527,143 @@ export default function App() {
         className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* DOM Location Sign - KNOWLEDGE PARK as real HUD text (not only canvas paint) */}
-      <div className="absolute top-[68px] left-1/2 -translate-x-1/2 z-20 pointer-events-none">
-        <div className="bg-slate-950/90 border border-sky-400/80 px-5 py-2 rounded-sm shadow-[0_0_18px_rgba(56,189,248,0.45)]">
-          <span className="font-rpg-title text-sky-100 text-sm sm:text-base tracking-[0.28em] font-bold">KNOWLEDGE PARK</span>
+      {/* DISTRICT SIGN NOTIFICATION (Top Center) */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none text-center">
+        <div className="bg-slate-950/90 border border-sky-400/80 px-6 py-2 rounded shadow-[0_0_22px_rgba(56,189,248,0.45)]">
+          <span className="font-rpg-title text-sky-100 text-sm sm:text-base tracking-[0.3em] font-bold">
+            {currentAct.district.toUpperCase()}
+          </span>
+          <span className="ml-3 text-xs text-amber-400 font-mono">Z: {Math.round(playerPos.z)}m</span>
         </div>
       </div>
 
-      {/* --- SCANNER PULSE EFFECT OVERLAY --- */}
-      {scannerPulse && (
-        <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
-          <div className="w-96 h-96 rounded-full border-2 border-amber-400/60 animate-ping" />
+      {/* TOAST MESSAGE */}
+      {screenToast && (
+        <div className="absolute top-18 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-bounce">
+          <div className="bg-amber-950/95 border border-amber-400/80 px-6 py-2.5 rounded shadow-2xl text-amber-200 font-semibold text-sm">
+            {screenToast}
+          </div>
         </div>
       )}
 
-      {/* --- INTERACTIVE HUD OVERLAY --- */}
+      {/* INTERACTIVE HUD */}
       {hudVisible && (
-        <div className="relative z-20 w-full h-full pointer-events-none flex flex-col justify-between p-5 sm:p-8">
-          
-          {/* ================= TOP ROW: OBJECTIVE & WAYFARER BADGE ================= */}
+        <div className="relative z-20 w-full h-full pointer-events-none flex flex-col justify-between p-4 sm:p-6">
+          {/* TOP ROW: OBJECTIVE & CREST */}
           <div className="flex justify-between items-start w-full">
-            
-            {/* TOP-LEFT: NEW OBJECTIVE PANEL & INCOMING MESSAGE POPUP */}
+            {/* TOP-LEFT: OBJECTIVE & INCOMING MESSAGE */}
             <div className="flex flex-col gap-2.5 max-w-md">
               <div 
-                onClick={() => {
-                  setScannerPulse(true);
-                  setTimeout(() => setScannerPulse(false), 1000);
-                }}
-                className="pointer-events-auto group cursor-pointer hud-glass relative px-5 py-3.5 rounded-sm border-l-2 border-amber-400/70 transition-all duration-300 hover:brightness-110"
+                className="pointer-events-auto group cursor-pointer hud-glass relative px-5 py-3 rounded-sm border-l-2 border-amber-400/70 transition-all hover:brightness-110 shadow-xl"
               >
                 <div className="absolute top-0 left-0 right-0 h-[1px] gold-line-fade" />
                 <div className="absolute bottom-0 left-0 right-0 h-[1px] gold-line-fade" />
-
                 <div className="flex items-start gap-3.5">
-                  <div className="mt-0.5 flex-shrink-0">
+                  <div className="mt-0.5 shrink-0">
                     <DiamondIcon className="w-7 h-7" />
                   </div>
                   <div>
-                    <div className="font-rpg-title text-[13px] tracking-[0.16em] text-[#e5c158] font-semibold uppercase drop-shadow">
-                      NEW OBJECTIVE
+                    <div className="flex items-center gap-2">
+                      <span className="font-rpg-title text-[12px] tracking-[0.16em] text-[#e5c158] font-semibold uppercase">
+                        ACT {currentAct.act} // OBJECTIVE
+                      </span>
+                      <span className="text-[11px] font-mono text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800">
+                        🎯 {distanceToTarget}m
+                      </span>
                     </div>
-                    <div className="font-rpg-body text-white text-lg sm:text-[21px] font-medium leading-snug tracking-wide drop-shadow-md mt-0.5">
-                      {currentMsg.objective}
+                    <div className="font-rpg-body text-white text-lg sm:text-[20px] font-medium leading-snug tracking-wide drop-shadow mt-0.5">
+                      {currentAct.title}
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* INCOMING MESSAGE POPUP WITH HOODED AVATAR */}
-              <div 
-                onClick={() => setMessageIndex((prev) => (prev + 1) % messages.length)}
-                className="pointer-events-auto cursor-pointer hud-glass relative px-4 py-2.5 rounded-sm border-l-2 border-amber-400/70 flex items-center gap-3.5 transition-all duration-300 hover:brightness-110 shadow-lg"
-                title="Click to cycle incoming transmission"
-              >
-                <div className="w-11 h-11 rounded overflow-hidden border border-slate-600/60 shrink-0 bg-slate-900 shadow">
+              {/* INCOMING TRANSMISSION WITH HOODED AVATAR */}
+              <div className="pointer-events-auto hud-glass relative px-4 py-2 rounded-sm border-l-2 border-amber-400/70 flex items-center gap-3.5 shadow-lg">
+                <div className="w-10 h-10 rounded overflow-hidden border border-slate-600/60 shrink-0 bg-slate-900">
                   <HoodedAvatarSVG />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 font-rpg-title text-xs tracking-wider text-[#e5c158] font-semibold uppercase drop-shadow">
-                    <StarSparkle className="w-3.5 h-3.5 text-[#e5c158]" />
-                    <span>{currentMsg.sender}</span>
+                  <div className="flex items-center gap-1.5 font-rpg-title text-xs tracking-wider text-[#e5c158] font-semibold uppercase">
+                    <StarSparkle className="w-3 h-3 text-[#e5c158]" />
+                    <span>{currentAct.sender}</span>
                   </div>
-                  <div className="font-rpg-body text-slate-100 text-sm sm:text-[15px] font-medium leading-snug tracking-wide drop-shadow mt-0.5">
-                    {currentMsg.text}
+                  <div className="font-rpg-body text-slate-100 text-xs sm:text-[14px] leading-snug tracking-wide mt-0.5">
+                    {currentAct.transmission}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* TOP-RIGHT: WAYFARER LEVEL 12 CREST */}
+            {/* TOP-RIGHT: WAYFARER LEVEL CREST */}
             <div 
-              onClick={() => setLevel((l) => l + 1)}
-              title="Click to Level Up"
+              onClick={() => setXp((x) => x + 300)}
+              title="Click to test XP gain"
               className="pointer-events-auto cursor-pointer hud-glass relative px-5 py-2.5 rounded-sm border border-amber-400/30 flex items-center gap-3.5 shadow-2xl transition-transform hover:scale-105"
-              style={{
-                background: 'linear-gradient(270deg, rgba(12, 16, 24, 0.9) 0%, rgba(18, 24, 36, 0.78) 100%)'
-              }}
             >
-              <WayfarerCrest className="w-11 h-11 flex-shrink-0" />
-              <div className="pr-2">
+              <WayfarerCrest className="w-11 h-11 shrink-0" />
+              <div>
                 <div className="font-rpg-title text-white text-sm sm:text-[15px] tracking-[0.18em] font-semibold leading-tight">
                   WAYFARER
                 </div>
                 <div className="font-rpg-title text-[#e5c158] text-xs sm:text-[13px] tracking-[0.15em] mt-0.5">
                   LEVEL {level}
                 </div>
+                <div className="w-24 h-1.5 bg-slate-900 rounded-full mt-1 overflow-hidden border border-slate-700">
+                  <div className="h-full bg-amber-400" style={{ width: `${(xp / 1000) * 100}%` }} />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* ================= BOTTOM ROW: MINIMAP, HP/STAMINA, KEYBOARD CONTROLS ================= */}
-          <div className="flex flex-row items-end justify-between w-full gap-3 sm:gap-4">
-            
-            {/* BOTTOM-LEFT: CIRCULAR RADAR MINIMAP */}
+          {/* BOTTOM ROW: RADAR, HP/STAMINA, KEY BADGES */}
+          <div className="flex flex-row items-end justify-between w-full gap-4">
+            {/* BOTTOM-LEFT: RADAR MINIMAP */}
             <div className="pointer-events-auto relative flex items-center justify-center shrink-0">
-              <div className="absolute -top-3 z-30 bg-slate-950/90 px-1.5 py-0.2 rounded text-[13px] font-bold text-white tracking-wider border border-slate-600/60 shadow">
+              <div className="absolute -top-3 z-30 bg-slate-950/90 px-2 py-0.5 rounded text-[11px] font-bold text-white tracking-wider border border-slate-600/60 shadow">
                 N
               </div>
+              <div className="w-36 h-36 sm:w-44 sm:h-44 md:w-48 md:h-48 rounded-full border-2 border-slate-300/70 shadow-2xl overflow-hidden relative bg-[#0e131d]">
+                <svg viewBox="-40 -40 80 80" className="w-full h-full">
+                  <rect x="-40" y="-40" width="80" height="80" fill="#0c1018" />
+                  {/* Street boundaries */}
+                  <line x1="-16" y1="-40" x2="-16" y2="40" stroke="#334155" strokeWidth="1.2" />
+                  <line x1="16" y1="-40" x2="16" y2="40" stroke="#334155" strokeWidth="1.2" />
+                  <line x1="-40" y1="0" x2="40" y2="0" stroke="#1e293b" strokeWidth="0.8" />
 
-              <div className="w-32 h-32 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-full border-2 border-slate-300/70 shadow-[0_0_30px_rgba(0,0,0,0.85)] overflow-hidden relative bg-[#12161f]">
-                <svg 
-                  viewBox="0 0 200 200" 
-                  className="w-full h-full transition-transform duration-150"
-                  style={{
-                    transform: `translate(${-playerPos.x * 0.35}px, ${playerPos.y * 0.45}px)`
-                  }}
-                >
-                  <rect width="200" height="200" fill="#10141d" />
-                  
-                  {/* City Blocks */}
-                  <path d="M10 10 H70 V65 H10 Z" fill="#1c2230" />
-                  <path d="M95 5 H185 V55 H95 Z" fill="#1c2230" />
-                  <path d="M10 85 H65 V150 H10 Z" fill="#1c2230" />
-                  <path d="M100 75 H190 V135 H100 Z" fill="#232a3b" />
-                  <path d="M25 165 H85 V210 H25 Z" fill="#1c2230" />
-                  <path d="M105 152 H185 V205 H105 Z" fill="#1c2230" />
+                  {/* Objective Marker Diamond */}
+                  <g transform={`translate(${currentAct.targetZ > playerPos.z ? 0 : -8}, ${Math.max(-32, Math.min(32, -(currentAct.targetZ - playerPos.z) * 0.12))})`}>
+                    <polygon points="0,-4 4,0 0,4 -4,0" fill="#e5c158" />
+                  </g>
 
-                  {/* Major Intersecting Roads */}
-                  <path 
-                    d="M82 -20 L65 220 M-20 72 L220 118 M-10 155 Q90 130 210 155 M115 -10 L155 210" 
-                    stroke="#364156" 
-                    strokeWidth="12" 
-                    fill="none" 
+                  {/* Shards */}
+                  {dataShards.filter((s) => !s.collected).map((s) => (
+                    <circle key={s.id} cx={s.x * 0.2} cy={-(s.z - playerPos.z) * 0.12} r="2.2" fill="#38bdf8" />
+                  ))}
+
+                  {/* Terminals */}
+                  {terminals.map((t) => (
+                    <rect key={t.id} x={t.x * 0.2 - 2} y={-(t.z - playerPos.z) * 0.12 - 2} width="4" height="4" fill={t.hacked ? '#22c55e' : '#38bdf8'} />
+                  ))}
+
+                  {/* Center Player Heading Arrow */}
+                  <polygon
+                    points="0,-5 4,5 0,3 -4,5"
+                    fill="#ffffff"
+                    transform={`rotate(${playerPos.angle})`}
                   />
-                  <path 
-                    d="M35 0 L25 200 M0 40 L200 30" 
-                    stroke="#262f40" 
-                    strokeWidth="5" 
-                    fill="none" 
-                  />
-
-                  {/* Golden Objective Diamond Marker */}
-                  <g transform="translate(45, 72)">
-                    <polygon points="0,-10 10,0 0,10 -10,0" fill="#0f172a" stroke="#e5c158" strokeWidth="2" />
-                    <polygon points="0,-5 5,0 0,5 -5,0" fill="#e5c158" />
-                  </g>
-
-                  {/* Classical Bank/Museum Column Icon */}
-                  <g transform="translate(148, 96)">
-                    <circle r="11" fill="#1e293b" stroke="#94a3b8" strokeWidth="1.2" />
-                    <path d="M-6 -3 L0 -7 L6 -3 Z" fill="#f8fafc" />
-                    <rect x="-5" y="-2" width="2" height="6" fill="#f8fafc" />
-                    <rect x="-1" y="-2" width="2" height="6" fill="#f8fafc" />
-                    <rect x="3" y="-2" width="2" height="6" fill="#f8fafc" />
-                    <rect x="-6" y="4" width="12" height="1.8" fill="#f8fafc" />
-                  </g>
-
-                  {/* Safe House / Home Icon */}
-                  <g transform="translate(62, 174)">
-                    <circle r="9" fill="#1e293b" stroke="#94a3b8" strokeWidth="1.2" />
-                    <path d="M-4.5 1 L0 -4 L4.5 1 V5 H-4.5 Z" fill="none" stroke="#f8fafc" strokeWidth="1.5" />
-                  </g>
                 </svg>
-
-                {/* Player Center Navigation Cursor Arrow */}
-                <div 
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  style={{ transform: `rotate(${playerPos.angle}deg)` }}
-                >
-                  <svg viewBox="0 0 24 24" className="w-6 h-6 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">
-                    <path d="M12 2 L20 20 L12 16 L4 20 Z" fill="#ffffff" />
-                  </svg>
-                </div>
-
-                <div className="absolute inset-0 rounded-full shadow-[inset_0_0_18px_rgba(0,0,0,0.85)] pointer-events-none" />
               </div>
             </div>
 
-            {/* BOTTOM-CENTER: HP & STAMINA BARS */}
-            <div className="pointer-events-auto flex flex-col gap-2 w-72 sm:w-[360px] mb-1">
+            {/* BOTTOM-CENTER: HP & STAMINA */}
+            <div className="pointer-events-auto flex flex-col gap-2 w-64 sm:w-80 mb-1">
               <div className="flex items-center justify-end gap-3">
-                <span className="font-rpg-title text-white text-xs sm:text-[13px] tracking-[0.14em] font-semibold drop-shadow">
-                  HP
-                </span>
+                <span className="font-rpg-title text-white text-xs tracking-wider font-semibold">HP</span>
                 <div 
-                  onClick={() => setHp((h) => (h > 25 ? h - 15 : 100))}
+                  onClick={() => setHp((h) => (h > 20 ? h - 20 : 100))}
                   title="Click to test HP damage/heal"
-                  className="cursor-pointer w-56 sm:w-72 h-2.5 bg-slate-950/90 border border-slate-500/60 p-[1px] rounded-[1px] shadow-lg overflow-hidden"
+                  className="cursor-pointer flex-1 h-2.5 bg-slate-950/90 border border-slate-500/60 p-[1px] rounded-[1px] shadow-lg overflow-hidden"
                 >
                   <div 
                     className="h-full transition-all duration-300"
@@ -1369,138 +1677,200 @@ export default function App() {
               </div>
 
               <div className="flex items-center justify-end gap-3">
-                <span className="font-rpg-title text-white text-xs sm:text-[13px] tracking-[0.14em] font-semibold drop-shadow">
-                  STAMINA
-                </span>
-                <div className="w-56 sm:w-72 h-2.5 bg-slate-950/90 border border-slate-500/60 p-[1px] rounded-[1px] shadow-lg overflow-hidden">
+                <span className="font-rpg-title text-white text-xs tracking-wider font-semibold">STAMINA</span>
+                <div className="flex-1 h-2.5 bg-slate-950/90 border border-slate-500/60 p-[1px] rounded-[1px] shadow-lg overflow-hidden">
                   <div 
                     className="h-full transition-all duration-75"
                     style={{
-                      width: `${stamina}%`,
+                      width: `${(stamina / maxStamina) * 100}%`,
                       background: 'linear-gradient(90deg, #0284c7 0%, #38bdf8 70%, #bae6fd 100%)',
                       boxShadow: '0 0 10px rgba(56, 189, 248, 0.65)'
                     }}
                   />
                 </div>
               </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-300 font-mono px-1">
+                <span>⚡ Cores: {energyCores}</span>
+                <span>💾 Shards: {dataShards.filter((s) => s.collected).length}/5</span>
+              </div>
             </div>
 
-            {/* BOTTOM-RIGHT: KEYBOARD PROMPTS (W A S D MOVE | SHIFT SPRINT | SPACE JUMP) */}
-            <div className="pointer-events-auto flex flex-wrap items-center gap-4 sm:gap-6 mb-1">
-              
-              {/* W A S D MOVE */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  {['w', 'a', 's', 'd'].map((k) => (
-                    <button
-                      key={k}
-                      onMouseDown={() => handleVirtualKey(k, true)}
-                      onMouseUp={() => handleVirtualKey(k, false)}
-                      onMouseLeave={() => handleVirtualKey(k, false)}
-                      onTouchStart={() => handleVirtualKey(k, true)}
-                      onTouchEnd={() => handleVirtualKey(k, false)}
-                      className={`w-6 h-6 sm:w-7 sm:h-7 rounded-[3px] border text-xs font-semibold uppercase flex items-center justify-center transition-all ${
-                        activeKeys[k]
-                          ? 'bg-amber-400 text-slate-950 border-amber-200 scale-95 shadow-[0_0_12px_rgba(251,191,36,0.8)]'
-                          : 'bg-slate-950/85 text-white border-slate-300/80 hover:border-amber-300'
-                      }`}
-                    >
-                      {k}
-                    </button>
-                  ))}
-                </div>
-                <span className="font-rpg-title text-white text-xs sm:text-[13px] tracking-[0.12em] font-medium drop-shadow">
-                  MOVE
-                </span>
+            {/* BOTTOM-RIGHT: INTERACTIVE KEY BADGES */}
+            <div className="pointer-events-auto flex items-center gap-2 flex-wrap justify-end">
+              <div className="flex items-center gap-1">
+                {['W', 'A', 'S', 'D'].map((k) => (
+                  <button key={k} className="w-6 h-6 rounded bg-slate-950/85 text-white border border-slate-500/60 text-xs font-bold">
+                    {k}
+                  </button>
+                ))}
+                <span className="font-rpg-title text-white text-xs ml-1">MOVE</span>
               </div>
 
-              {/* SHIFT SPRINT */}
-              <div className="flex items-center gap-2">
-                <button
-                  onMouseDown={() => handleVirtualKey('shift', true)}
-                  onMouseUp={() => handleVirtualKey('shift', false)}
-                  onMouseLeave={() => handleVirtualKey('shift', false)}
-                  onTouchStart={() => handleVirtualKey('shift', true)}
-                  onTouchEnd={() => handleVirtualKey('shift', false)}
-                  className={`px-2.5 h-6 sm:h-7 rounded-[3px] border text-xs font-semibold uppercase flex items-center justify-center transition-all ${
-                    activeKeys.shift
-                      ? 'bg-sky-400 text-slate-950 border-sky-200 scale-95 shadow-[0_0_12px_rgba(56,189,248,0.8)]'
-                      : 'bg-slate-950/85 text-white border-slate-300/80 hover:border-sky-300'
-                  }`}
-                >
-                  SHIFT
-                </button>
-                <span className="font-rpg-title text-white text-xs sm:text-[13px] tracking-[0.12em] font-medium drop-shadow">
-                  SPRINT
-                </span>
-              </div>
+              <button className="px-2 h-6 rounded bg-slate-950/85 text-white border border-slate-500/60 text-xs font-bold">
+                SHIFT
+              </button>
+              <span className="font-rpg-title text-white text-xs">SPRINT</span>
 
-              {/* EXIT TO ENGINE MENU */}
-              <button
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('spider:return-to-menu'));
-                }}
-                className="pointer-events-auto px-3 h-6 sm:h-7 rounded-[3px] border border-rose-400/50 hover:border-rose-400 bg-rose-950/80 hover:bg-rose-900 text-rose-200 text-xs font-semibold uppercase flex items-center justify-center transition-all shadow cursor-pointer active:scale-95"
-                title="Return to Spider Engine Menu (or press Esc)"
+              <button onClick={triggerJump} className="px-2 h-6 rounded bg-slate-950/85 text-white border border-slate-500/60 text-xs font-bold">
+                SPACE
+              </button>
+              <span className="font-rpg-title text-white text-xs">JUMP</span>
+
+              <button 
+                onClick={triggerEmp}
+                className={`px-2 h-6 rounded border text-xs font-bold flex items-center gap-1 ${
+                  empCooldown === 0 ? 'bg-cyan-950 text-cyan-200 border-cyan-400' : 'bg-slate-900 text-slate-500 border-slate-700'
+                }`}
               >
-                ✕ Menu
+                <span>[E] EMP</span>
+                {empCooldown > 0 && <span className="font-mono">({empCooldown}s)</span>}
               </button>
 
-              {/* SPACE JUMP */}
-              <div className="flex items-center gap-2">
-                <button
-                  onMouseDown={() => handleVirtualKey('space', true)}
-                  onMouseUp={() => handleVirtualKey('space', false)}
-                  onTouchStart={() => handleVirtualKey('space', true)}
-                  onTouchEnd={() => handleVirtualKey('space', false)}
-                  className={`px-2.5 h-6 sm:h-7 rounded-[3px] border text-xs font-semibold uppercase flex items-center justify-center transition-all ${
-                    activeKeys.space || isJumping
-                      ? 'bg-amber-400 text-slate-950 border-amber-200 scale-95 shadow-[0_0_12px_rgba(251,191,36,0.8)]'
-                      : 'bg-slate-950/85 text-white border-slate-300/80 hover:border-amber-300'
-                  }`}
-                >
-                  SPACE
-                </button>
-                <span className="font-rpg-title text-white text-xs sm:text-[13px] tracking-[0.12em] font-medium drop-shadow">
-                  JUMP
-                </span>
-              </div>
+              <button 
+                onClick={triggerInteract}
+                className="px-2 h-6 rounded bg-amber-950 text-amber-200 border border-amber-400 text-xs font-bold"
+              >
+                [F] INTERACT
+              </button>
 
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('spider:return-to-menu'))}
+                className="px-2.5 h-6 rounded bg-rose-950 hover:bg-rose-900 text-rose-200 border border-rose-400/50 text-xs font-bold"
+              >
+                ✕ MENU
+              </button>
             </div>
-
           </div>
         </div>
       )}
 
-      {/* --- FLOATING MINI QUICK-CONTROLS (Top Center) --- */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity bg-slate-950/85 px-3.5 py-1.5 rounded-full border border-slate-700/60 text-xs text-slate-300">
-        <button
-          onClick={() => setPlayerPos({ x: 0, y: 0, angle: 0, walkCycle: 0 })}
-          className="flex items-center gap-1 hover:text-amber-300 px-1.5"
-          title="Reset Character Position"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Pos</span>
-        </button>
-        <span className="text-slate-600">|</span>
-        <button
-          onClick={() => setHudVisible(!hudVisible)}
-          className="flex items-center gap-1 hover:text-amber-300 px-1.5"
-          title="Toggle HUD Visibility"
-        >
-          <Eye className="w-3.5 h-3.5" />
-          <span>{hudVisible ? 'Hide HUD' : 'Show HUD'}</span>
-        </button>
-        <span className="text-slate-600">|</span>
-        <button
-          onClick={() => setRainIntensity((r) => (r === 1 ? 2 : r === 2 ? 0 : 1))}
-          className="flex items-center gap-1 hover:text-sky-300 px-1.5"
-          title="Cycle Rain Weather"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Rain: {rainIntensity === 0 ? 'Off' : rainIntensity === 1 ? 'Normal' : 'Storm'}</span>
-        </button>
-      </div>
+      {/* --- HACKING CONSOLE MODAL --- */}
+      {activeModal === 'hack' && (
+        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-sky-400 rounded-lg p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-sky-500/30">
+              <div className="flex items-center gap-2 text-sky-300 font-rpg-title font-bold text-lg">
+                <Terminal className="w-5 h-5 text-sky-400" />
+                <span>TERMINAL OVERRIDE // {currentAct.district}</span>
+              </div>
+              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div className="py-4 text-sm text-slate-300 leading-relaxed">
+              <p>Security protocol detected. Bypass firewall nodes to extract encrypted district data.</p>
+              <div className="my-4 p-3 bg-slate-950 rounded border border-slate-700 font-mono text-xs text-emerald-400">
+                &gt; Target: {currentAct.title}<br />
+                &gt; Frequency Match: 104.8 MHz<br />
+                &gt; Shards Connected: {dataShards.filter((s) => s.collected).length}/5<br />
+                &gt; Access Level: WAYFARER RANK {level}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+              <button onClick={() => setActiveModal(null)} className="px-4 py-2 rounded bg-slate-800 text-slate-300 text-sm">
+                Cancel
+              </button>
+              <button onClick={handleHackSuccess} className="px-5 py-2 rounded bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow">
+                Execute Bypass (+{currentAct.xpReward} XP)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- BAZAAR VENDOR MODAL --- */}
+      {activeModal === 'vendor' && (
+        <div className="absolute inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-amber-400 rounded-lg p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-amber-500/30">
+              <div className="flex items-center gap-2 text-amber-300 font-rpg-title font-bold text-lg">
+                <Cpu className="w-5 h-5 text-amber-400" />
+                <span>CYBER BAZAAR // TECH MOD SHOP</span>
+              </div>
+              <button onClick={() => setActiveModal(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div className="py-4 space-y-3">
+              <div className="flex justify-between items-center p-3 bg-slate-950 rounded border border-slate-800">
+                <div>
+                  <div className="text-white font-bold text-sm">Synthetic Adrenaline (+25 Max Stamina)</div>
+                  <div className="text-xs text-slate-400">Current: {maxStamina} Stamina</div>
+                </div>
+                <button 
+                  onClick={() => {
+                    if (energyCores >= 1) {
+                      setEnergyCores((c) => c - 1);
+                      setMaxStamina((s) => s + 25);
+                      setStamina((s) => s + 25);
+                      audio.playChime(true);
+                    }
+                  }}
+                  disabled={energyCores < 1}
+                  className="px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs disabled:opacity-40"
+                >
+                  Buy (1 Core)
+                </button>
+              </div>
+
+              <div className="flex justify-between items-center p-3 bg-slate-950 rounded border border-slate-800">
+                <div>
+                  <div className="text-white font-bold text-sm">Nano-Plating (+Full Health Restore)</div>
+                  <div className="text-xs text-slate-400">Restores player HP to 100%</div>
+                </div>
+                <button 
+                  onClick={() => {
+                    if (energyCores >= 1) {
+                      setEnergyCores((c) => c - 1);
+                      setHp(100);
+                      audio.playChime(true);
+                    }
+                  }}
+                  disabled={energyCores < 1}
+                  className="px-3 py-1.5 rounded bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs disabled:opacity-40"
+                >
+                  Heal (1 Core)
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-between items-center pt-3 border-t border-slate-800 text-xs text-amber-300 font-mono">
+              <span>Available Energy Cores: {energyCores}</span>
+              <button onClick={() => setActiveModal(null)} className="px-4 py-1.5 rounded bg-slate-800 text-white">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- VICTORY MODAL --- */}
+      {activeModal === 'victory' && (
+        <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border-2 border-emerald-400 rounded-lg p-8 max-w-lg w-full text-center shadow-2xl">
+            <Award className="w-16 h-16 text-emerald-400 mx-auto mb-4 animate-bounce" />
+            <h2 className="font-rpg-title text-2xl font-bold text-emerald-300">
+              KNOWLEDGE GRID OVERRIDDEN // CAMPAIGN COMPLETE!
+            </h2>
+            <p className="mt-3 text-slate-300 text-sm leading-relaxed">
+              You ran the entire 5km wet boulevard from Knowledge Park through the Apex Spire, neutralized security drone patrols, and secured all encrypted shards. The open city is now fully unlocked for free-roam exploration!
+            </p>
+            <div className="mt-6 flex justify-center gap-4">
+              <button 
+                onClick={() => {
+                  setActiveModal(null);
+                  setPlayerPos((p) => ({ ...p, z: 15 }));
+                }}
+                className="px-6 py-2.5 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold text-sm"
+              >
+                Restart Campaign
+              </button>
+              <button 
+                onClick={() => setActiveModal(null)}
+                className="px-6 py-2.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow"
+              >
+                Continue Free Roam
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
