@@ -4187,6 +4187,24 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     };
   }, []);
 
+  // Bulletproof input protection: ensure Space and all typing keys work inside chat box, inputs, and textareas
+  useEffect(() => {
+    const handleInputKeystrokes = (e) => {
+      const tag = e.target?.tagName;
+      const isInput = tag === "INPUT" || tag === "TEXTAREA" || e.target?.isContentEditable;
+      if (isInput) {
+        // Stop games and viewport controls from intercepting Space, WASD, arrows, etc.
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("keydown", handleInputKeystrokes, true);
+    window.addEventListener("keyup", handleInputKeystrokes, true);
+    return () => {
+      window.removeEventListener("keydown", handleInputKeystrokes, true);
+      window.removeEventListener("keyup", handleInputKeystrokes, true);
+    };
+  }, []);
+
   // Quick return to Title Menu listener (from HUD button or Escape key)
   useEffect(() => {
     const handleReturnToMenu = () => {
@@ -7469,21 +7487,21 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2.5 text-[11px] select-text">
+                <div className="space-y-3 text-[13px] select-text">
                   {aiHistory.map((h, i) => (
                     <div key={i} className="space-y-1.5 group/msg">
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-xs">
+                        <div className="max-w-[85%] px-3.5 py-2 rounded-2xl rounded-br-md bg-indigo-600 text-white font-medium text-[13px] leading-relaxed shadow-xs">
                           {h.q === "You" ? (h.a && h.a.length < 140 ? h.a : "User Request") : h.q}
                         </div>
                       </div>
 
                       {/* Thought block if present */}
                       {h.thought && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium px-2 py-0.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-medium px-2 py-0.5">
                           <span>🧠</span>
-                          <span className="font-semibold text-slate-700">Thought</span>
-                          <span className="text-slate-400 truncate">— {h.thought}</span>
+                          <span className="font-semibold text-slate-800">Thought</span>
+                          <span className="text-slate-500 truncate">— {h.thought}</span>
                         </div>
                       )}
 
@@ -7509,12 +7527,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       {h.questions && h.questions.length > 0 && (
                         <div className="space-y-1.5 my-1">
                           {h.questions.map((qItem, qIdx) => (
-                            <div key={qIdx} className="rounded-xl border border-indigo-200/80 bg-indigo-50/50 p-2.5 text-[11px] space-y-1">
+                            <div key={qIdx} className="rounded-xl border border-indigo-200/80 bg-indigo-50/50 p-2.5 text-[12px] space-y-1">
                               <div className="flex items-center gap-1.5 text-indigo-900 font-medium">
                                 <span className="w-4 h-4 rounded bg-indigo-600 text-white flex items-center justify-center font-bold text-[9px]">?</span>
                                 <span>{qItem.question}</span>
                               </div>
-                              <div className="text-slate-700 pl-5 text-[10.5px]">
+                              <div className="text-slate-700 pl-5 text-[11px]">
                                 Choice: <span className="font-semibold text-indigo-950 font-mono bg-white px-1.5 py-0.5 rounded border border-indigo-200/60">{qItem.answer}</span>
                               </div>
                             </div>
@@ -7522,7 +7540,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         </div>
                       )}
 
-                      <div className={`px-2.5 py-1.5 rounded-2xl rounded-bl-md ${h.ok ? "bg-slate-100 text-slate-700" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>{h.a}</div>
+                      <div className={`px-3.5 py-2 rounded-2xl rounded-bl-md text-[13px] leading-relaxed shadow-2xs ${h.ok ? "bg-slate-100/90 text-slate-900 border border-slate-200/80 font-normal" : "bg-amber-50 text-amber-900 border border-amber-200 font-medium"}`}>{h.a}</div>
                       {/* Per-message icon actions — Edit · Reuse · Copy · Delete */}
                       <div className="flex items-center gap-0.5 pl-1 opacity-60 group-hover/msg:opacity-100 transition">
                         <button
@@ -7662,9 +7680,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   {streaming && (
                     <div className="space-y-1">
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-br-md bg-indigo-600 text-white">{streaming.q}</div>
+                        <div className="max-w-[85%] px-3.5 py-2 rounded-2xl rounded-br-md bg-indigo-600 text-white font-medium text-[13px] leading-relaxed">{streaming.q}</div>
                       </div>
-                      <div className="px-2.5 py-1.5 rounded-2xl rounded-bl-md bg-slate-100 text-slate-700 min-h-[1.5rem]">
+                      <div className="px-3.5 py-2 rounded-2xl rounded-bl-md bg-slate-100/90 text-slate-900 border border-slate-200/80 font-normal text-[13px] leading-relaxed min-h-[1.5rem]">
                         {streaming.text}
                         <span className="inline-block w-1.5 h-3.5 bg-indigo-500 ml-0.5 animate-pulse align-text-bottom" />
                       </div>
@@ -7785,16 +7803,17 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   onChange={(e) => {
                     setAiPrompt(e.target.value);
                     e.target.style.height = "auto";
-                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 34), 160)}px`;
+                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 36), 160)}px`;
                   }}
                   onKeyDown={(e) => {
+                    e.stopPropagation();
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleAskAiSubmit(e);
                     }
                   }}
                   placeholder={aiThinking ? "Agent working... Shift+Enter for newline" : "Type a message, paste image (Ctrl+V), or / for skills"}
-                  className="w-full text-[11px] px-3 py-2 bg-slate-100 rounded-2xl border border-transparent focus:outline-none focus:border-indigo-300 resize-none min-h-[34px] max-h-[160px] leading-relaxed scrollbar-thin"
+                  className="w-full text-[13px] font-medium text-slate-900 placeholder:text-slate-400 px-3.5 py-2 bg-slate-50 hover:bg-white focus:bg-white rounded-2xl border border-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 resize-none min-h-[36px] max-h-[160px] leading-relaxed scrollbar-thin transition"
                   style={{ height: "auto" }}
                 />
               </div>
