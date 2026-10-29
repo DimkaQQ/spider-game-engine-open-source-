@@ -3,8 +3,8 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  * Author: M4SPIDER (support@m4spider.com)
  */
-import React, { useMemo, useState } from "react";
-import { Boxes, ChevronDown, ChevronRight, Copy, Eye, EyeOff, MoreHorizontal, Plus, Search, Trash2, Pencil, Crosshair } from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
+import { Boxes, ChevronDown, Upload, ChevronRight, Copy, Eye, EyeOff, MoreHorizontal, Plus, Search, Trash2, Pencil, Crosshair } from "lucide-react";
 import { PRIMITIVE_SHAPES } from "../game/index.js";
 import { Empty, Segmented, Sheet, cx } from "./ui.jsx";
 
@@ -38,6 +38,7 @@ export default function Scene({ s, onOpenInspector, onShowInStudio, notify }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("Primitive");
   const [menu, setMenu] = useState(null);
+  const fileRef = useRef(null);
 
   const query = q.trim().toLowerCase();
   const groups = useMemo(
@@ -51,8 +52,28 @@ export default function Scene({ s, onOpenInspector, onShowInStudio, notify }) {
     [s.groups, query]
   );
 
-  const cats = useMemo(() => [...new Set(PRIMITIVE_SHAPES.map((a) => a.category))], []);
-  const assets = PRIMITIVE_SHAPES.filter((a) => a.category === cat);
+  // things the user imported live in the scene itself; list each file once so it can be re-added
+  const imported = useMemo(() => {
+    const seen = new Map();
+    for (const n of s.flat) {
+      if ((n.modelUrl || n.textureUrl) && !seen.has(n.mesh)) {
+        seen.set(n.mesh, { id: `imp-${n.mesh}`, name: (n.name || n.mesh).replace(/_\d+$/, ""), mesh: n.mesh, category: "Imported", color: n.color, modelUrl: n.modelUrl, modelFormat: n.modelFormat, textureUrl: n.textureUrl });
+      }
+    }
+    return [...seen.values()];
+  }, [s.flat]);
+  const cats = useMemo(() => [...new Set(PRIMITIVE_SHAPES.map((a) => a.category)), ...(imported.length ? ["Imported"] : [])], [imported.length]);
+  const assets = cat === "Imported" ? imported : PRIMITIVE_SHAPES.filter((a) => a.category === cat);
+
+  const onPick = async (e) => {
+    const files = [...(e.target.files || [])];
+    e.target.value = "";
+    for (const f of files) {
+      const r = await s.importFile(f);
+      notify(r.message, r.ok ? "ok" : "warn");
+    }
+    if (files.length) setCat("Imported");
+  };
 
   return (
     <section className="sp-page">
@@ -124,6 +145,17 @@ export default function Scene({ s, onOpenInspector, onShowInStudio, notify }) {
             ))}
           </div>
           <div className="sp-scroll">
+            <button type="button" className="sp-import" onClick={() => fileRef.current?.click()}>
+              <span className="sp-import-ico">
+                <Upload size={20} />
+              </span>
+              <span className="sp-import-text">
+                <b>Import from files</b>
+                <small>3D models (.glb .gltf .fbx .obj), images, or a .json project</small>
+              </span>
+            </button>
+            <input ref={fileRef} type="file" multiple hidden accept=".glb,.gltf,.fbx,.obj,.png,.jpg,.jpeg,.webp,.json,model/gltf-binary,image/*,application/json" onChange={onPick} />
+            {cat === "Imported" && !imported.length && <p className="sp-muted">Nothing imported yet.</p>}
             <ul className="sp-assets">
               {assets.map((a) => (
                 <li key={a.id}>
@@ -131,16 +163,18 @@ export default function Scene({ s, onOpenInspector, onShowInStudio, notify }) {
                     type="button"
                     className="sp-asset"
                     onClick={() => {
-                      const n = s.spawn(a);
+                      const n = s.spawn(a, a.modelUrl ? { modelUrl: a.modelUrl, modelFormat: a.modelFormat } : a.textureUrl ? { textureUrl: a.textureUrl } : {});
                       notify(`Added ${n.name}`, "ok");
                     }}
                   >
-                    <span className="sp-asset-art" style={{ "--c": a.color }}>
-                      {GLYPH[a.mesh] || "◆"}
+                    <span className="sp-asset-art" style={{ "--c": a.color || "#6366f1", ...(a.textureUrl ? { backgroundImage: `url(${a.textureUrl})`, backgroundSize: "cover", backgroundPosition: "center" } : {}) }}>
+                      {a.textureUrl ? "" : GLYPH[a.mesh] || (a.modelUrl ? "◆" : "◆")}
                     </span>
-                    <b>{a.name}</b>
-                    <span className="sp-asset-add">
-                      <Plus size={14} />
+                    <span className="sp-asset-row">
+                      <b>{a.name}</b>
+                      <span className="sp-asset-add">
+                        <Plus size={14} />
+                      </span>
                     </span>
                   </button>
                 </li>

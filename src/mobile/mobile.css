@@ -354,10 +354,10 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 .sp-node-text b { font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .sp-assets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.sp-asset { position: relative; width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px; border-radius: var(--r-l); background: var(--surface); border: 1px solid var(--line); text-align: left; }
+.sp-asset { position: relative; width: 100%; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; border-radius: var(--r-l); background: var(--surface); border: 1px solid var(--line); text-align: left; }
 .sp-asset-art { width: 100%; aspect-ratio: 16 / 10; display: grid; place-items: center; font-size: 34px; border-radius: var(--r-m); color: var(--c); background: color-mix(in srgb, var(--c) 14%, var(--surface-2)); }
 .sp-asset b { font-size: 15px; }
-.sp-asset-add { position: absolute; right: 12px; bottom: 12px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.sp-asset-add { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
 
 /* ---------- code ---------- */
 .sp-code-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -500,3 +500,10 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 .sp-pdot.is-ok { background: var(--ok); box-shadow: none; }
 .sp-model-name { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-model-name small { font-size: 11px; font-weight: 500; color: var(--text-3); }
+
+.sp-asset-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 2px 0 4px; min-height: 34px; }
+.sp-asset-row b { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-import { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px; margin-bottom: 12px; border-radius: var(--r-l); border: 1.5px dashed var(--line-2); background: var(--surface); text-align: left; color: var(--text-3); }
+.sp-import-ico { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.sp-import-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.sp-import-text b { font-size: 15px; color: var(--text); }

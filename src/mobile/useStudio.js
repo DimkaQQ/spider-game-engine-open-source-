@@ -388,6 +388,59 @@ export function useStudio() {
     [resetRuntime, log]
   );
 
+  /** Import a 3D model, texture or scene/project file from the device. */
+  const importFile = useCallback(
+    async (file) => {
+      if (!file) return { ok: false, message: "No file" };
+      const name = file.name;
+      const base = name.replace(/\.[^.]+$/, "");
+      const toData = (f) =>
+        new Promise((resolve, reject) => {
+          if (f.size > 3 * 1024 * 1024) return reject(new Error("big"));
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = () => reject(r.error);
+          r.readAsDataURL(f);
+        });
+      try {
+        if (/\.json$/i.test(name)) {
+          await importProject(file);
+          return { ok: true, message: "Project imported" };
+        }
+        if (/\.(glb|gltf|fbx|obj)$/i.test(name)) {
+          const ext = name.split(".").pop().toLowerCase();
+          const modelFormat = ext === "fbx" ? "fbx" : ext === "obj" ? "obj" : ext === "gltf" ? "gltf" : "glb";
+          let url;
+          let embedded = true;
+          try {
+            url = await toData(file);
+          } catch {
+            url = URL.createObjectURL(file);
+            embedded = false;
+          }
+          spawn({ name: base, mesh: name, category: "Imported" }, { modelUrl: url, modelFormat });
+          return { ok: true, message: embedded ? `Added ${base}` : `Added ${base} (over 3 MB: stays until you reload)` };
+        }
+        if (/\.(png|jpe?g|webp)$/i.test(name)) {
+          let url;
+          let embedded = true;
+          try {
+            url = await toData(file);
+          } catch {
+            url = URL.createObjectURL(file);
+            embedded = false;
+          }
+          spawn({ name: base, mesh: name, category: "Imported" }, { textureUrl: url });
+          return { ok: true, message: embedded ? `Added ${base}` : `Added ${base} (over 3 MB: stays until you reload)` };
+        }
+        return { ok: false, message: "Use .glb, .gltf, .fbx, .obj, .png, .jpg or a .json project" };
+      } catch (e) {
+        return { ok: false, message: `Import failed: ${e.message}` };
+      }
+    },
+    [importProject, spawn]
+  );
+
   const exportStandalone = useCallback(() => {
     const f = projectRef.current.files.find((x) => x.name === (projectRef.current.mountedFile || "GameComponent.jsx")) || projectRef.current.files[0];
     const ok = download(f.name, f.content, "text/javascript");
@@ -1118,7 +1171,7 @@ export function useStudio() {
     projects, project, groups, flat, selected, selectedId, setSelectedId,
     openProject, createProject, renameProject, deleteProject, exportProject, importProject, exportStandalone,
     // scene
-    editGroups, updateNode, toggleVisible, toggleGroup, spawn, duplicate, removeNode, onViewportTransform,
+    editGroups, updateNode, toggleVisible, toggleGroup, spawn, importFile, duplicate, removeNode, onViewportTransform,
     undo, redo, undoCount,
     gizmo, setGizmo, cameraMode, setCameraMode, fps, setFps,
     timeOfDay, setTimeOfDay, timelinePlaying, setTimelinePlaying,
