@@ -566,6 +566,81 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     }
   });
 
+  // Blender Real-Time MCP Bridge handlers (port 9876)
+  let blenderSocket = null;
+  let blenderState = { connected: false, port: 9876, host: '127.0.0.1', lastCheck: 0, error: null };
+
+  ipcMain.handle('spider-blender-status', async () => {
+    return { ok: true, ...blenderState };
+  });
+
+  ipcMain.handle('spider-blender-connect', async (_e, { port = 9876, host = '127.0.0.1', enabled = true } = {}) => {
+    blenderState.port = port;
+    blenderState.host = host;
+    if (!enabled) {
+      if (blenderSocket) {
+        try { blenderSocket.destroy(); } catch {}
+        blenderSocket = null;
+      }
+      blenderState.connected = false;
+      blenderState.error = null;
+      return { ok: true, connected: false, message: 'Blender MCP Bridge disconnected' };
+    }
+
+    const net = require('net');
+    return new Promise((resolve) => {
+      const socket = new net.Socket();
+      socket.setTimeout(2500);
+
+      socket.on('connect', () => {
+        blenderState.connected = true;
+        blenderState.error = null;
+        blenderSocket = socket;
+        resolve({ ok: true, connected: true, port, host, message: `Connected to Blender MCP on port ${port}` });
+      });
+
+      socket.on('error', (err) => {
+        blenderState.connected = false;
+        blenderState.error = err.message;
+        try { socket.destroy(); } catch {}
+        resolve({
+          ok: false,
+          connected: false,
+          port,
+          error: err.code === 'ECONNREFUSED'
+            ? `Blender MCP not detected on 127.0.0.1:${port}. Open Blender and enable the MCP add-on listener.`
+            : err.message
+        });
+      });
+
+      socket.on('timeout', () => {
+        blenderState.connected = false;
+        blenderState.error = 'Connection timed out';
+        try { socket.destroy(); } catch {}
+        resolve({ ok: false, connected: false, port, error: `Connection to Blender on port ${port} timed out.` });
+      });
+
+      socket.connect(port, host);
+    });
+  });
+
+  ipcMain.handle('spider-blender-send', async (_e, { command, data } = {}) => {
+    if (!blenderSocket || !blenderState.connected) {
+      return { ok: false, error: 'Blender MCP Bridge is not connected.' };
+    }
+    return new Promise((resolve) => {
+      try {
+        const payload = JSON.stringify({ command, data }) + '\n';
+        blenderSocket.write(payload, 'utf8', (err) => {
+          if (err) resolve({ ok: false, error: err.message });
+          else resolve({ ok: true, sent: true });
+        });
+      } catch (err) {
+        resolve({ ok: false, error: String(err) });
+      }
+    });
+  });
+
   startMcpBridge()
   const splash = createSplash()
   createWindow(splash)

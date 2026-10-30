@@ -50,5 +50,9 @@ contextBridge.exposeInMainWorld('spiderShell', {
   // Standalone game compilation & launch
   convertExe: () => ipcRenderer.invoke('spider-convert-exe'),
   launchExe: (exePath) => ipcRenderer.invoke('spider-launch-exe', exePath),
-  openFolder: (folderPath) => ipcRenderer.invoke('spider-open-folder', folderPath)
+  openFolder: (folderPath) => ipcRenderer.invoke('spider-open-folder', folderPath),
+  // Blender Real-Time MCP Bridge
+  blenderConnect: (opts) => ipcRenderer.invoke('spider-blender-connect', opts),
+  blenderStatus: () => ipcRenderer.invoke('spider-blender-status'),
+  blenderSend: (payload) => ipcRenderer.invoke('spider-blender-send', payload)
 })

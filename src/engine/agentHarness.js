@@ -186,7 +186,8 @@ export function toolDefs() {
     { name: "check3DView", desc: "INSPECT 3D VIEWPORT & GAME HEALTH: Checks if your 3D game component is actively mounted in the Three.js viewport, examines the scene, and verifies that there are zero compilation or runtime errors. Call this to verify your game is working and playable before finishing!", args: {} },
     { name: "editFile", desc: "SURGICAL EDIT / MODIFY EXISTING CODE: Replace a function, block of code, bug, or parameter in an existing file. PREFER editFile over rewriting the whole file whenever fixing bugs or changing features! args: name: 'filename.jsx', old: 'exact code snippet to replace', text: 'new replacement code'", args: { name: "filename", old: "exact old code snippet to replace", text: "new replacement code", dir: "optional folder" } },
     { name: "runCommand", desc: "Execute a terminal/shell command (ONLY when user explicitly asks to run, execute, or test a command/script)", args: { command: "command line string", cwd: "optional folder path" } },
-    { name: "ask_question", desc: "Ask the user a multiple-choice question to clarify requirements or get user decision. Provide question and options array.", args: { question: "question string", options: "array of choice strings" } }
+    { name: "ask_question", desc: "Ask the user a multiple-choice question to clarify requirements or get user decision. Provide question and options array.", args: { question: "question string", options: "array of choice strings" } },
+    { name: "blender_mcp", desc: "BLENDER REAL-TIME MCP BRIDGE: Execute commands or Python scripts in live Blender 3D (port 9876) to generate 3D meshes, apply materials, or export models", args: { command: "run_script|spawn_mesh|export_glb", code: "python code or parameters" } }
   ];
 }
 

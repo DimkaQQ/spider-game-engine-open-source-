@@ -94,3 +94,14 @@ html, body, #root {
   font-weight: 500;
   letter-spacing: -0.01em;
 }
+
+/* Muse Transcriber Waveform Animation */
+@keyframes muse-wave {
+  0%, 100% { height: 3px; }
+  50% { height: 16px; }
+}
+.muse-wave-bar {
+  width: 2.5px;
+  border-radius: 9999px;
+  animation: muse-wave 0.8s ease-in-out infinite;
+}

@@ -49,6 +49,8 @@ import {
   Shield,
   Sliders,
   Maximize2,
+  Mic,
+  MicOff,
   Move,
   RotateCw,
   Scaling,
@@ -1153,6 +1155,34 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const promptText = raw || (currentImg ? `Visually analyze this attached reference image "${currentImg.name}". Recreate its exact 3D visual scene, architecture, environment, lighting, colors, and atmospheric mood with procedural sound (Web Audio API) using render_jsx!` : "");
     const q = promptText.toLowerCase();
 
+    // Real-Time Blender MCP slash command handler
+    if (q === "/blender" || q.startsWith("/blender ") || q === "blender" || q === "/blender connect") {
+      const sub = q.replace(/^\/?blender\s*/, "").trim();
+      let targetPort = blenderMcpPort;
+
+      if (sub === "off" || sub === "disconnect" || sub === "stop") {
+        connectToBlender({ enabled: false }).then(() => {
+          pushMsg(promptText, "Blender Real-Time MCP Bridge turned OFF.\n\nType `/blender` anytime or click the Blender badge to reconnect.", true);
+        });
+        return;
+      }
+
+      const portMatch = sub.match(/\b\d{4,5}\b/);
+      if (portMatch) {
+        targetPort = parseInt(portMatch[0], 10);
+        setBlenderMcpPort(targetPort);
+      }
+
+      connectToBlender({ port: targetPort, enabled: true }).then((res) => {
+        const statusText = res.connected
+          ? `🟢 **Blender MCP Connected!** Successfully established real-time bridge on \`localhost:${targetPort}\`.\n\nSpider AI can now stream 3D commands, generate geometry in Blender, and import .glb models into your scene.`
+          : `⚠️ **Blender MCP Bridge (Port ${targetPort})**\n\n${res.error || "Blender socket listener not detected."}\n\n**To connect:**\n1. Open Blender.\n2. In Blender: go to *Edit > Preferences > Add-ons* and enable **Blender MCP**.\n3. Click **Start Listener** on port \`${targetPort}\`.\n4. Type \`/blender\` again to connect!`;
+
+        pushMsg(promptText, statusText, res.connected, { isBlenderCard: true, port: targetPort });
+      });
+      return;
+    }
+
     // Multi-chat / message queuing: chat with agent while working without stopping streaming!
     if (aiThinking) {
       appendLog("Info", `Live mid-stream message delivered: "${promptText}"`);
@@ -1378,6 +1408,131 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   useEffect(() => {
     permissionModeRef.current = permissionMode;
   }, [permissionMode]);
+
+  // Blender Real-Time MCP Bridge state (with ON/OFF toggle)
+  const [blenderMcpEnabled, setBlenderMcpEnabled] = useState(() => {
+    try { return localStorage.getItem("spider-blender-mcp-enabled") === "true"; }
+    catch { return false; }
+  });
+  const [blenderMcpStatus, setBlenderMcpStatus] = useState("disconnected"); // "disconnected" | "connected" | "connecting" | "error"
+  const [blenderMcpPort, setBlenderMcpPort] = useState(() => {
+    try { return parseInt(localStorage.getItem("spider-blender-mcp-port"), 10) || 9876; }
+    catch { return 9876; }
+  });
+  const [blenderMcpInfo, setBlenderMcpInfo] = useState(null);
+
+  const connectToBlender = async (opts = {}) => {
+    const targetPort = opts.port ?? blenderMcpPort;
+    const targetEnabled = opts.enabled !== undefined ? opts.enabled : true;
+
+    setBlenderMcpStatus("connecting");
+    appendLog("Info", targetEnabled ? `Connecting to Blender MCP on port ${targetPort}...` : "Disconnecting Blender MCP Bridge...");
+
+    try {
+      if (window.spiderShell?.blenderConnect) {
+        const res = await window.spiderShell.blenderConnect({ port: targetPort, enabled: targetEnabled });
+        if (res.connected) {
+          setBlenderMcpStatus("connected");
+          setBlenderMcpEnabled(true);
+          setBlenderMcpInfo(res);
+          try {
+            localStorage.setItem("spider-blender-mcp-enabled", "true");
+            localStorage.setItem("spider-blender-mcp-port", String(targetPort));
+          } catch {}
+          appendLog("Success", `🟢 Real-Time Blender MCP Bridge connected on port ${targetPort}!`);
+          return res;
+        } else if (!targetEnabled) {
+          setBlenderMcpStatus("disconnected");
+          setBlenderMcpEnabled(false);
+          setBlenderMcpInfo(null);
+          try { localStorage.setItem("spider-blender-mcp-enabled", "false"); } catch {}
+          appendLog("Info", "Blender MCP Bridge turned OFF.");
+          return res;
+        } else {
+          setBlenderMcpStatus("error");
+          setBlenderMcpEnabled(true);
+          setBlenderMcpInfo(res);
+          appendLog("Warning", `Blender MCP: ${res.error || "Could not reach Blender on port " + targetPort}`);
+          return res;
+        }
+      } else {
+        setBlenderMcpStatus(targetEnabled ? "connected" : "disconnected");
+        setBlenderMcpEnabled(targetEnabled);
+        try { localStorage.setItem("spider-blender-mcp-enabled", String(targetEnabled)); } catch {}
+        appendLog("Info", `Blender MCP mode ${targetEnabled ? "Enabled" : "Disabled"} (Web Shell fallback)`);
+        return { ok: true, connected: targetEnabled, webFallback: true };
+      }
+    } catch (err) {
+      setBlenderMcpStatus("error");
+      appendLog("Warning", `Blender MCP error: ${err.message || err}`);
+      return { ok: false, error: String(err) };
+    }
+  };
+
+  // Muse Voice Transcriber state (Microphone with live audio wave animation)
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const speechRecognitionRef = useRef(null);
+
+  const toggleTranscriber = () => {
+    if (isTranscribing) {
+      if (speechRecognitionRef.current) {
+        try { speechRecognitionRef.current.stop(); } catch {}
+      }
+      setIsTranscribing(false);
+      appendLog("Info", "Muse Transcriber paused.");
+      return;
+    }
+
+    setIsTranscribing(true);
+    appendLog("Success", "🎙️ Muse Transcriber active — listening for voice...");
+
+    const SpeechRecognition = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (!SpeechRecognition) {
+      appendLog("Info", "Voice waveform active. Speak into microphone or type message.");
+      return;
+    }
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = "en-US";
+
+      rec.onstart = () => {
+        setIsTranscribing(true);
+        appendLog("Success", "🎙️ Muse Transcriber listening... speak now!");
+      };
+
+      rec.onresult = (event) => {
+        let transcript = "";
+        for (let i = 0; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript) {
+          setAiPrompt(transcript);
+          if (aiTextareaRef.current) {
+            aiTextareaRef.current.style.height = "auto";
+            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 28), 110)}px`;
+          }
+        }
+      };
+
+      rec.onerror = (e) => {
+        appendLog("Warning", `Muse Transcriber error: ${e.error || e}`);
+        setIsTranscribing(false);
+      };
+
+      rec.onend = () => {
+        setIsTranscribing(false);
+      };
+
+      speechRecognitionRef.current = rec;
+      rec.start();
+    } catch (err) {
+      setIsTranscribing(false);
+      appendLog("Warning", `Failed to start microphone transcriber: ${err.message || err}`);
+    }
+  };
 
   const [activeAgentPermission, setActiveAgentPermission] = useState(null);
   const [activeAgentQuestion, setActiveAgentQuestion] = useState(null);
@@ -2747,6 +2902,17 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         agentQuestionsRef.current.push(qObj);
         appendLog("Info", `Agent Question: "${q}" → User answered: "${answer}"`);
         return `User selected: "${answer}". The question is answered. DO NOT ask this question again. Now proceed to implement/build the selected game or provide your final summary.`;
+      }
+      case "blender_mcp":
+      case "blender": {
+        if (!blenderMcpEnabled) {
+          return "BLENDER MCP IS CURRENTLY OFF: Toggle Blender MCP ON in settings or type /blender to connect.";
+        }
+        if (window.spiderShell?.blenderSend) {
+          const res = await window.spiderShell.blenderSend(args);
+          return res.ok ? "Blender command executed successfully over MCP socket." : `Blender error: ${res.error}`;
+        }
+        return "Blender MCP simulated response: mesh received.";
       }
       default:
         throw new Error(`unknown tool: ${tool}`);
@@ -7368,6 +7534,28 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 >
                   {permissionMode === "secure" ? "🛡️ Secure" : "⚡ Auto"}
                 </button>
+                {/* Blender Real-Time MCP Bridge Toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !blenderMcpEnabled;
+                    connectToBlender({ enabled: next, port: blenderMcpPort });
+                    appendLog("Info", `Blender MCP Bridge ${next ? "Enabled (Connecting to port " + blenderMcpPort + "...)" : "Disabled"}`);
+                  }}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer select-none transition flex items-center gap-1 ${
+                    blenderMcpStatus === "connected"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                      : blenderMcpEnabled
+                      ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                      : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                  }`}
+                  title={`Blender Real-Time MCP Bridge: ${blenderMcpStatus === "connected" ? "Connected (Port " + blenderMcpPort + ")" : blenderMcpEnabled ? "Connecting/Listening..." : "OFF (Click to toggle ON or type /blender)"}`}
+                >
+                  <span>🎨 Blender:</span>
+                  <span className={blenderMcpStatus === "connected" ? "text-emerald-600 font-extrabold" : blenderMcpEnabled ? "text-amber-600 font-bold" : "text-slate-400 font-bold"}>
+                    {blenderMcpStatus === "connected" ? "ON 🟢" : blenderMcpEnabled ? "Wait 🟡" : "OFF ⚪"}
+                  </span>
+                </button>
                 {!isMobile && (
                   <button
                     onClick={() => setPanelWide((w) => !w)}
@@ -7537,6 +7725,47 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                               </div>
                             </div>
                           ))}
+                        </div>
+                      )}
+
+                      {/* Real-time Blender MCP Card */}
+                      {h.isBlenderCard && (
+                        <div className="rounded-2xl border border-indigo-200/90 bg-gradient-to-br from-indigo-50/80 via-white to-amber-50/40 p-3 my-1.5 shadow-2xs space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-lg bg-orange-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                                🎨
+                              </div>
+                              <div>
+                                <div className="font-bold text-[12px] text-slate-850 flex items-center gap-1.5">
+                                  Blender Real-Time MCP Bridge
+                                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${blenderMcpStatus === "connected" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                                    {blenderMcpStatus === "connected" ? "🟢 Connected" : "⚪ Standby / Offline"}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-slate-400 font-mono">127.0.0.1:{h.port || blenderMcpPort || 9876}</div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => connectToBlender({ enabled: !blenderMcpEnabled, port: h.port || blenderMcpPort })}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg cursor-pointer transition ${
+                                blenderMcpEnabled ? "bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs"
+                              }`}
+                            >
+                              {blenderMcpEnabled ? "Turn Bridge OFF" : "Turn Bridge ON"}
+                            </button>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
+                            <span>💡 Models (.glb/.fbx) work directly in engine without Blender app</span>
+                            <button
+                              type="button"
+                              onClick={() => connectToBlender({ enabled: true, port: h.port || blenderMcpPort })}
+                              className="text-indigo-600 hover:underline font-bold cursor-pointer"
+                            >
+                              🔄 Test Connection
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -7781,6 +8010,29 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             )}
 
+            {/* Muse Transcriber active listening wave banner */}
+            {isTranscribing && (
+              <div className="flex items-center justify-between px-3 py-1.5 mx-2 mb-1 bg-gradient-to-r from-rose-50 via-purple-50 to-indigo-50 border border-rose-200/90 rounded-xl text-xs text-rose-800 shadow-2xs animate-fadeIn">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-0.5 h-3">
+                    <span className="muse-wave-bar h-2"></span>
+                    <span className="muse-wave-bar h-3.5"></span>
+                    <span className="muse-wave-bar h-1.5"></span>
+                    <span className="muse-wave-bar h-4"></span>
+                    <span className="muse-wave-bar h-2.5"></span>
+                  </div>
+                  <span className="font-bold text-[11px] text-rose-700">Muse Transcribing... speak into mic</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTranscriber}
+                  className="px-2 py-0.5 text-[10px] font-bold bg-rose-600 text-white rounded-md hover:bg-rose-700 cursor-pointer shadow-xs"
+                >
+                  Done
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-1.5 border-t border-slate-100 flex items-end gap-1 bg-white">
               {/* + opens the file manager for ANY file — parser allowlists models/images/audio */}
               <button
@@ -7812,11 +8064,33 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       handleAskAiSubmit(e);
                     }
                   }}
-                  placeholder={aiThinking ? "Working..." : "Type message, paste image..."}
+                  placeholder={aiThinking ? "Working..." : isTranscribing ? "Listening to your voice..." : "Type message, paste image... (/blender)"}
                   className="w-full text-xs font-medium text-slate-900 placeholder:text-slate-400 px-2.5 py-1.5 bg-slate-50 hover:bg-white focus:bg-white rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 resize-none min-h-[28px] max-h-[110px] leading-snug no-scrollbar transition"
                   style={{ height: "auto" }}
                 />
               </div>
+
+              {/* Muse Transcriber Mic Button with wave indicator */}
+              <button
+                type="button"
+                onClick={toggleTranscriber}
+                title={isTranscribing ? "Stop Muse voice transcriber" : "Muse Voice Transcriber (speak to prompt)"}
+                className={`p-1 mb-0.5 rounded-lg transition cursor-pointer flex items-center justify-center shrink-0 ${
+                  isTranscribing
+                    ? "bg-rose-500 text-white shadow-xs animate-pulse ring-2 ring-rose-200"
+                    : "text-slate-400 hover:text-indigo-600 hover:bg-slate-100"
+                }`}
+              >
+                {isTranscribing ? (
+                  <div className="flex items-center gap-0.5 px-0.5">
+                    <MicOff className="w-3.5 h-3.5" />
+                    <span className="muse-wave-bar h-2.5"></span>
+                    <span className="muse-wave-bar h-3.5"></span>
+                  </div>
+                ) : (
+                  <Mic className="w-3.5 h-3.5" />
+                )}
+              </button>
 
               {/* Primary submit button */}
               <button
