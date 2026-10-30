@@ -12,6 +12,7 @@ import GameViewport, { viewportApi } from "./src/engine/GameViewport";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFromRawJson } from "./src/engine/agentHarness.js";
 import { runLimits, contextWindow, buildMemory, memoryBudget } from "./src/mobile/context.js";
+import { retrieveRagContext, ragStore } from "./src/engine/ragEngine.js";
 import {
   GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed
 } from "./src/game/index.js";
@@ -2686,6 +2687,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           sceneRef.current.activeJsxCode = code;
           sceneRef.current.activeJsxName = name;
         }
+        try { ragStore.indexFile(name, code); } catch {}
 
         // Determine destination folder from user's selected script folder or project root
         const targetFolder = (selectedScriptFolder && selectedScriptFolder !== "All Folders")
@@ -3553,7 +3555,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         const win = contextWindow("meta", "spark-1.3");
         const priorChat = sessions.find((s) => s.id === currentId)?.messages || [];
         const mem = buildMemory(priorChat, memoryBudget(win));
+        const ragContext = retrieveRagContext(task || currentGoalRef.current || "");
         const sys = systemPrompt(snapshot(), { isMobile: false }) + "\n" +
+          (ragContext ? `${ragContext}\n` : "") +
           (mem.text ? `\n\nCONVERSATION SO FAR (earlier turns in this session; current goal comes below):\n${mem.text}\n` : "") +
           "\n\nCRITICAL LOCAL DISK ACCESS & ASSET IMPORT MANDATE: You run natively inside Spider Engine on Desktop (Windows Electron) with FULL access to the user's local disk, Downloads folder, and file system! NEVER tell the user 'I cannot access your files' or 'please upload/drag-and-drop'! When the user provides a path (e.g. C:\\Users\\...\\Downloads\\modern-city-block) or asks to import an FBX/GLB/3D asset, IMMEDIATELY call importAsset({ path: '...' }) to copy the files into public/assets/ and mount it in GameComponent.jsx using useFBX or useGLTF!\n" +
           "\nCRITICAL CONTROLS MANDATE: CREATE GAMES FOR KEYBOARD, NOT FOR SCREEN! Always implement responsive physical keyboard controls (WASD, Arrow Keys, Spacebar for jump/action/brake, Shift for sprint, and 'R' key to restart). NEVER create on-screen touch buttons, virtual joysticks, or touch d-pads on the screen. The engine is designed for desktop keyboard gameplay. CRITICAL RESTART RULE: NEVER write `location.reload()` on 'R' or restart! That reloads the whole engine. 'R' key must ONLY reset local component React state (health, score, wave, player position) in-place without page reload!\n" +

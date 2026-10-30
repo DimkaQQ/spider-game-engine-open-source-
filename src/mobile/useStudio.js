@@ -32,6 +32,7 @@ import {
   haptic,
 } from "./store.js";
 import { buildMemory, contextWindow, memoryBudget, runLimits } from "./context.js";
+import { retrieveRagContext, ragStore } from "../engine/ragEngine.js";
 import { PROVIDERS, baseUrlFor, chat, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
 
 const MAX_UNDO = 40;
@@ -469,7 +470,10 @@ export function useStudio() {
   const files = project.files;
 
   const saveFile = useCallback(
-    (name, content) => patchProject((p) => ({ ...p, files: p.files.some((f) => f.name === name) ? p.files.map((f) => (f.name === name ? { ...f, content } : f)) : [...p.files, { name, content }] })),
+    (name, content) => {
+      try { ragStore.indexFile(name, content); } catch {}
+      return patchProject((p) => ({ ...p, files: p.files.some((f) => f.name === name) ? p.files.map((f) => (f.name === name ? { ...f, content } : f)) : [...p.files, { name, content }] }));
+    },
     [patchProject]
   );
   const createFile = useCallback(
@@ -1136,8 +1140,10 @@ export function useStudio() {
             compactedLogged = true;
             log("Info", `Context compacted: kept ${mem.kept} of ${mem.turns} earlier messages (window ${Math.round(win / 1000)}K tokens)`);
           }
+          const ragContext = retrieveRagContext(task || goal || "");
           const sys =
             systemPrompt(snapshotText(), { isMobile: touch }) +
+            (ragContext ? `${ragContext}\n` : "") +
             (mem.text ? `\n\nCONVERSATION SO FAR (oldest first; the current goal comes below):\n${mem.text}\n` : "") +
             "\n\nCRITICAL MOBILE REQUIREMENT: The user is on a PHONE touchscreen. No keyboard controls (no WASD / arrows / space). All movement, steering and actions must be touch controlled (tap, swipe, drag, large on-screen buttons).\n" +
             TOUCH_CONTROLS_RULES +
