@@ -596,3 +596,8 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 .sp-cam-btn { position: absolute; z-index: 12; left: 50%; bottom: 12px; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #e8ecf8; background: var(--glass); border: 1px solid var(--glass-line); }
 .sp-cam-btn:active { transform: translateX(-50%) scale(0.95); }
 .sp-app.is-full .sp-cam-btn { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+
+/* short (landscape) viewports: tool rail lies flat along the top so it never sits over the game stick */
+@media (max-height: 520px) {
+  .sp-float-tl.sp-rail { flex-direction: row; }
+}

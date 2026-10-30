@@ -38,13 +38,13 @@ const MAX_UNDO = 40;
 
 // Rules the agent must follow for on-screen controls in games it writes.
 const TOUCH_CONTROLS_RULES = [
-  "TOUCH CONTROLS LAYOUT (mandatory for every game that needs movement or buttons):",
-  "- Draw controls in a fullscreen HTML overlay (<Html fullscreen>) with position:absolute and inline styles. Never place them in 3D space and never let them move or follow the camera.",
-  "- FIXED PLACES: joystick base bottom-LEFT (left: max(16px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom))), action / jump buttons bottom-RIGHT with the same insets. Thumb-sized: joystick base about 120px, knob about 52px, buttons at least 64px.",
-  "- Works in portrait AND landscape: use a size that follows the screen, for example Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.3) clamped between 96 and 150. Read the size in state and update it on the window 'resize' and 'orientationchange' events (remove the listeners in the effect cleanup). In landscape keep the same corners; the controls must not jump or overlap the play area centre.",
-  "- The joystick tracks one pointer: onPointerDown capture the pointer, onPointerMove update the knob (clamped to the base radius), onPointerUp/Cancel reset to centre. Set touch-action:none and user-select:none on the controls. Keep the stick value in a ref, not in React state, so the game loop reads it every frame.",
-  "- Only the controls take pointer events (pointerEvents:'auto'); the overlay container uses pointerEvents:'none' so the 3D scene underneath can still be dragged.",
-  "- HUD (score, lives) goes top-centre, below the safe-area inset, and never covers the controls.",
+  "TOUCH CONTROLS (mandatory for every game that moves or has buttons):",
+  "- NEVER write your own joystick or on-screen buttons and never read the keyboard yourself. Use the built-in kit: import { useTouch, TouchControls } from 'spider-touch'.",
+  "- const touch = useTouch(); then read it inside useFrame every frame: touch.move.x (right is +1) and touch.move.y (forward/up is +1) are -1..1; touch.a and touch.b are booleans (jump, action); touch.presses.a / touch.presses.b are counters that go up once per tap (use them for one-shot actions like jump or shoot).",
+  "- Render <TouchControls touch={touch} buttons={['Jump']} /> as a child of the game's root <group>. Up to two buttons: buttons={['Jump','Shoot']} maps to touch.a and touch.b.",
+  "- The kit puts the joystick in a FIXED place (bottom-left) and the buttons bottom-right, sizes them from the viewport, and keeps them there in portrait and landscape. The same touch object also reacts to WASD / arrows / Space / E on a computer, so you do not need any other input code.",
+  "- Do not draw other controls in those corners. Put score and lives top-centre.",
+  "- Minimal pattern: const touch = useTouch(); const ref = useRef(); useFrame((_, dt) => { ref.current.position.x += touch.move.x * 6 * dt; ref.current.position.z -= touch.move.y * 6 * dt; }); return (<group><mesh ref={ref}>...</mesh><TouchControls touch={touch} buttons={['Jump']} /></group>);",
   "",
 ].join("\n");
 const CORE_IDS = new Set(["player", "camera", "weapon", "terrain", "water", "sky", "lighting", "fog", "postprocess", "dir-light", "sky-light", "point-lights"]);
