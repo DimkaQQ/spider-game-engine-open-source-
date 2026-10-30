@@ -15,6 +15,10 @@ import * as Lucide from "lucide-react";
 import { transform } from "sucrase";
 import { Chess } from "chess.js";
 import { sfx, SoundEffects } from "./audioSynthesizer.js";
+import * as ArenaModule from "../game/ArenaEnv.jsx";
+import * as ChessBoardEnvModule from "../game/ChessBoardEnv.jsx";
+import * as PiecesModule from "../game/pieces.jsx";
+import * as ChessRulesModule from "../game/ChessRules.js";
 
 class JsxErrorBoundary extends Component {
   constructor(props) {
@@ -112,20 +116,43 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
     const module = { exports: {} };
     const exports = module.exports;
 
+    const SafeCanvas = ({ children }) => React.createElement(React.Fragment, null, children);
+
+    const safeLucide = new Proxy(Lucide, {
+      get(target, prop) {
+        if (prop in target) return target[prop];
+        // Fallback for any unknown icon so dynamic game components never crash
+        return (props) => React.createElement("span", { ...props, "data-icon": String(prop) });
+      }
+    });
+
     const scopeMap = {
       react: React,
       three: THREE,
-      "@react-three/fiber": Fiber,
+      "@react-three/fiber": { ...Fiber, Canvas: SafeCanvas },
       "@react-three/drei": Drei,
-      "lucide-react": Lucide,
+      "lucide-react": safeLucide,
       "chess.js": { Chess, default: Chess },
-      audio: { sfx, SoundEffects, default: sfx },
-      sound: { sfx, SoundEffects, default: sfx },
-      "./audio": { sfx, SoundEffects, default: sfx },
-      "./sound": { sfx, SoundEffects, default: sfx },
+      audio: { sfx, SoundEffects, playSound: (k) => sfx[k]?.() || sfx.play?.(k), default: sfx },
+      sound: { sfx, SoundEffects, playSound: (k) => sfx[k]?.() || sfx.play?.(k), default: sfx },
+      "./audio": { sfx, SoundEffects, playSound: (k) => sfx[k]?.() || sfx.play?.(k), default: sfx },
+      "./sound": { sfx, SoundEffects, playSound: (k) => sfx[k]?.() || sfx.play?.(k), default: sfx },
       sfx,
       SoundEffects,
       spiderAudio: sfx,
+      // Built-in modular game environments
+      "./ArenaEnv": ArenaModule,
+      "./ArenaEnv.jsx": ArenaModule,
+      "ArenaEnv": ArenaModule,
+      "./ChessBoardEnv": ChessBoardEnvModule,
+      "./ChessBoardEnv.jsx": ChessBoardEnvModule,
+      "ChessBoardEnv": ChessBoardEnvModule,
+      "./pieces": PiecesModule,
+      "./pieces.jsx": PiecesModule,
+      "pieces": PiecesModule,
+      "./ChessRules": ChessRulesModule,
+      "./ChessRules.js": ChessRulesModule,
+      "ChessRules": ChessRulesModule,
       ...customScope
     };
 
@@ -259,6 +286,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       "THREE",
       "useFrame",
       "useThree",
+      "Canvas",
       "Float",
       "Trail",
       "Text",
@@ -267,6 +295,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       "Stars",
       "Grid",
       "Html",
+      "Billboard",
+      "Center",
+      "RoundedBox",
+      "PerspectiveCamera",
+      "KeyboardControls",
+      "useKeyboardControls",
       "useFBX",
       "useGLTF",
       "useAnimations",
@@ -275,7 +309,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       "Chess",
       "sfx",
       "SoundEffects",
-      "spiderAudio"
+      "spiderAudio",
+      "ArenaEnv",
+      "CoinPickup",
+      "ObstacleBox",
+      "GameHud",
+      "ChessBoardEnv",
+      "PieceModel",
+      "ChessPiece"
     ];
 
     const scopeValues = [
@@ -293,6 +334,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       THREE,
       Fiber.useFrame,
       Fiber.useThree,
+      SafeCanvas,
       Drei.Float,
       Drei.Trail,
       Drei.Text,
@@ -301,6 +343,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       Drei.Stars,
       Drei.Grid,
       Drei.Html,
+      Drei.Billboard,
+      Drei.Center,
+      Drei.RoundedBox,
+      Drei.PerspectiveCamera,
+      Drei.KeyboardControls,
+      Drei.useKeyboardControls,
       Drei.useFBX,
       Drei.useGLTF,
       Drei.useAnimations,
@@ -309,7 +357,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       Chess,
       sfx,
       SoundEffects,
-      sfx
+      sfx,
+      ArenaModule.ArenaEnv,
+      ArenaModule.CoinPickup,
+      ArenaModule.ObstacleBox,
+      ArenaModule.GameHud,
+      ChessBoardEnvModule.ChessBoardEnv,
+      PiecesModule.PieceModel,
+      PiecesModule.PieceModel
     ];
 
     const fn = new Function(...scopeKeys, transformed);

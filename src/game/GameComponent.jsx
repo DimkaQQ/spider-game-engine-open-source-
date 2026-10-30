@@ -1,20 +1,76 @@
-import React,{useRef,useState,useEffect,useCallback} from 'react';
-import {useFrame} from '@react-three/fiber';
-import {Html,Text} from '@react-three/drei';
-const playTone=(f=440,t='sine',d=0.12,v=0.12)=>{try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.type=t;o.frequency.setValueAtTime(f,c.currentTime);o.frequency.exponentialRampToValueAtTime(Math.max(40,f*0.5),c.currentTime+d);g.gain.setValueAtTime(v,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+d);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+d);}catch(e){}};
-const OBS=[[-5,-4,0xff00cc],[5,-3,0x00ffff],[-3,4,0xffff00],[4,5,0xff3300],[0,-7,0x00ff88],[-7,2,0xaa00ff],[7,1,0xff00cc]];
-export default function GameComponent(){
-const [gs,setGs]=useState('menu');
-const [hud,setHud]=useState({hp:100,en:100,wave:1,score:0,kills:0});
-const pRef=useRef(),slashRef=useRef(),btnRef=useRef(),stateRef=useRef('menu');
-const keys=useRef({});
-const g=useRef({hp:100,en:100,wave:1,score:0,kills:0,slash:0,hitCd:0,sync:0,face:0});
-const drones=useRef(Array.from({length:14},(_,i)=>({id:i,x:0,z:-8,hp:2,active:false,sp:2,ph:i*1.3})));
-const dRefs=useRef([]);
-const sync=useCallback(()=>setHud({hp:Math.max(0,Math.round(g.current.hp)),en:Math.round(g.current.en),wave:g.current.wave,score:g.current.score,kills:g.current.kills}),[]);
-const spawnWave=useCallback((w)=>{const n=Math.min(3+w*2,14);drones.current.forEach((d,i)=>{d.active=i<n;d.hp=1+Math.floor(w/2);d.sp=1.8+w*0.25;const a=i/Math.max(1,n)*Math.PI*2;d.x=Math.cos(a)*(8+Math.random()*4);d.z=Math.sin(a)*(8+Math.random()*4);});g.current.wave=w;sync();},[sync]);
-const start=useCallback(()=>{g.current={hp:100,en:100,wave:1,score:0,kills:0,slash:0,hitCd:0,sync:0,face:0};if(pRef.current)pRef.current.position.set(0,0,4);spawnWave(1);stateRef.current='playing';setGs('playing');playTone(660,'sawtooth',0.25,0.08);setTimeout(()=>playTone(990,'square',0.2,0.06),120);},[spawnWave]);
-const slash=useCallback(()=>{if(stateRef.current!=='playing'||g.current.slash>0)return;g.current.slash=0.28;playTone(1200,'sawtooth',0.18,0.1);setTimeout(()=>playTone(300,'sawtooth',0.12,0.07),60);const p=pRef.current;if(!p)return;drones.current.forEach(d=>{if(!d.active)return;const dx=d.x-p.position.x,dz=d.z-p.position.z,dist=Math.hypot(dx,dz)||1;if(dist<3.4){d.hp-=1;if(d.hp<=0){d.active=false;g.current.score+=150;g.current.kills++;playTone(880,'square',0.2,0.12);}else{playTone(180,'square',0.08,0.1);d.x+=dx/dist*1.2;d.z+=dz/dist*1.2;}}});if(drones.current.every(d=>!d.active)){g.current.score+=300;spawnWave(g.current.wave+1);playTone(1320,'sine',0.3,0.12);}sync();},[spawnWave,sync]);
-useEffect(()=>{const dn=e=>{keys.current[e.code]=true;if(e.code==='Space'){e.preventDefault();if(stateRef.current==='menu')start();else slash();}if(e.code==='Enter'&&stateRef.current!=='playing')start();if(e.code==='KeyR'&&stateRef.current!=='menu')start();};const up=e=>{keys.current[e.code]=false;};window.addEventListener('keydown',dn);window.addEventListener('keyup',up);return()=>{window.removeEventListener('keydown',dn);window.removeEventListener('keyup',up);};},[start,slash]);
-useFrame((st,dt)=>{const p=pRef.current;dt=Math.min(dt,0.05);const t=st.clock.elapsedTime;if(btnRef.current){btnRef.current.position.y=1.7+Math.sin(t*2)*0.12;btnRef.current.scale.setScalar(1+Math.sin(t*3)*0.03);}if(stateRef.current==='menu'){st.camera.position.set(Math.sin(t*0.25)*11,5.5+Math.sin(t*0.4)*0.8,Math.cos(t*0.25)*11);st.camera.lookAt(0,1,0);return;}if(stateRef.current!=='playing'||!p)return;let mx=0,mz=0;if(keys.current.KeyW||keys.current.ArrowUp)mz-=1;if(keys.current.KeyS||keys.current.ArrowDown)mz+=1;if(keys.current.KeyA||keys.current.ArrowLeft)mx-=1;if(keys.current.KeyD||keys.current.ArrowRight)mx+=1;const dash=(keys.current.ShiftLeft||keys.current.ShiftRight)&&g.current.en>5&&(mx||mz);if(dash)g.current.en=Math.max(0,g.current.en-35*dt);else g.current.en=Math.min(100,g.current.en+18*dt);const sp=dash?11:6.2;if(mx||mz){const l=Math.hypot(mx,mz);mx/=l;mz/=l;g.current.face=Math.atan2(mx,mz);p.position.x=Math.max(-13,Math.min(13,p.position.x+mx*sp*dt));p.position.z=Math.max(-13,Math.min(13,p.position.z+mz*sp*dt));}OBS.forEach(([ox,oz])=>{const dx=p.position.x-ox,dz=p.position.z-oz,d=Math.hypot(dx,dz);if(d<1.4&&d>0){p.position.x=ox+dx/d*1.4;p.position.z=oz+dz/d*1.4;}});p.rotation.y=g.current.face;p.position.y=Math.abs(Math.sin(t*10))*(mx||mz?0.08:0.02);if(g.current.slash>0)g.current.slash-=dt;if(g.current.hitCd>0)g.current.hitCd-=dt;if(slashRef.current){const s=g.current.slash>0;slashRef.current.visible=s;if(s){slashRef.current.rotation.z=-1+g.current.slash*6;slashRef.current.scale.setScalar(1.4-g.current.slash);}}drones.current.forEach((d,i)=>{const m=dRefs.current[i];if(!m)return;m.visible=d.active;if(!d.active)return;const dx=p.position.x-d.x,dz=p.position.z-d.z,dist=Math.hypot(dx,dz)||1;d.x+=dx/dist*d.sp*dt;d.z+=dz/dist*d.sp*dt;m.position.set(d.x,1.1+Math.sin(t*3+d.ph)*0.25,d.z);m.rotation.y+=dt*2;if(dist<1.25&&g.current.hitCd<=0){g.current.hitCd=0.7;g.current.hp-=12;playTone(90,'sawtooth',0.2,0.15);sync();if(g.current.hp<=0){stateRef.current='gameover';setGs('gameover');playTone(110,'sawtooth',0.6,0.15);}}});g.current.sync+=dt;if(g.current.sync>0.15){g.current.sync=0;sync();}st.camera.position.lerp({x:p.position.x*0.65,y:9,z:p.position.z+10},0.08);st.camera.lookAt(p.position.x,0.8,p.position.z);});
-return(<group><fog attach='fog' args={['#050014',12,38]}/><ambientLight intensity={0.5}/><directionalLight position={[8,14,6]} intensity={1.6} color='#ff66ff'/><mesh rotation={[-Math.PI/2,0,0]} receiveShadow><planeGeometry args={[30,30]}/><meshStandardMaterial color='#08001a' roughness={0.4} metalness={0.6}/></mesh><gridHelper args={[30,30,0xff00ff,0x00e5ff]} position={[0,0.03,0]}/><mesh rotation={[-Math.PI/2,0,0]} position={[0,0.02,0]}><ringGeometry args={[6,6.15,48]}/><meshBasicMaterial color='#ff00ff'/></mesh>{OBS.map(([x,z,c],i)=>(<group key={i} position={[x,0,z]}><mesh position={[0,1,0]} castShadow><boxGeometry args={[1.6,2,1.6]}/><meshStandardMaterial color='#0b0620' emissive={c} emissiveIntensity={1.6} roughness={0.2} metalness={0.8}/></mesh><mesh position={[0,2.15,0]}><boxGeometry args={[1.8,0.15,1.8]}/><meshBasicMaterial color={c}/></mesh></group>))}<group ref={pRef} position={[0,0,4]}><mesh position={[0,0.85,0]} castShadow><capsuleGeometry args={[0.36,0.75,6,12]}/><meshStandardMaterial color='#111827' emissive='#00e5ff' emissiveIntensity={0.7} roughness={0.25} metalness={0.7}/></mesh><mesh position={[0,1.62,0]}><sphereGeometry args={[0.28,16,16]}/><meshStandardMaterial color='#ff00cc' emissive='#ff00cc' emissiveIntensity={1.2}/></mesh><group position={[0.55,1.05,0.25]} rotation={[0,0,-0.7]}><mesh><boxGeometry args={[0.08,1.5,0.16]}/><meshStandardMaterial color='#e0ffff' emissive='#00ffff' emissiveIntensity={2.2}/></mesh><mesh position={[0,-0.85,0]}><boxGeometry args={[0.14,0.35,0.2]}/><meshStandardMaterial color='#ff00ff'/></mesh></group><mesh ref={slashRef} visible={false} position={[0,1.1,0.6]}><torusGeometry args={[1.7,0.09,8,32,Math.PI*1.3]}/><meshBasicMaterial color='#00ffff' transparent opacity={0.9}/></mesh></group>{drones.current.map((d,i)=>(<group key={i} ref={el=>dRefs.current[i]=el} visible={false}><mesh castShadow><sphereGeometry args={[0.48,18,18]}/><meshStandardMaterial color='#1a0b2e' emissive='#ff0033' emissiveIntensity={1.4} metalness={0.8} roughness={0.2}/></mesh><mesh rotation={[Math.PI/2,0,0]}><torusGeometry args={[0.68,0.06,8,24]}/><meshBasicMaterial color='#ffcc00'/></mesh><mesh position={[0,0,0.42]}><sphereGeometry args={[0.16,12,12]}/><meshBasicMaterial color='#00ffff'/></mesh><mesh position={[0,0.55,0]}><coneGeometry args={[0.12,0.35,8]}/><meshBasicMaterial color='#ff00ff'/></mesh></group>))}{gs==='menu'&&(<group ref={btnRef} position={[0,1.7,-2.5]} onClick={start} onPointerOver={()=>document.body.style.cursor='pointer'} onPointerOut={()=>document.body.style.cursor='auto'}><mesh><boxGeometry args={[3.6,0.95,0.35]}/><meshStandardMaterial color='#0a0a2a' emissive='#00e5ff' emissiveIntensity={1.5} metalness={0.7} roughness={0.2}/></mesh><Text position={[0,0,0.22]} fontSize={0.38} color='#ffffff' anchorX='center' anchorY='middle'>START DUEL</Text></group>)}<Html fullscreen calculatePosition={(_,__,size)=>[size.width/2,size.height/2]} style={{pointerEvents:'none'}}><div style={{position:'absolute',inset:0,fontFamily:'monospace'}}>{gs==='menu'&&(<div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',paddingTop:'7vh',background:'radial-gradient(ellipse at center,transparent 35%,rgba(2,0,18,0.75) 100%)'}}><div style={{fontSize:52,fontWeight:900,letterSpacing:4,color:'#fff',textShadow:'0 0 18px #ff00ff,0 0 42px #00e5ff',textAlign:'center'}}>CYBER KATANA</div><div style={{fontSize:18,letterSpacing:6,color:'#00e5ff',marginTop:6}}>NEON SLASHER PROTOCOL</div><div style={{marginTop:'46vh',color:'#fff',fontSize:13,background:'rgba(0,0,0,0.55)',padding:'8px 16px',borderRadius:20,border:'1px solid rgba(0,229,255,0.5)'}}>Click the glowing 3D START DUEL button or press SPACE / ENTER</div><div style={{marginTop:10,color:'#cbd5e1',fontSize:12}}>WASD Move - SPACE Katana Slash - SHIFT Dash - R Restart</div></div>)}{gs==='gameover'&&(<div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'rgba(10,0,20,0.72)'}}><div style={{fontSize:44,fontWeight:900,color:'#ff3355',textShadow:'0 0 24px #ff0055'}}>SYSTEM DOWN</div><div style={{color:'#fff',marginTop:10}}>Wave {hud.wave} - Score {hud.score} - Drones Destroyed {hud.kills}</div><button onClick={start} style={{pointerEvents:'auto',marginTop:18,background:'#ff00cc',color:'#fff',border:'none',padding:'12px 28px',borderRadius:10,fontWeight:800,cursor:'pointer',fontSize:16,boxShadow:'0 0 20px #ff00cc'}}>RESTART DUEL [R]</button></div>)}<div style={{position:'absolute',bottom:18,left:'50%',transform:'translateX(-50%)',display:'flex',gap:16,alignItems:'center',background:'rgba(5,2,20,0.82)',border:'1px solid rgba(0,229,255,0.55)',boxShadow:'0 0 18px rgba(255,0,255,0.35)',borderRadius:999,padding:'10px 18px',color:'#fff',minWidth:520,justifyContent:'center'}}><b style={{color:'#00e5ff',letterSpacing:1}}>KATANA</b><span>HP <b style={{color:hud.hp>30?'#4ade80':'#ff3355'}}>{hud.hp}</b></span><div style={{width:90,height:8,background:'#1e293b',borderRadius:99,overflow:'hidden'}}><div style={{width:hud.hp+'%',height:'100%',background:hud.hp>30?'#22ff88':'#ff3355'}}/></div><span>EN {hud.en}</span><div style={{width:70,height:8,background:'#1e293b',borderRadius:99,overflow:'hidden'}}><div style={{width:hud.en+'%',height:'100%',background:'#00bfff'}}/></div><span>WAVE {hud.wave}</span><span style={{color:'#ffcc00'}}>SCORE {hud.score}</span>{gs==='playing'&&<span style={{fontSize:11,color:'#94a3b8'}}>SPACE Slash - SHIFT Dash</span>}</div></div></Html></group>);}
+import React, { useRef, useState } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
+
+export default function ZombieDefense() {
+  const [kills, setKills] = useState(0);
+  const [hp, setHp] = useState(100);
+  const heroRef = useRef();
+  const enemyRef = useRef();
+
+  useFrame((_, delta) => {
+    if (hp <= 0) return;
+    const t = window.__spiderVirtualTouch || { x: 0, z: 0 };
+    if (heroRef.current) {
+      heroRef.current.position.x += t.x * delta * 8;
+      heroRef.current.position.z += t.z * delta * 8;
+      heroRef.current.position.x = Math.max(-10, Math.min(10, heroRef.current.position.x));
+      heroRef.current.position.z = Math.max(-10, Math.min(10, heroRef.current.position.z));
+    }
+    if (enemyRef.current && heroRef.current) {
+      const dx = heroRef.current.position.x - enemyRef.current.position.x;
+      const dz = heroRef.current.position.z - enemyRef.current.position.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist > 0.8) {
+        enemyRef.current.position.x += (dx / dist) * delta * 3.5;
+        enemyRef.current.position.z += (dz / dist) * delta * 3.5;
+      } else {
+        setHp((h) => Math.max(0, h - 1));
+      }
+    }
+  });
+
+  const onSmiteZombie = () => {
+    if (enemyRef.current) {
+      enemyRef.current.position.x = (Math.random() - 0.5) * 16;
+      enemyRef.current.position.z = (Math.random() - 0.5) * 16;
+      setKills((k) => k + 1);
+    }
+  };
+
+  return (
+    <group>
+      <ambientLight intensity={0.4} />
+      <directionalLight position={[5, 10, 5]} intensity={1.2} />
+      {/* Ground arena */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
+        <planeGeometry args={[24, 24]} />
+        <meshStandardMaterial color="#1c1917" roughness={0.9} />
+      </mesh>
+      {/* Hero */}
+      <mesh ref={heroRef} position={[0, 0.6, 0]}>
+        <cylinderGeometry args={[0.4, 0.5, 1.2, 16]} />
+        <meshStandardMaterial color="#0284c7" roughness={0.3} />
+      </mesh>
+      {/* Zombie target - tap to attack */}
+      <mesh ref={enemyRef} position={[5, 0.6, 5]} onPointerDown={onSmiteZombie}>
+        <boxGeometry args={[0.9, 1.2, 0.9]} />
+        <meshStandardMaterial color="#dc2626" roughness={0.6} />
+      </mesh>
+      <Html fullscreen calculatePosition={(_, __, s) => [s.width / 2, 20]}>
+        <div style={{
+          background: 'rgba(12,10,9,0.9)',
+          color: '#fff',
+          padding: '8px 20px',
+          borderRadius: 20,
+          fontFamily: 'sans-serif',
+          fontWeight: 700,
+          textAlign: 'center'
+        }}>
+          <div>HP: {hp}% | Kills: {kills}</div>
+          <small style={{ color: '#f87171' }}>Tap the red zombie to attack!</small>
+        </div>
+      </Html>
+    </group>
+  );
+}
