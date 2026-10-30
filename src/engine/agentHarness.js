@@ -586,7 +586,15 @@ export function parseAgentReply(raw) {
   };
 }
 
-export async function runAgent(task, { ctx, callModel, onEvent, maxSteps = MAX_STEPS, getQueuedMessages }) {
+export async function runAgent(task, {
+  ctx,
+  callModel,
+  onEvent,
+  maxSteps = MAX_STEPS,
+  getQueuedMessages,
+  historyKeep = 8,
+  obsChars = 1200
+}) {
   const history = [];
   let consecutiveParseErrors = 0;
 
@@ -666,9 +674,10 @@ export async function runAgent(task, { ctx, callModel, onEvent, maxSteps = MAX_S
       return summary.charAt(0).toUpperCase() + summary.slice(1);
     }
 
-    // Compact observation to max 1200 chars in history so context doesn't explode
-    const compactObservation = observation.length > 1200
-      ? observation.slice(0, 1200) + `... [truncated ${observation.length - 1200} chars]`
+    // Compact observation based on dynamic context window limits so context doesn't explode
+    const maxObs = obsChars || 1200;
+    const compactObservation = observation.length > maxObs
+      ? observation.slice(0, maxObs) + `... [truncated ${observation.length - maxObs} chars]`
       : observation;
 
     // Compact action args if it contains huge code/content so history doesn't explode token limits
@@ -699,9 +708,10 @@ export async function runAgent(task, { ctx, callModel, onEvent, maxSteps = MAX_S
       { role: "user", text: `OBSERVATION: ${compactObservation}`, image_url: obsImage }
     );
 
-    // Keep history lean (at most last 8 turns) so token count stays small and fast
-    if (history.length > 10) {
-      history.splice(0, history.length - 8);
+    // Keep history lean based on model token capacity so token count stays small and fast
+    const keepTurns = historyKeep || 8;
+    if (history.length > keepTurns + 2) {
+      history.splice(0, history.length - keepTurns);
     }
   }
   return `Agent completed task. Work is preserved in the scene and project files.`;

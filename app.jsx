@@ -11,6 +11,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import GameViewport, { viewportApi } from "./src/engine/GameViewport";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFromRawJson } from "./src/engine/agentHarness.js";
+import { runLimits, contextWindow } from "./src/mobile/context.js";
 import {
   GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed
 } from "./src/game/index.js";
@@ -3649,6 +3650,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         ctx: { runTool: runAgentTool, isAborted: () => abortAgentRef.current },
         callModel,
         maxSteps: steps,
+        ...runLimits(contextWindow("meta", "spark-1.3")),
         getQueuedMessages: () => {
           if (messageQueueRef.current.length > 0) {
             const msgs = [...messageQueueRef.current];
