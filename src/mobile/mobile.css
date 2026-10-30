@@ -542,3 +542,8 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 .sp-app.is-full .sp-fps { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 .sp-app.is-full .sp-hud { top: calc(12px + env(safe-area-inset-top, 0px)); }
 .sp-stop-fab { position: absolute; z-index: 13; top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--bad); color: #fff; font-weight: 700; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+
+/* camera modes: icon + full name like the desktop editor; icon-only for inactive ones on very narrow screens */
+.sp-cams button { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 359px) { .sp-cams button:not(.is-on) span { display: none; } .sp-cams button:not(.is-on) { padding: 0 11px; } }
+@media (max-width: 380px) { .sp-fps { bottom: 58px; } .sp-app.is-full .sp-fps { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); } }

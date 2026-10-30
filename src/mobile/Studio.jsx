@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useRef, useState } from "react";
 import {
-  Camera, ChevronUp, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
+  Box, Camera, ChevronUp, Film, Gamepad2, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
   SlidersHorizontal, Bot, Trash2, Undo2, Coins as CoinsIcon,
 } from "lucide-react";
 import GameViewport, { viewportApi } from "../engine/GameViewport.jsx";
@@ -18,10 +18,11 @@ const GIZMOS = [
   { id: "scale", icon: Scale3d, label: "Scale" },
 ];
 
+// same names, order and icons as the desktop editor
 const CAMERAS = [
-  { id: "Viewport", label: "Free" },
-  { id: "Game View", label: "Game" },
-  { id: "Cinematic", label: "Cine" },
+  { id: "Viewport", label: "Viewport", icon: Box },
+  { id: "Cinematic", label: "Cinematic", icon: Film },
+  { id: "Game View", label: "Game View", icon: Gamepad2 },
 ];
 
 /** Virtual stick: writes analog jx/jz into the engine key map (changes throttled to ~16 steps). */
@@ -207,7 +208,8 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
           <div className="sp-cams" role="radiogroup" aria-label="Camera">
             {CAMERAS.map((c) => (
               <button key={c.id} type="button" role="radio" aria-checked={cameraMode === c.id} className={cx(cameraMode === c.id && "is-on")} onClick={() => setCameraMode(c.id)}>
-                {c.label}
+                <c.icon size={15} />
+                <span>{c.label}</span>
               </button>
             ))}
           </div>
