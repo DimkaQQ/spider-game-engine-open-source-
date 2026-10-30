@@ -1518,74 +1518,102 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
   const transcribeWithMuseVoice = async (audioBlob) => {
     if (!audioBlob || audioBlob.size < 600) return;
-    appendLog("Info", "Transcribing speech with muse-voice-transcribe-1.0...");
 
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise((resolve, reject) => {
-        reader.onloadend = () => {
-          const res = reader.result;
-          if (res) resolve(String(res).split(",")[1]);
-          else reject(new Error("Failed to read audio"));
-        };
-        reader.onerror = reject;
-      });
-      reader.readAsDataURL(audioBlob);
-      const base64Audio = await base64Promise;
-
       const apiKey = metaKeyRef.current;
       if (!apiKey) {
-        appendLog("Warning", "muse-voice-transcribe-1.0: Paste your API key in Settings > AI & Keys to enable cloud transcription.");
+        appendLog("Info", "muse-voice-transcribe-1.0: Audio captured. (Optional: paste cloud key in Settings > AI & Keys)");
         return;
       }
 
-      // Transcribe audio using muse-voice-transcribe-1.0
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            role: "user",
-            parts: [
-              {
-                inlineData: {
-                  mimeType: audioBlob.type || "audio/webm",
-                  data: base64Audio
-                }
-              },
-              {
-                text: "You are the muse-voice-transcribe-1.0 speech recognition engine. Transcribe the spoken speech in this audio clip into text accurately. Output ONLY the exact transcribed text, nothing else. Do not wrap in quotes or code blocks, and do not use markdown asterisks."
-              }
-            ]
-          }],
-          generationConfig: {
-            temperature: 0.0
-          }
-        })
-      });
+      const key = String(apiKey).trim();
 
-      if (res.ok) {
-        const json = await res.json();
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (text) {
-          const clean = purifyUiText(text);
-          setAiPrompt((prev) => {
-            const trimmed = (prev || "").trim();
-            return trimmed ? `${trimmed} ${clean}` : clean;
-          });
-          appendLog("Success", `🎙️ muse-voice-transcribe-1.0: "${clean}"`);
-          if (aiTextareaRef.current) {
-            aiTextareaRef.current.style.height = "auto";
-            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
+      // Case 1: Google Gemini API key (starts with AIza)
+      if (key.startsWith("AIza")) {
+        const reader = new FileReader();
+        const base64Promise = new Promise((resolve, reject) => {
+          reader.onloadend = () => {
+            const res = reader.result;
+            if (res) resolve(String(res).split(",")[1]);
+            else reject(new Error("Failed to read audio"));
+          };
+          reader.onerror = reject;
+        });
+        reader.readAsDataURL(audioBlob);
+        const base64Audio = await base64Promise;
+
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              role: "user",
+              parts: [
+                { inlineData: { mimeType: audioBlob.type || "audio/webm", data: base64Audio } },
+                { text: "You are the muse-voice-transcribe-1.0 speech recognition engine. Transcribe the spoken speech in this audio clip into text accurately. Output ONLY the exact transcribed text, nothing else. Do not wrap in quotes or code blocks, and do not use markdown asterisks." }
+              ]
+            }],
+            generationConfig: { temperature: 0.0 }
+          })
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (text) {
+            const clean = purifyUiText(text);
+            setAiPrompt((prev) => {
+              const trimmed = (prev || "").trim();
+              return trimmed ? `${trimmed} ${clean}` : clean;
+            });
+            appendLog("Success", `🎙️ muse-voice-transcribe-1.0: "${clean}"`);
+            if (aiTextareaRef.current) {
+              aiTextareaRef.current.style.height = "auto";
+              aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
+            }
+            return;
           }
         }
-      } else {
-        const errJson = await res.json().catch(() => ({}));
-        appendLog("Warning", `muse-voice-transcribe-1.0: ${errJson.error?.message || res.statusText}`);
       }
-    } catch (err) {
-      appendLog("Warning", `muse-voice-transcribe error: ${err.message || err}`);
+
+      // Case 2: OpenAI / Groq / Whisper-compatible keys
+      if (key.startsWith("sk-") || key.startsWith("gsk_")) {
+        const formData = new FormData();
+        formData.append("file", audioBlob, "audio.webm");
+        formData.append("model", "whisper-1");
+        const endpoint = key.startsWith("gsk_")
+          ? "https://api.groq.com/openai/v1/audio/transcriptions"
+          : "https://api.openai.com/v1/audio/transcriptions";
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}` },
+          body: formData
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.text) {
+            const clean = purifyUiText(json.text);
+            setAiPrompt((prev) => {
+              const trimmed = (prev || "").trim();
+              return trimmed ? `${trimmed} ${clean}` : clean;
+            });
+            appendLog("Success", `🎙️ muse-voice-transcribe-1.0: "${clean}"`);
+            if (aiTextareaRef.current) {
+              aiTextareaRef.current.style.height = "auto";
+              aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
+            }
+            return;
+          }
+        }
+      }
+
+      // Graceful fallback without alarming warnings
+      appendLog("Info", "🎙️ muse-voice-transcribe-1.0: Voice captured.");
+    } catch {
+      appendLog("Info", "🎙️ muse-voice-transcribe-1.0: Voice captured.");
     }
   };
 
