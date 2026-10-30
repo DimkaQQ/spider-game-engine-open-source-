@@ -213,6 +213,8 @@ export const DEFAULT_SETTINGS = {
   permission: "ask",
   haptics: true,
   autosave: true,
+  wrapCode: true,
+  voiceLang: "auto",
 };
 
 export const loadSettings = () => {
