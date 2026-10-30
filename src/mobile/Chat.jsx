@@ -5,6 +5,7 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 import { startVoice, voiceLang, voiceSupported } from "./voice.js";
+import Markdown from "./Markdown.jsx";
 import {
   ArrowUp, Mic, Check, RotateCcw, MoreHorizontal, Pencil, Copy, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
 } from "lucide-react";
@@ -35,7 +36,9 @@ function Message({ m, last, onUndo, onRetry, busy, onMenu }) {
   if (m.role === "user") {
     return (
       <div className="sp-msg is-user">
-        <p>{m.text}</p>
+        <div className="sp-msg-text">
+          <Markdown source={m.text} />
+        </div>
         {m.queued && <small>queued: sent mid-run</small>}
         {more}
       </div>
@@ -50,7 +53,9 @@ function Message({ m, last, onUndo, onRetry, busy, onMenu }) {
           ))}
         </div>
       )}
-      <p>{m.text}</p>
+      <div className="sp-msg-text">
+        <Markdown source={m.text} />
+      </div>
       {m.interrupted && last && (
         <button type="button" className="sp-btn is-primary" disabled={busy} onClick={() => onRetry(m.retryText)}>
           <RotateCcw size={15} /> Retry

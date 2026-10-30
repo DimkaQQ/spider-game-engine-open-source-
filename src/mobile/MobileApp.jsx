@@ -86,15 +86,30 @@ export default function MobileApp() {
         if (next) document.documentElement.requestFullscreen?.({ navigationUI: "hide" })?.catch(() => {});
         else if (document.fullscreenElement) document.exitFullscreen?.()?.catch(() => {});
       } catch {}
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 60);
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 250);
       return next;
     });
   }, []);
   useEffect(() => {
     const sync = () => {
       if (!document.fullscreenElement) setFull(false);
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 60);
     };
     document.addEventListener("fullscreenchange", sync);
     return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+  useEffect(() => {
+    const handleOrientationOrResize = () => {
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 60);
+      setTimeout(() => window.dispatchEvent(new Event("resize")), 250);
+    };
+    window.addEventListener("orientationchange", handleOrientationOrResize);
+    window.addEventListener("resize", handleOrientationOrResize);
+    return () => {
+      window.removeEventListener("orientationchange", handleOrientationOrResize);
+      window.removeEventListener("resize", handleOrientationOrResize);
+    };
   }, []);
   useEffect(() => {
     if (tab !== "studio" && full) toggleFull();
