@@ -12,7 +12,7 @@ import GameViewport, { viewportApi } from "./src/engine/GameViewport";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFromRawJson } from "./src/engine/agentHarness.js";
 import {
-  GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed, GameMainMenu
+  GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed
 } from "./src/game/index.js";
 import { MATERIAL_PRESETS, matColor, TUTORIALS } from "./src/game/index.js";
 import {
@@ -107,7 +107,7 @@ export function purifyUiText(text) {
 }
 
 
-// Antigravity-style slash commands registry
+// Spider Engine slash commands registry
 const SLASH_COMMANDS = [
   { id: "blender", name: "blender", desc: "Connect to Blender Real-Time MCP Bridge or toggle connection", iconType: "box" },
   { id: "btw", name: "btw", desc: "Ask a quick question without interrupting the main conversation.", iconType: "help" },
@@ -1543,7 +1543,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     aiPromptRef.current = aiPrompt;
   }, [aiPrompt]);
 
-  // Antigravity-style slash command index
+  // Spider Engine slash command index
   const [slashIndex, setSlashIndex] = useState(0);
 
   // Convert audio buffer into a 16kHz mono 16-bit PCM WAV Blob (Meta Muse Voice Transcribe format)
@@ -6323,31 +6323,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 )}
 
                 {viewportTab === "Title Menu" && (
-                  <div className="absolute inset-0 z-30 bg-black overflow-hidden">
-                    <GameMainMenu
-                      onLaunchGame={async () => {
-                        try {
-                          if (window.spiderShell?.readProjectFile) {
-                            const res = await window.spiderShell.readProjectFile("src/game", "GameComponent.jsx");
-                            if (res && res.ok && res.content) {
-                              setActiveJsxCode(res.content);
-                              setActiveJsxName("GameComponent.jsx");
-                              setSelectedScriptNames(new Set(["GameComponent.jsx"]));
-                            }
-                          }
-                        } catch {}
-                        setTimeOfDay(22.5);
-                        setTimelineT(22.5);
-                        setViewportTab("Game View");
-                        if (!isPlaying) handleTogglePlay();
-                        appendLog("Success", "🌆 Entering Knowledge Park District (Dark Open World) — Possessing Wayfarer!");
-                        setTimeout(() => {
-                          if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-                          window.focus();
-                        }, 60);
-                      }}
-                      onClose={() => setViewportTab("Viewport")}
-                    />
+                  <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-sm text-white">
+                    <div className="text-center">
+                      <h2 className="text-xl font-bold mb-2">Title Menu Viewport</h2>
+                      <p className="text-sm text-slate-300">Click Game View or Play to test interactive scene</p>
+                    </div>
                   </div>
                 )}
 
@@ -8349,7 +8329,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             </div>
 
-            {/* Antigravity-Style Slash Commands Autocomplete Popup */}
+            {/* Spider Engine Slash Commands Autocomplete Popup */}
             {aiPrompt.startsWith("/") && (
               <div className="mx-2 mb-1 p-1.5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl overflow-hidden select-none z-30">
                 <div className="max-h-56 overflow-y-auto no-scrollbar space-y-0.5">
