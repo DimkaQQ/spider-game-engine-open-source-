@@ -3,7 +3,7 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  * Author: M4SPIDER (support@m4spider.com)
  */
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box, Camera, ChevronUp, Film, Gamepad2, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
   SlidersHorizontal, Bot, Trash2, Undo2, Coins as CoinsIcon,
@@ -79,6 +79,17 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
     settings, activeJsx, activeJsxName, setFps, fps, keys, setKeys, jump, score, coins, togglePlay,
     undo, redo, undoCount, toggleVisible, duplicate, removeNode, onViewportTransform, timeOfDay, files, resetScore,
   } = s;
+
+  // Camera modes stay folded into one round button so they never cover the FPS badge or the scene.
+  const [camOpen, setCamOpen] = useState(false);
+  const camTimer = useRef(null);
+  const openCams = () => {
+    setCamOpen(true);
+    clearTimeout(camTimer.current);
+    camTimer.current = setTimeout(() => setCamOpen(false), 4500);
+  };
+  useEffect(() => () => clearTimeout(camTimer.current), []);
+  const currentCam = CAMERAS.find((c) => c.id === cameraMode) || CAMERAS[0];
 
   const left = coins.filter((c) => !c.taken).length;
   const customGame = Boolean(activeJsx);
@@ -205,14 +216,31 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
 
         {/* camera pills */}
         {!isPlaying && (
-          <div className="sp-cams" role="radiogroup" aria-label="Camera">
-            {CAMERAS.map((c) => (
-              <button key={c.id} type="button" role="radio" aria-checked={cameraMode === c.id} className={cx(cameraMode === c.id && "is-on")} onClick={() => setCameraMode(c.id)}>
-                <c.icon size={15} />
-                <span>{c.label}</span>
-              </button>
-            ))}
-          </div>
+          camOpen ? (
+            <div className="sp-cams" role="radiogroup" aria-label="Camera">
+              {CAMERAS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={cameraMode === c.id}
+                  className={cx(cameraMode === c.id && "is-on")}
+                  onClick={() => {
+                    setCameraMode(c.id);
+                    clearTimeout(camTimer.current);
+                    camTimer.current = setTimeout(() => setCamOpen(false), 900);
+                  }}
+                >
+                  <c.icon size={15} />
+                  <span>{c.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className="sp-cam-btn" onClick={openCams} aria-label={`Camera: ${currentCam.label}. Tap to change`}>
+              <currentCam.icon size={18} />
+            </button>
+          )
         )}
 
         {empty && !isPlaying && (
