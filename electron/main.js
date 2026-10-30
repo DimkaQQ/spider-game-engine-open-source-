@@ -642,91 +642,47 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     });
   });
 
-  // Native Speech Recognition Engine (Windows Dictation SAPI Bridge)
-  let activeSpeechProcess = null;
-
-  ipcMain.handle('spider-speech-start', (e) => {
+  // Meta Muse Voice Transcribe API Bridge (Real-Time ASR via Meta Model API)
+  ipcMain.handle('spider-meta-transcribe', async (_e, { apiKey, base64Audio, mimeType, audioEncoding }) => {
     try {
-      if (activeSpeechProcess) {
-        try { activeSpeechProcess.stdin.write("STOP\n"); } catch {}
-        try { activeSpeechProcess.kill(); } catch {}
-        activeSpeechProcess = null;
+      if (!apiKey) return { ok: false, error: 'No Meta API key found. Please check Settings > AI & Keys.' };
+      const audioBuf = Buffer.from(base64Audio, 'base64');
+      const blob = new Blob([audioBuf], { type: mimeType || 'audio/wav' });
+      const formData = new FormData();
+      formData.append('request', JSON.stringify({
+        model: 'muse-voice-transcribe-1.0',
+        audioEncoding: audioEncoding || 'WAV',
+        mode: 'PUSH_TO_TALK'
+      }));
+      formData.append('audio', blob, 'speech.wav');
+
+      const res = await fetch('https://api.meta.ai/v1/asr/transcribe', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey.trim()}`,
+          'Accept': 'application/json'
+        },
+        body: formData
+      });
+
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+
+      if (!res.ok) {
+        return { ok: false, status: res.status, error: data?.error?.message || text || res.statusText };
       }
 
-      const scriptPath = path.join(__dirname, '../scripts/native_speech_worker.ps1');
-      if (!fs.existsSync(scriptPath)) {
-        return { ok: false, error: 'Speech script not found' };
-      }
-
-      const sender = e.sender;
-      const child = spawn('powershell.exe', [
-        '-NoProfile',
-        '-ExecutionPolicy', 'Bypass',
-        '-File', scriptPath
-      ], {
-        windowsHide: true,
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
-
-      activeSpeechProcess = child;
-
-      let buffer = '';
-      child.stdout.on('data', (chunk) => {
-        buffer += chunk.toString();
-        const lines = buffer.split(/\r?\n/);
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed) continue;
-          if (trimmed === 'LISTENING_STARTED') {
-            try { sender.send('spider-speech-stream', { type: 'started' }); } catch {}
-          } else if (trimmed === 'LISTENING_STOPPED') {
-            try { sender.send('spider-speech-stream', { type: 'stopped' }); } catch {}
-          } else if (trimmed.startsWith('INTERIM:')) {
-            const text = trimmed.slice(8).trim();
-            try { sender.send('spider-speech-stream', { type: 'interim', text }); } catch {}
-          } else if (trimmed.startsWith('FINAL:')) {
-            const text = trimmed.slice(6).trim();
-            try { sender.send('spider-speech-stream', { type: 'final', text }); } catch {}
-          }
-        }
-      });
-
-      child.on('close', () => {
-        if (activeSpeechProcess === child) {
-          activeSpeechProcess = null;
-        }
-        try { sender.send('spider-speech-stream', { type: 'stopped' }); } catch {}
-      });
-
-      child.on('error', (err) => {
-        console.warn('Native speech process error:', err);
-        try { sender.send('spider-speech-stream', { type: 'error', error: err.message }); } catch {}
-      });
-
-      return { ok: true, active: true };
+      const transcript = data?.transcript || (data?.turns && data.turns.map(t => t.transcript).join(' ')) || data?.text || '';
+      return { ok: true, transcript };
     } catch (err) {
-      return { ok: false, error: String(err) };
+      return { ok: false, error: err.message || String(err) };
     }
   });
 
-  ipcMain.handle('spider-speech-stop', () => {
-    try {
-      if (activeSpeechProcess) {
-        try { activeSpeechProcess.stdin.write("STOP\n"); } catch {}
-        setTimeout(() => {
-          if (activeSpeechProcess) {
-            try { activeSpeechProcess.kill(); } catch {}
-            activeSpeechProcess = null;
-          }
-        }, 300);
-      }
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: String(err) };
-    }
-  });
+  // Legacy speech stubs (noop to avoid any leftover SAPI execution)
+  ipcMain.handle('spider-speech-start', () => ({ ok: false, error: 'Replaced with Meta Muse Voice Transcribe' }));
+  ipcMain.handle('spider-speech-stop', () => ({ ok: true }));
 
   // Grant microphone and media permissions for muse-voice-transcribe-1.0
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {

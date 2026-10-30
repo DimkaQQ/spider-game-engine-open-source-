@@ -1542,62 +1542,145 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Antigravity-style slash command index
   const [slashIndex, setSlashIndex] = useState(0);
 
-  // Subscribe to native real-time speech stream in Electron
-  useEffect(() => {
-    if (window.spiderShell?.onSpeechStream) {
-      const unsub = window.spiderShell.onSpeechStream((data) => {
-        if (data.type === "started") {
-          setIsTranscribing(true);
-        } else if (data.type === "stopped") {
-          setIsTranscribing(false);
-        } else if (data.type === "interim" && data.text) {
-          const base = (initialPromptRef.current || "").trim();
-          const clean = purifyUiText(data.text).trim();
-          const current = base ? `${base} ${clean}` : clean;
-          setAiPrompt(current);
-          if (aiTextareaRef.current) {
-            aiTextareaRef.current.style.height = "auto";
-            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
-          }
-        } else if (data.type === "final" && data.text) {
-          const base = (initialPromptRef.current || "").trim();
-          const clean = purifyUiText(data.text).trim();
-          const current = base ? `${base} ${clean}` : clean;
-          initialPromptRef.current = current;
-          setAiPrompt(current);
-          if (aiTextareaRef.current) {
-            aiTextareaRef.current.style.height = "auto";
-            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
-          }
-        }
-      });
-      return () => unsub();
+  // Convert audio buffer into a 16kHz mono 16-bit PCM WAV Blob (Meta Muse Voice Transcribe format)
+  const audioBufferToWavBlob = (audioBuffer, targetSampleRate = 16000) => {
+    const numChannels = 1;
+    const inputData = audioBuffer.getChannelData(0);
+    let samples;
+    if (audioBuffer.sampleRate === targetSampleRate) {
+      samples = inputData;
+    } else {
+      const ratio = audioBuffer.sampleRate / targetSampleRate;
+      const newLength = Math.round(inputData.length / ratio);
+      samples = new Float32Array(newLength);
+      for (let i = 0; i < newLength; i++) {
+        const origin = i * ratio;
+        const idx = Math.floor(origin);
+        const frac = origin - idx;
+        const s0 = inputData[idx] || 0;
+        const s1 = inputData[idx + 1] || s0;
+        samples[i] = s0 + frac * (s1 - s0);
+      }
     }
-  }, []);
+
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    const writeString = (offset, str) => {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    };
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, targetSampleRate, true);
+    view.setUint32(28, targetSampleRate * numChannels * 2, true);
+    view.setUint16(32, numChannels * 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+  };
 
   const transcribeWithMuseVoice = async (audioBlob) => {
-    if (!audioBlob || audioBlob.size < 600) return;
+    if (!audioBlob || audioBlob.size < 400) return;
 
     try {
       const apiKey = metaKeyRef.current;
-      if (!apiKey) return;
+      if (!apiKey) {
+        appendLog("Warning", "Meta Muse Transcriber: Please add your Meta API key in Settings > AI & Keys.");
+        return;
+      }
+
+      appendLog("Info", "Transcribing speech with Meta Muse Voice Transcribe (3.1% WER)...");
+
+      // 1. Convert audio to 16kHz mono WAV for Meta Muse ASR
+      let wavBlob = audioBlob;
+      try {
+        const arrayBuf = await audioBlob.arrayBuffer();
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          const actx = new AudioCtx();
+          const decoded = await actx.decodeAudioData(arrayBuf);
+          wavBlob = audioBufferToWavBlob(decoded);
+          try { await actx.close(); } catch {}
+        }
+      } catch (err) {
+        console.warn("WAV conversion fallback:", err);
+      }
+
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const res = reader.result;
+          if (res) resolve(String(res).split(",")[1]);
+          else reject(new Error("Failed to read audio"));
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(wavBlob);
+      const base64Audio = await base64Promise;
 
       const key = String(apiKey).trim();
+      let text = "";
 
-      // Case 1: Google Gemini API key (starts with AIza)
-      if (key.startsWith("AIza")) {
-        const reader = new FileReader();
-        const base64Promise = new Promise((resolve, reject) => {
-          reader.onloadend = () => {
-            const res = reader.result;
-            if (res) resolve(String(res).split(",")[1]);
-            else reject(new Error("Failed to read audio"));
-          };
-          reader.onerror = reject;
+      // 2. Primary: Meta Muse Voice Transcribe via Electron bridge
+      if (window.spiderShell?.transcribeWithMeta) {
+        const r = await window.spiderShell.transcribeWithMeta({
+          apiKey: key,
+          base64Audio,
+          mimeType: "audio/wav",
+          audioEncoding: "WAV"
         });
-        reader.readAsDataURL(audioBlob);
-        const base64Audio = await base64Promise;
+        if (r?.ok && r.transcript) {
+          text = r.transcript;
+        } else if (!r?.ok && r?.error) {
+          appendLog("Warning", `Meta Muse Transcriber: ${r.error}`);
+        }
+      }
 
+      // 3. Fallback: Direct fetch to Meta ASR endpoint if web environment
+      if (!text && !key.startsWith("AIza") && !key.startsWith("sk-") && !key.startsWith("gsk_")) {
+        try {
+          const formData = new FormData();
+          formData.append("request", JSON.stringify({
+            model: "muse-voice-transcribe-1.0",
+            audioEncoding: "WAV",
+            mode: "PUSH_TO_TALK"
+          }));
+          formData.append("audio", wavBlob, "speech.wav");
+          const res = await fetch("https://api.meta.ai/v1/asr/transcribe", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${key}`,
+              Accept: "application/json"
+            },
+            body: formData
+          });
+          if (res.ok) {
+            const data = await res.json();
+            text = data.transcript || (data.turns && data.turns.map(t => t.transcript).join(" ")) || data.text || "";
+          }
+        } catch (e) {
+          console.warn("Direct Meta transcribe fetch:", e);
+        }
+      }
+
+      // 4. Secondary fallback: Google Gemini API (if key starts with AIza)
+      if (!text && key.startsWith("AIza")) {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
         const res = await fetch(endpoint, {
           method: "POST",
@@ -1607,78 +1690,57 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
               role: "user",
               parts: [
                 { inlineData: { mimeType: audioBlob.type || "audio/webm", data: base64Audio } },
-                { text: "You are the speech recognition engine. Transcribe spoken speech in this audio clip into text accurately. Output ONLY the exact transcribed text, nothing else. Do not wrap in quotes or code blocks, and do not use markdown asterisks." }
+                { text: "Transcribe spoken speech accurately. Output ONLY the exact transcribed text, nothing else." }
               ]
             }],
             generationConfig: { temperature: 0.0 }
           })
         });
-
         if (res.ok) {
           const json = await res.json();
-          const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text) {
-            const clean = purifyUiText(text);
-            const base = (initialPromptRef.current || "").trim();
-            const current = base ? `${base} ${clean}` : clean;
-            setAiPrompt(current);
-            initialPromptRef.current = current;
-            if (aiTextareaRef.current) {
-              aiTextareaRef.current.style.height = "auto";
-              aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
-            }
-            return;
-          }
+          text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
         }
-      }
-
-      // Case 2: OpenAI / Groq / Whisper-compatible keys
-      if (key.startsWith("sk-") || key.startsWith("gsk_")) {
+      } else if (!text && (key.startsWith("sk-") || key.startsWith("gsk_"))) {
         const formData = new FormData();
         formData.append("file", audioBlob, "audio.webm");
         formData.append("model", "whisper-1");
         const endpoint = key.startsWith("gsk_")
           ? "https://api.groq.com/openai/v1/audio/transcriptions"
           : "https://api.openai.com/v1/audio/transcriptions";
-
         const res = await fetch(endpoint, {
           method: "POST",
           headers: { Authorization: `Bearer ${key}` },
           body: formData
         });
-
         if (res.ok) {
           const json = await res.json();
-          if (json.text) {
-            const clean = purifyUiText(json.text);
-            const base = (initialPromptRef.current || "").trim();
-            const current = base ? `${base} ${clean}` : clean;
-            setAiPrompt(current);
-            initialPromptRef.current = current;
-            if (aiTextareaRef.current) {
-              aiTextareaRef.current.style.height = "auto";
-              aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
-            }
-            return;
+          text = json.text || "";
+        }
+      }
+
+      if (text) {
+        const clean = purifyUiText(text).trim();
+        if (clean) {
+          const base = (initialPromptRef.current || "").trim();
+          const current = base ? `${base} ${clean}` : clean;
+          setAiPrompt(current);
+          initialPromptRef.current = current;
+          appendLog("Success", `🎙️ Meta Muse: "${clean}"`);
+          if (aiTextareaRef.current) {
+            aiTextareaRef.current.style.height = "auto";
+            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
           }
         }
       }
-    } catch {}
+    } catch (err) {
+      appendLog("Warning", `Meta Muse Transcribe error: ${err.message || err}`);
+    }
   };
 
   const toggleTranscriber = async () => {
-    // If already transcribing, stop immediately!
+    // If already transcribing, stop and transcribe!
     if (isTranscribing) {
       setIsTranscribing(false);
-
-      if (window.spiderShell?.stopSpeechRecognition) {
-        try { window.spiderShell.stopSpeechRecognition(); } catch {}
-      }
-
-      if (speechRecognitionRef.current) {
-        try { speechRecognitionRef.current.stop(); } catch {}
-        speechRecognitionRef.current = null;
-      }
 
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         try { mediaRecorderRef.current.stop(); } catch {}
@@ -1694,97 +1756,51 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     }
 
     initialPromptRef.current = (aiPrompt || "").trim();
-    setIsTranscribing(true);
-
-    // 1. Native Electron Speech Engine (PowerShell Windows SAPI)
-    if (window.spiderShell?.startSpeechRecognition) {
-      try {
-        await window.spiderShell.startSpeechRecognition();
-        return;
-      } catch (err) {
-        console.warn("Native speech start failed, falling back to Web Speech:", err);
-      }
-    }
-
-    // 2. Browser Web Speech fallback (continuous real-time streaming)
-    const SpeechRecognition = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (SpeechRecognition) {
-      try {
-        const rec = new SpeechRecognition();
-        rec.continuous = true;
-        rec.interimResults = true;
-        rec.lang = "en-US";
-
-        rec.onresult = (event) => {
-          let interim = "";
-          let final = "";
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const t = event.results[i][0].transcript;
-            if (event.results[i].isFinal) final += t;
-            else interim += t;
-          }
-
-          if (final) {
-            const base = (initialPromptRef.current || "").trim();
-            initialPromptRef.current = base ? `${base} ${final.trim()}` : final.trim();
-          }
-
-          const base = (initialPromptRef.current || "").trim();
-          const cleanInterim = interim.trim();
-          const livePrompt = cleanInterim ? (base ? `${base} ${cleanInterim}` : cleanInterim) : base;
-
-          setAiPrompt(livePrompt);
-          if (aiTextareaRef.current) {
-            aiTextareaRef.current.style.height = "auto";
-            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
-          }
-        };
-
-        rec.onerror = () => {};
-        rec.onend = () => {};
-
-        speechRecognitionRef.current = rec;
-        rec.start();
-      } catch {}
-    }
-
-    // 3. Optional Audio Recorder for cloud models (ONLY used if speech engine didn't transcribe live)
     audioChunksRef.current = [];
+
     try {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-        mediaStreamRef.current = stream;
-
-        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : MediaRecorder.isTypeSupported("audio/webm")
-          ? "audio/webm"
-          : "";
-
-        const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-        mediaRecorderRef.current = recorder;
-
-        recorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            audioChunksRef.current.push(e.data);
-          }
-        };
-
-        recorder.onstop = () => {
-          const current = (aiPromptRef.current || "").trim();
-          const start = (initialPromptRef.current || "").trim();
-          if (current && current !== start) {
-            // Already typed live as user spoke! No duplicate cloud transcription needed!
-            return;
-          }
-          const blob = new Blob(audioChunksRef.current, { type: mimeType || "audio/webm" });
-          transcribeWithMuseVoice(blob);
-        };
-
-        recorder.start(250);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        appendLog("Warning", "Microphone access not supported in this environment.");
+        return;
       }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
+      mediaStreamRef.current = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "";
+
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        if (audioChunksRef.current.length === 0) return;
+        const blob = new Blob(audioChunksRef.current, { type: mimeType || "audio/webm" });
+        transcribeWithMuseVoice(blob);
+      };
+
+      recorder.start(200);
+      setIsTranscribing(true);
+      appendLog("Info", "🎙️ Meta Muse Transcriber: Listening... Click again when done speaking.");
     } catch (err) {
-      console.warn("Microphone recording fallback error:", err);
+      console.warn("Microphone start error:", err);
+      appendLog("Warning", `Could not access microphone: ${err.message || err}`);
+      setIsTranscribing(false);
     }
   };
 

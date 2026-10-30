@@ -55,7 +55,8 @@ contextBridge.exposeInMainWorld('spiderShell', {
   blenderConnect: (opts) => ipcRenderer.invoke('spider-blender-connect', opts),
   blenderStatus: () => ipcRenderer.invoke('spider-blender-status'),
   blenderSend: (payload) => ipcRenderer.invoke('spider-blender-send', payload),
-  // Native Real-Time Speech Recognition Engine
+  // Meta Muse Voice Transcribe Engine
+  transcribeWithMeta: (opts) => ipcRenderer.invoke('spider-meta-transcribe', opts),
   startSpeechRecognition: () => ipcRenderer.invoke('spider-speech-start'),
   stopSpeechRecognition: () => ipcRenderer.invoke('spider-speech-stop'),
   onSpeechStream: (callback) => {
