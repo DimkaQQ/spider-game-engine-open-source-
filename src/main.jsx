@@ -26,6 +26,7 @@ import * as THREE from 'three'
 import { Chess } from 'chess.js'
 import App from '../app.jsx'
 import './index.css'
+import './mobile/mobile.css'
 
 // Expose on window for sandboxed ArtifactPreview fallback
 if (typeof window !== 'undefined') {
