@@ -236,7 +236,7 @@ export function GameHud({
     : { top: 14, left: 14 };
 
   return (
-    <Html fullscreen style={{ pointerEvents: 'none' }}>
+    <Html fullscreen calculatePosition={() => [0, 0]} style={{ pointerEvents: 'none' }}>
       <div
         style={{
           position: 'absolute',

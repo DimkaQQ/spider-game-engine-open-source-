@@ -375,6 +375,15 @@ export default function GameComponent() {
           <mesh position={[0, -0.15, 0.75]} castShadow><boxGeometry args={[0.1, 0.14, 1.6]} /><meshStandardMaterial color="#e5e7eb" metalness={0.9} roughness={0.15} /></mesh>
           <mesh position={[0, -0.15, -0.05]}><boxGeometry args={[0.16, 0.2, 0.22]} /><meshStandardMaterial color="#111827" /></mesh>
         </group>
+        {/* Overhead Status Indicator: Directly locked to model position everywhere it moves */}
+        <Html position={[0, 2.7, 0]} center style={{ pointerEvents: 'none', userSelect: 'none' }}>
+          <div style={{ background: 'rgba(15, 23, 42, 0.85)', padding: '3px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6, backdropFilter: 'blur(4px)' }}>
+            <span style={{ color: '#fbcfe8' }}>SAMURAI</span>
+            <div style={{ width: 45, height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', background: '#22c55e', width: '100%' }} />
+            </div>
+          </div>
+        </Html>
       </group>
 
       {/* Enemy Bandits */}
@@ -477,9 +486,9 @@ export default function GameComponent() {
       )}
 
       {/* ========================================================================= */}
-      {/* 🎮 SLEEK CINEMATIC HUD (DOCKED AT BOTTOM-CENTER ON ARENA FLOOR) */}
+      {/* 🎮 SLEEK CINEMATIC HUD (DOCKED AT BOTTOM-CENTER ON ARENA FLOOR — FIXED VIEWPORT) */}
       {/* ========================================================================= */}
-      <Html fullscreen style={{ pointerEvents: 'none' }}>
+      <Html fullscreen calculatePosition={() => [0, 0]} style={{ pointerEvents: 'none' }}>
         <div ref={vg} style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 90px rgba(220,0,0,.95)', opacity: 0, transition: 'opacity .1s' }} />
         <div
           style={{
