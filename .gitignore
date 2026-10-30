@@ -21,3 +21,12 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# 3D models and binary assets
+public/assets/
+*.glb
+*.gltf
+*.fbx
+*.obj
+*.blend*
+

@@ -19,6 +19,32 @@ html, body, #root {
   scrollbar-width: none;
 }
 
+/* Remove scrollbar arrow buttons / triangles and default white track */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:vertical:decrement,
+::-webkit-scrollbar-button:vertical:increment,
+::-webkit-scrollbar-button:horizontal:decrement,
+::-webkit-scrollbar-button:horizontal:increment {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
 /* Round checkboxes — curved instead of square boxes */
 .round-check {
   appearance: none;
@@ -105,3 +131,13 @@ html, body, #root {
   border-radius: 9999px;
   animation: muse-wave 0.8s ease-in-out infinite;
 }
+
+/* Viewport Normal Cursor Blocking / Pointer Lock */
+[data-cursor-locked="true"],
+[data-cursor-locked="true"] canvas,
+[data-cursor-locked="true"] .viewport-stage-container,
+.cursor-blocked,
+.cursor-blocked canvas {
+  cursor: none !important;
+}
+

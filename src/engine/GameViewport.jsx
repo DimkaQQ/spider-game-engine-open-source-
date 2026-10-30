@@ -1291,7 +1291,7 @@ export default function GameViewport({
         } catch {}
         window.focus();
       }}
-      style={{ cursor: isPlaying ? "crosshair" : undefined }}
+      style={{ cursor: (typeof document !== "undefined" && document.pointerLockElement) ? "none" : (isPlaying ? "crosshair" : undefined) }}
     >
       <Canvas
         key={`${projection}-${hasCustomJsx}`}

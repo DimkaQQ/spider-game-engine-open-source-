@@ -106,6 +106,31 @@ export function purifyUiText(text) {
     .replace(/^#+\s+/gm, "");
 }
 
+// Lightweight real-time syntax highlighter for JSX / React / Three.js code
+export function highlightJsxCode(code) {
+  if (!code) return "";
+  const escapeHtml = (str) =>
+    str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const tokenRegex = /((\/\/[^\n]*)|(\/\*[\s\S]*?\*\/))|('(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|`(?:\\.|[^`\\])*`)|(\b(?:import|export|default|from|const|let|var|function|return|if|else|switch|case|break|for|while|do|try|catch|finally|throw|new|typeof|instanceof|async|await|class|extends|super|this|yield|null|undefined|true|false)\b)|(\b(?:useState|useEffect|useRef|useMemo|useCallback|useFrame|useThree|useGLTF|useTexture|useLoader)\b)|(&lt;\/?[A-Za-z0-9_.]+|&gt;)|(\b[a-zA-Z-]+(?==))|(\b\d+(?:\.\d+)?\b)|([{}()[\],.;:+\-*\/=<>!&|?])/g;
+
+  const escaped = escapeHtml(code);
+  return escaped.replace(
+    tokenRegex,
+    (match, comment, lC, bC, str, kw, hook, tag, attr, num, punct) => {
+      if (comment) return `<span style="color: #64748b; font-style: italic;">${match}</span>`;
+      if (str) return `<span style="color: #4ade80;">${match}</span>`;
+      if (kw) return `<span style="color: #c084fc; font-weight: 600;">${match}</span>`;
+      if (hook) return `<span style="color: #38bdf8; font-weight: bold;">${match}</span>`;
+      if (tag) return `<span style="color: #67e8f9; font-weight: bold;">${match}</span>`;
+      if (attr) return `<span style="color: #fcd34d;">${match}</span>`;
+      if (num) return `<span style="color: #fb923c;">${match}</span>`;
+      if (punct) return `<span style="color: #94a3b8;">${match}</span>`;
+      return match;
+    }
+  );
+}
+
 
 // Spider Engine slash commands registry
 const SLASH_COMMANDS = [
@@ -3418,10 +3443,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       };
 
       const callModel = async (task, history) => {
-        const sys = systemPrompt(snapshot(), { isMobile }) + "\n" +
-          (isMobile
-            ? "\n\nCRITICAL MOBILE REQUIREMENT: The user is on a MOBILE PHONE touchscreen! Absolutely NO keyboard controls! DO NOT USE WASD or arrow keys. All movement, steering, and actions MUST be 100% touch controlled (tap, swipe, pointer events, or on-screen touch buttons). Never tell the user to press a keyboard key (no 'Press SPACE' or 'Press R'). Tap anywhere to restart on Game Over.\n"
-            : "") + GAME_BUILDER_PRIMER;
+        const sys = systemPrompt(snapshot(), { isMobile: false }) + "\n" +
+          "\n\nCRITICAL CONTROLS MANDATE: CREATE GAMES FOR KEYBOARD, NOT FOR SCREEN! Always implement responsive physical keyboard controls (WASD, Arrow Keys, Spacebar for jump/action/brake, Shift for sprint, and 'R' key to restart). NEVER create on-screen touch buttons, virtual joysticks, or touch d-pads on the screen. The engine is designed for desktop keyboard gameplay.\n" +
+          GAME_BUILDER_PRIMER;
         let messages;
         if (history.length === 0) {
           const imgUrl = initialImageUrl;
@@ -3784,6 +3808,16 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
   const consoleEndRef = useRef(null);
   const viewportRef = useRef(null);
+  const codePreRef = useRef(null);
+  const codeGutterRef = useRef(null);
+
+  const highlightedCode = useMemo(() => {
+    return highlightJsxCode(activeJsxCode !== null ? activeJsxCode : "");
+  }, [activeJsxCode]);
+
+  const codeLineCount = useMemo(() => {
+    return ((activeJsxCode !== null ? activeJsxCode : "") || "").split("\n").length;
+  }, [activeJsxCode]);
 
   // 3D Viewport Pure Canvas MP4 Recorder (captures ONLY inside 3D viewport canvas)
   const [isViewportRecording, setIsViewportRecording] = useState(false);
@@ -3903,15 +3937,129 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return `${m}:${s}`;
   };
 
-  // Fullscreen toggle for the 3D viewport panel
-  const toggleViewportFullscreen = () => {
-    if (!viewportRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
+  // Viewport Normal Cursor Blocking / Pointer Lock System
+  // Blocks normal cursor on viewport; releases when user presses Alt + Windows + G (or Alt + G / Esc)
+  const [isViewportCursorLocked, setIsViewportCursorLocked] = useState(false);
+  const [cursorLockToast, setCursorLockToast] = useState(null);
+
+  const requestViewportCursorLock = useCallback(() => {
+    try {
+      const target = viewportApi.getCanvas?.() || viewportApi.canvas || viewportRef.current?.querySelector("canvas") || viewportRef.current;
+      if (target?.requestPointerLock) {
+        target.requestPointerLock();
+      }
+    } catch (e) {}
+    setIsViewportCursorLocked(true);
+    setCursorLockToast({
+      title: "🔒 Cursor Blocked on Viewport",
+      sub: "Press Alt + Win + G to release"
+    });
+  }, []);
+
+  const releaseViewportCursorLock = useCallback(() => {
+    try {
+      if (document.pointerLockElement) {
+        document.exitPointerLock?.();
+      }
+    } catch (e) {}
+    setIsViewportCursorLocked(false);
+    setCursorLockToast({
+      title: "🔓 Cursor Released",
+      sub: "Click Viewport or Alt + Win + G to block"
+    });
+  }, []);
+
+  const toggleViewportCursorLock = useCallback(() => {
+    if (isViewportCursorLocked || document.pointerLockElement) {
+      releaseViewportCursorLock();
     } else {
-      viewportRef.current.requestFullscreen?.();
+      requestViewportCursorLock();
     }
-  };
+  }, [isViewportCursorLocked, releaseViewportCursorLock, requestViewportCursorLock]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Shortcut: Alt + Windows + G (or Alt + G / Win + G / Esc)
+      const isAlt = e.altKey;
+      const isWin = e.metaKey || e.code === "MetaLeft" || e.code === "MetaRight";
+      const isG = e.key?.toLowerCase() === "g" || e.code === "KeyG";
+
+      if ((isAlt && isWin && isG) || (isAlt && isG) || (isWin && isG)) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleViewportCursorLock();
+      } else if (e.key === "Escape" && (isViewportCursorLocked || document.pointerLockElement)) {
+        releaseViewportCursorLock();
+      }
+    };
+
+    const handlePointerLockChange = () => {
+      const locked = Boolean(document.pointerLockElement);
+      setIsViewportCursorLocked(locked);
+      if (locked) {
+        setCursorLockToast({
+          title: "🔒 Cursor Blocked on Viewport",
+          sub: "Press Alt + Win + G to release"
+        });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    document.addEventListener("pointerlockchange", handlePointerLockChange);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      document.removeEventListener("pointerlockchange", handlePointerLockChange);
+    };
+  }, [toggleViewportCursorLock, releaseViewportCursorLock, isViewportCursorLocked]);
+
+  useEffect(() => {
+    if (cursorLockToast) {
+      const t = setTimeout(() => setCursorLockToast(null), 3200);
+      return () => clearTimeout(t);
+    }
+  }, [cursorLockToast]);
+
+  // Unified Fullscreen System (100% Synced: 1 click enter, 1 click exit)
+  const exitFullscreenMode = useCallback(() => {
+    setIsArtifactFullscreen(false);
+    if (document.fullscreenElement) {
+      try {
+        document.exitFullscreen?.().catch?.(() => {});
+      } catch {}
+    }
+  }, []);
+
+  const enterFullscreenMode = useCallback(() => {
+    setIsArtifactFullscreen(true);
+    if (!document.fullscreenElement && viewportRef.current) {
+      try {
+        viewportRef.current.requestFullscreen?.().catch?.(() => {});
+      } catch {}
+    }
+  }, []);
+
+  const toggleViewportFullscreen = useCallback(() => {
+    if (document.fullscreenElement || isArtifactFullscreen) {
+      exitFullscreenMode();
+    } else {
+      enterFullscreenMode();
+    }
+  }, [isArtifactFullscreen, enterFullscreenMode, exitFullscreenMode]);
+
+  // Always keep React state synchronized with browser/OS native fullscreen (e.g. on ESC key or F11)
+  useEffect(() => {
+    const handleFsChange = () => {
+      const isFs = Boolean(document.fullscreenElement);
+      setIsArtifactFullscreen(isFs);
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    document.addEventListener("webkitfullscreenchange", handleFsChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFsChange);
+      document.removeEventListener("webkitfullscreenchange", handleFsChange);
+    };
+  }, []);
 
   // Helper to find currently selected node object across groups
   const findNodeById = (id) => {
@@ -4767,6 +4915,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     };
     const handleGlobalEsc = (e) => {
       if (e.key === "Escape") {
+        if (isArtifactFullscreen || document.fullscreenElement) {
+          exitFullscreenMode();
+          return;
+        }
         if (viewportTab === "Game View") {
           setViewportTab("Title Menu");
           setIsPlaying(false);
@@ -4780,7 +4932,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       window.removeEventListener("spider:return-to-menu", handleReturnToMenu);
       window.removeEventListener("keydown", handleGlobalEsc);
     };
-  }, [viewportTab]);
+  }, [viewportTab, isArtifactFullscreen, exitFullscreenMode]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -5999,7 +6151,23 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             ) : null}
 
             {/* CENTER 3D VIEWPORT PANEL */}
-            <section ref={viewportRef} className={isArtifactFullscreen ? "fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden" : "flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative"}>
+            <section ref={viewportRef} data-cursor-locked={isViewportCursorLocked ? "true" : "false"} className={isArtifactFullscreen ? "fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden" : "flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative"}>
+              {/* Viewport Cursor Lock / Release Floating Toast */}
+              {cursorLockToast && (
+                <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+                  <div className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-mono font-bold shadow-2xl backdrop-blur-md border ${
+                    isViewportCursorLocked
+                      ? "bg-slate-950/95 text-cyan-300 border-cyan-500/50 shadow-cyan-500/25"
+                      : "bg-slate-950/95 text-emerald-300 border-emerald-500/50 shadow-emerald-500/25"
+                  }`}>
+                    <span className={`w-2 h-2 rounded-full ${isViewportCursorLocked ? "bg-cyan-400 animate-ping" : "bg-emerald-400"}`} />
+                    <span>{cursorLockToast.title}</span>
+                    <span className="text-[10px] text-slate-300 bg-slate-800/90 px-1.5 py-0.5 rounded border border-slate-700">
+                      {cursorLockToast.sub}
+                    </span>
+                  </div>
+                </div>
+              )}
               {/* Viewport Top Tab Bar: Shown on both mobile and desktop (only hidden in Env Mode or Fullscreen) */}
               {!isEnvMode && !isArtifactFullscreen && (
                 <div className="h-9 px-2 sm:px-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0 select-none">
@@ -6083,16 +6251,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
                     {/* Full Screen Toggle */}
                     <button
-                      onClick={() => {
-                        setIsArtifactFullscreen((f) => !f);
-                        try {
-                          if (!document.fullscreenElement) {
-                            viewportRef.current?.requestFullscreen?.().catch?.(() => {});
-                          } else {
-                            document.exitFullscreen?.().catch?.(() => {});
-                          }
-                        } catch {}
-                      }}
+                      onClick={toggleViewportFullscreen}
                       className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-indigo-600 transition cursor-pointer flex items-center justify-center"
                       title={isArtifactFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
                     >
@@ -6196,26 +6355,73 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       </button>
                     </div>
                   </div>
-                  <textarea
-                    value={activeJsxCode !== null ? activeJsxCode : ""}
-                    onFocus={() => { isEditorFocusedRef.current = true; }}
-                    onBlur={() => { isEditorFocusedRef.current = false; }}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setActiveJsxCode(val);
-                      const curName = activeJsxName || (snakesActive ? "SnakesAndLadders3D.jsx" : "GameComponent.jsx");
-                      setProjectScriptFiles((prev) =>
-                        prev.map((f) =>
-                          f.name === curName || f.path === curName
-                            ? { ...f, content: val, lines: val.split("\n").length }
-                            : f
-                        )
-                      );
-                    }}
-                    placeholder="// Paste or edit React Three Fiber / JSX game code here... Updates live in 3D Viewport!"
-                    className="flex-1 w-full bg-[#0f172a] text-blue-100 p-4 font-mono text-xs leading-relaxed focus:outline-none resize-none overflow-auto border-none select-text"
-                    spellCheck={false}
-                  />
+                  {/* Syntax Highlighted Monospace Code Editor */}
+                  <div className="flex-1 w-full bg-[#090d16] flex relative overflow-hidden">
+                    {/* Line Numbers Gutter */}
+                    <div
+                      ref={codeGutterRef}
+                      className="w-12 bg-[#060a12] text-slate-600 font-mono text-xs leading-[1.625rem] text-right py-4 pr-3 select-none overflow-hidden shrink-0 border-r border-slate-800/80"
+                    >
+                      {Array.from({ length: codeLineCount }, (_, i) => (
+                        <div key={i + 1}>{i + 1}</div>
+                      ))}
+                    </div>
+
+                    {/* Synchronized Code Layer & Textarea */}
+                    <div className="flex-1 relative h-full overflow-hidden">
+                      {/* Syntax Highlighted Render Layer */}
+                      <pre
+                        ref={codePreRef}
+                        aria-hidden="true"
+                        className="absolute inset-0 p-4 m-0 font-mono text-xs leading-[1.625rem] whitespace-pre overflow-hidden pointer-events-none select-none text-slate-200"
+                        dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                      />
+
+                      {/* Editable Input Layer */}
+                      <textarea
+                        value={activeJsxCode !== null ? activeJsxCode : ""}
+                        onFocus={() => { isEditorFocusedRef.current = true; }}
+                        onBlur={() => { isEditorFocusedRef.current = false; }}
+                        onScroll={(e) => {
+                          if (codePreRef.current) {
+                            codePreRef.current.scrollTop = e.target.scrollTop;
+                            codePreRef.current.scrollLeft = e.target.scrollLeft;
+                          }
+                          if (codeGutterRef.current) {
+                            codeGutterRef.current.scrollTop = e.target.scrollTop;
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Tab") {
+                            e.preventDefault();
+                            const start = e.target.selectionStart;
+                            const end = e.target.selectionEnd;
+                            const cur = e.target.value;
+                            const updated = cur.substring(0, start) + "  " + cur.substring(end);
+                            setActiveJsxCode(updated);
+                            setTimeout(() => {
+                              e.target.selectionStart = e.target.selectionEnd = start + 2;
+                            }, 0);
+                          }
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActiveJsxCode(val);
+                          const curName = activeJsxName || (snakesActive ? "SnakesAndLadders3D.jsx" : "GameComponent.jsx");
+                          setProjectScriptFiles((prev) =>
+                            prev.map((f) =>
+                              f.name === curName || f.path === curName
+                                ? { ...f, content: val, lines: val.split("\n").length }
+                                : f
+                            )
+                          );
+                        }}
+                        placeholder="// Paste or edit React Three Fiber / JSX game code here... Updates live in 3D Viewport!"
+                        className="absolute inset-0 w-full h-full bg-transparent text-transparent caret-cyan-400 p-4 font-mono text-xs leading-[1.625rem] whitespace-pre focus:outline-none resize-none overflow-auto border-none select-text z-10"
+                        spellCheck={false}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* 3D VIEWPORT MODE (Native 3D Viewport) */}
@@ -6225,6 +6431,13 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       ? "invisible pointer-events-none"
                       : "visible pointer-events-auto"
                   }`}
+                  onClick={(e) => {
+                    if (!isViewportCursorLocked && !document.pointerLockElement) {
+                      if (e.target.tagName === 'CANVAS' || e.target === e.currentTarget || e.target.closest?.('canvas')) {
+                        requestViewportCursorLock();
+                      }
+                    }
+                  }}
                 >
                 {/* Direct Game floating widget: PC ONLY, completely removed on mobile phones & env mode */}
                 {!isMobile && !isEnvMode && showDirectGameOverlay && (
@@ -6401,16 +6614,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       <span>{artifactViewMode === "code" ? "3D" : "Code"}</span>
                     </button>
                     <button
-                      onClick={() => {
-                        setIsArtifactFullscreen((f) => !f);
-                        try {
-                          if (!document.fullscreenElement) {
-                            viewportRef.current?.requestFullscreen?.().catch?.(() => {});
-                          } else {
-                            document.exitFullscreen?.().catch?.(() => {});
-                          }
-                        } catch {}
-                      }}
+                      onClick={toggleViewportFullscreen}
                       className="px-2 py-1.5 rounded-xl text-[11px] font-bold text-indigo-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 transition flex items-center gap-1 cursor-pointer"
                       title="Toggle Fullscreen"
                     >
@@ -6457,16 +6661,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 {isEnvMode && (
                   <div className="absolute top-3 right-3 z-40 flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        setIsArtifactFullscreen((f) => !f);
-                        try {
-                          if (!document.fullscreenElement) {
-                            viewportRef.current?.requestFullscreen?.().catch?.(() => {});
-                          } else {
-                            document.exitFullscreen?.().catch?.(() => {});
-                          }
-                        } catch {}
-                      }}
+                      onClick={toggleViewportFullscreen}
                       className="px-3 py-1.5 bg-slate-900/90 hover:bg-slate-800 text-indigo-300 border border-indigo-500/40 rounded-full shadow-2xl backdrop-blur-md text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
                       title="Toggle Fullscreen"
                     >
@@ -6737,6 +6932,20 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           </>
                         )}
                       </button>
+
+                      {/* Viewport Cursor Lock / Block Button */}
+                      <button
+                        onClick={toggleViewportCursorLock}
+                        title={isViewportCursorLocked ? "Cursor Blocked on Viewport (Press Alt+Win+G to release)" : "Block Viewport Cursor (Alt+Win+G)"}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold shadow-sm border transition cursor-pointer select-none ${
+                          isViewportCursorLocked
+                            ? "bg-cyan-600 text-white border-cyan-500 shadow-cyan-500/40"
+                            : "bg-white/90 backdrop-blur-md hover:bg-white text-slate-800 border-white/50"
+                        }`}
+                      >
+                        {isViewportCursorLocked ? <Lock className="w-3.5 h-3.5 text-white" /> : <Unlock className="w-3.5 h-3.5 text-slate-500" />}
+                        <span>{isViewportCursorLocked ? "Locked" : "Lock Cursor"}</span>
+                      </button>
                     </div>
 
                     {/* Top-Right Transform & Grid Toolbar Pills */}
@@ -6878,10 +7087,83 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 )}
                 </div>
 
+                {/* --- FLOATING GAME VIEW CONTROLS & RECORDER (Visible on side of 3D Viewport only, never in Code Mode) --- */}
+                {!isEnvMode && artifactViewMode === "viewport" && (viewportTab === "Game View" || activeJsxCode || isArtifactFullscreen) && (
+                  <div className="absolute top-3 right-3 z-30 flex items-center gap-2 select-none">
+                    {/* Screen Recorder Button on side of Game View */}
+                    <button
+                      onClick={toggleViewportRecording}
+                      title={isViewportRecording ? "Click to Stop and Export MP4 Video" : "Record Game View 3D Canvas (60 FPS MP4)"}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg border transition cursor-pointer select-none backdrop-blur-md ${
+                        isViewportRecording
+                          ? "bg-rose-600/95 text-white border-rose-400 shadow-rose-600/50 animate-pulse"
+                          : "bg-slate-900/85 hover:bg-slate-900 text-white border-slate-700/80 hover:border-rose-500/50"
+                      }`}
+                    >
+                      <span className={`w-2.5 h-2.5 rounded-full ${isViewportRecording ? "bg-white animate-ping" : "bg-rose-500"}`} />
+                      {isViewportRecording ? (
+                        <>
+                          <span className="font-mono text-xs">REC {formatRecordTime(viewportRecordSeconds)}</span>
+                          <span className="text-[9px] bg-rose-800 px-1.5 py-0.5 rounded font-black tracking-wider uppercase text-white">Stop</span>
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Record Game</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Snapshot Screenshot */}
+                    <button
+                      onClick={() => {
+                        const url = viewportApi.capture?.(true);
+                        if (url) appendLog("Success", "Game View snapshot screenshot saved!");
+                        else appendLog("Warning", "Game View canvas not ready.");
+                      }}
+                      title="Capture Game Screenshot"
+                      className="p-1.5 bg-slate-900/85 hover:bg-slate-900 text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition flex items-center justify-center"
+                    >
+                      <Camera className="w-4 h-4 text-slate-300 hover:text-white" />
+                    </button>
+
+                    {/* Cursor Lock / Block Button */}
+                    <button
+                      onClick={toggleViewportCursorLock}
+                      title={isViewportCursorLocked ? "Cursor Blocked on Viewport (Press Alt+Win+G to release)" : "Block Viewport Cursor (Alt+Win+G)"}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg border transition cursor-pointer select-none backdrop-blur-md ${
+                        isViewportCursorLocked
+                          ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/60 shadow-cyan-500/20"
+                          : "bg-slate-900/85 hover:bg-slate-900 text-slate-300 border-slate-700/80 hover:text-white"
+                      }`}
+                    >
+                      {isViewportCursorLocked ? <Lock className="w-3.5 h-3.5 text-cyan-400" /> : <Unlock className="w-3.5 h-3.5 text-slate-400" />}
+                      <span className="hidden sm:inline">{isViewportCursorLocked ? "Cursor Blocked" : "Lock Cursor"}</span>
+                    </button>
+
+                    {/* FPS Telemetry */}
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/85 backdrop-blur-md rounded-xl text-xs font-bold text-white border border-slate-700/80 shadow-lg">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span>{fps} FPS</span>
+                    </div>
+
+                    {/* Fullscreen Toggle — only displayed in Fullscreen mode (no duplicate in normal mode) */}
+                    {isArtifactFullscreen && (
+                      <button
+                        onClick={toggleViewportFullscreen}
+                        title="Exit Fullscreen"
+                        className="p-1.5 bg-slate-900/85 hover:bg-slate-900 text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition flex items-center justify-center"
+                      >
+                        <Minimize2 className="w-4 h-4 text-slate-300 hover:text-white" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Fullscreen Exit Hint */}
                 {isArtifactFullscreen && (
                   <button
-                    onClick={() => setIsArtifactFullscreen(false)}
+                    onClick={exitFullscreenMode}
                     className="absolute top-3 left-1/2 -translate-x-1/2 bg-slate-950/80 hover:bg-slate-900 text-slate-300 hover:text-white px-3 py-1 rounded-full backdrop-blur-md text-xs border border-slate-700/60 transition z-50 cursor-pointer flex items-center gap-1.5 shadow-lg"
                     title="Exit Fullscreen Mode"
                   >
