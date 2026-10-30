@@ -2564,6 +2564,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         targetName = String(args?.command || "command");
         promptTitle = `Run shell command: ${targetName}`;
         promptDetail = `Allow agent to execute "${targetName}" in terminal?`;
+      } else if (tool === "importAsset") {
+        targetName = String(args?.path || "local asset");
+        promptTitle = `Import local asset: ${targetName}`;
+        promptDetail = `Allow agent to copy asset "${targetName}" into project?`;
       }
 
       if (promptDetail) {
@@ -3244,6 +3248,64 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         }
         throw new Error(`unknown op: ${op}`);
       }
+      case "importAsset": {
+        const rawPath = String(args?.path || args?.sourcePath || args?.folder || "").trim();
+        if (!rawPath) throw new Error("importAsset requires a path parameter (e.g. path: 'C:\\Users\\...\\Downloads\\modern-city-block')");
+
+        // Normalize path
+        const normPath = rawPath.replace(/^["']|["']$/g, "").trim();
+        const baseName = normPath.split(/[/\\]/).filter(Boolean).pop() || "imported_asset";
+        const targetSub = String(args?.targetName || baseName).replace(/[\\/:*?"<>|]/g, "_");
+        const destDir = `public/assets/${targetSub}`.replace(/\\/g, "/");
+
+        const copyCmd = `
+          $src = "${normPath.replace(/"/g, '`"')}"
+          $dest = "${destDir.replace(/"/g, '`"')}"
+          if (!(Test-Path -LiteralPath $src)) {
+            Write-Error "Source path does not exist: $src"
+            exit 1
+          }
+          if (!(Test-Path -LiteralPath $dest)) {
+            New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          }
+          if (Test-Path -LiteralPath $src -PathType Container) {
+            Copy-Item -Path "$src\\*" -Destination $dest -Recurse -Force
+          } else {
+            Copy-Item -LiteralPath $src -Destination $dest -Force
+          }
+          Get-ChildItem -Path $dest -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -Property Name, Length, Extension | ConvertTo-Json -Compress
+        `;
+
+        if (window.spiderShell?.runCommand) {
+          const res = await window.spiderShell.runCommand(copyCmd, ".", 60000, `import_${Date.now()}`);
+          if (!res.ok && res.error) {
+            throw new Error(`Failed to import from "${normPath}": ${res.stderr || res.error}`);
+          }
+
+          appendLog("Success", `Imported assets from "${normPath}" into "./${destDir}/"`);
+
+          let filesFound = [];
+          try {
+            const parsed = JSON.parse(res.stdout || "[]");
+            filesFound = Array.isArray(parsed) ? parsed : [parsed];
+          } catch {}
+
+          const models = filesFound.filter((f) => /\.(fbx|glb|gltf|obj)$/i.test(f.Name || ""));
+          const modelList = models.map((m) => `./assets/${targetSub}/${m.Name}`).join(", ") || `./assets/${targetSub}/`;
+
+          return `ASSET IMPORT SUCCESSFUL!\n` +
+            `- Source: "${normPath}"\n` +
+            `- Copied into local project at: "./${destDir}/"\n` +
+            `- Discovered 3D files: ${modelList}\n\n` +
+            `MOUNTING INSTRUCTIONS FOR GameComponent.jsx:\n` +
+            (models.some((m) => /\.fbx$/i.test(m.Name || ""))
+              ? `* For FBX models, use: import { useFBX } from '@react-three/drei';\n  function Model() { const fbx = useFBX('${modelList.split(", ")[0]}'); return <primitive object={fbx} scale={0.01} />; }\n`
+              : `* For GLB/GLTF models, use: import { useGLTF } from '@react-three/drei';\n  function Model() { const { scene } = useGLTF('${modelList.split(", ")[0]}'); return <primitive object={scene} />; }\n`) +
+            `Now call render_jsx to mount the 3D model in the Viewport!`;
+        }
+
+        return `Simulated asset import from "${normPath}" to "${destDir}"`;
+      }
       case "runCommand": {
         const cmd = String(args?.command || "").trim();
         if (!cmd) throw new Error("missing command string");
@@ -3444,7 +3506,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
       const callModel = async (task, history) => {
         const sys = systemPrompt(snapshot(), { isMobile: false }) + "\n" +
-          "\n\nCRITICAL CONTROLS MANDATE: CREATE GAMES FOR KEYBOARD, NOT FOR SCREEN! Always implement responsive physical keyboard controls (WASD, Arrow Keys, Spacebar for jump/action/brake, Shift for sprint, and 'R' key to restart). NEVER create on-screen touch buttons, virtual joysticks, or touch d-pads on the screen. The engine is designed for desktop keyboard gameplay.\n" +
+          "\n\nCRITICAL LOCAL DISK ACCESS & ASSET IMPORT MANDATE: You run natively inside Spider Engine on Desktop (Windows Electron) with FULL access to the user's local disk, Downloads folder, and file system! NEVER tell the user 'I cannot access your files' or 'please upload/drag-and-drop'! When the user provides a path (e.g. C:\\Users\\...\\Downloads\\modern-city-block) or asks to import an FBX/GLB/3D asset, IMMEDIATELY call importAsset({ path: '...' }) to copy the files into public/assets/ and mount it in GameComponent.jsx using useFBX or useGLTF!\n" +
+          "\nCRITICAL CONTROLS MANDATE: CREATE GAMES FOR KEYBOARD, NOT FOR SCREEN! Always implement responsive physical keyboard controls (WASD, Arrow Keys, Spacebar for jump/action/brake, Shift for sprint, and 'R' key to restart). NEVER create on-screen touch buttons, virtual joysticks, or touch d-pads on the screen. The engine is designed for desktop keyboard gameplay.\n" +
           GAME_BUILDER_PRIMER;
         let messages;
         if (history.length === 0) {
