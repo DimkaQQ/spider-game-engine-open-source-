@@ -7,8 +7,8 @@
  * Repository: https://github.com/M4SPIDER/spider-game-engine-open-source-
  * ============================================================================
  */
-import React, { useEffect, useRef } from 'react';
-import { Html } from '@react-three/drei';
+import React, { useEffect, useRef, useState } from 'react';
+import { Html, Text } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 
 /**
@@ -238,5 +238,110 @@ export function GameHud({ title = 'ARCADE ARENA', score = 0, total = 8, won = fa
         {isWon && <span style={{ color: '#4ade80', fontWeight: 800 }}>VICTORY! Press R to Play Again</span>}
       </div>
     </Html>
+  );
+}
+
+/**
+ * Interactive Real 3D Button (Zero HTML, pure WebGL mesh with hover, click, and 3D depth)
+ */
+export function Button3D({
+  position = [0, 0, 0],
+  text = 'START GAME',
+  onClick,
+  color = '#2563eb',
+  hoverColor = '#3b82f6',
+  width = 3.4,
+  height = 0.85
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
+
+  return (
+    <group
+      position={position}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        if (typeof document !== 'undefined') document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        setHovered(false);
+        setPressed(false);
+        if (typeof document !== 'undefined') document.body.style.cursor = 'default';
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        setPressed(true);
+      }}
+      onPointerUp={(e) => {
+        e.stopPropagation();
+        setPressed(false);
+        onClick?.();
+      }}
+    >
+      <mesh position={[0, 0, pressed ? -0.06 : 0]} castShadow receiveShadow>
+        <boxGeometry args={[width, height, 0.22]} />
+        <meshStandardMaterial
+          color={hovered ? hoverColor : color}
+          emissive={hovered ? hoverColor : '#0f172a'}
+          emissiveIntensity={hovered ? 0.6 : 0.2}
+          roughness={0.25}
+          metalness={0.7}
+        />
+      </mesh>
+      <Text
+        position={[0, 0, pressed ? 0.08 : 0.14]}
+        fontSize={height * 0.44}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {text}
+      </Text>
+    </group>
+  );
+}
+
+/**
+ * Cinematic 3D Menu & Title Screen (Pure 3D geometry and Drei Text, zero floating HTML)
+ */
+export function Menu3D({
+  title = 'SPIDER ARENA',
+  subtitle = 'CLICK PLAY OR PRESS SPACE / ENTER',
+  buttonText = 'PLAY GAME',
+  onPlay,
+  position = [0, 4, 0]
+}) {
+  return (
+    <group position={position}>
+      <Text
+        position={[0, 1.3, 0]}
+        fontSize={1.2}
+        color="#38bdf8"
+        outlineWidth={0.06}
+        outlineColor="#0369a1"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {title}
+      </Text>
+      <Text
+        position={[0, 0.45, 0]}
+        fontSize={0.36}
+        color="#94a3b8"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {subtitle}
+      </Text>
+      <Button3D
+        position={[0, -0.65, 0]}
+        text={buttonText}
+        onClick={onPlay}
+        color="#16a34a"
+        hoverColor="#22c55e"
+      />
+    </group>
   );
 }
