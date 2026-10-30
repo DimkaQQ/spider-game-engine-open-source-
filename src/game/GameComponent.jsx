@@ -1,76 +1,18 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
-import { PauseOverlay } from './ArenaEnv.jsx';
-
-const sfx = (freq = 440, type = 'sine', dur = 0.1) => {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = type;
-    osc.frequency.value = freq;
-    g.gain.setValueAtTime(0.1, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-    osc.connect(g);
-    g.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + dur);
-  } catch {}
-};
-
-export default function GameComponent() {
-  const [score, setScore] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const ballRef = useRef();
-
-  useFrame((state, delta) => {
-    if (paused) return;
-    if (ballRef.current) {
-      ballRef.current.rotation.y += delta * 1.5;
-      ballRef.current.position.y = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.4;
-    }
-  });
-
-  const onCollect = () => {
-    if (paused) return;
-    setScore((s) => s + 1);
-    if (!muted) sfx(660, 'triangle', 0.15);
-  };
-
-  return (
-    <group>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 10, 5]} intensity={1.5} />
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
-        <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial color="#065f46" roughness={0.8} />
-      </mesh>
-      <mesh ref={ballRef} position={[0, 1, 0]} onClick={onCollect}>
-        <sphereGeometry args={[0.8, 32, 32]} />
-        <meshStandardMaterial color="#38bdf8" roughness={0.2} metalness={0.5} />
-      </mesh>
-      <Html fullscreen calculatePosition={(_, __, s) => [s.width / 2, 30]}>
-        <div style={{
-          background: 'rgba(0,0,0,0.7)',
-          color: '#fff',
-          padding: '8px 18px',
-          borderRadius: 16,
-          fontFamily: 'sans-serif',
-          fontWeight: 'bold',
-          textAlign: 'center'
-        }}>
-          💎 Orbs Collected: {score} (Click the blue orb!)
-        </div>
-      </Html>
-      <PauseOverlay
-        paused={paused}
-        onTogglePause={() => setPaused(!paused)}
-        soundMuted={muted}
-        onToggleSound={() => setMuted(!muted)}
-        onExit={() => setPaused(false)}
-      />
-    </group>
-  );
+import React,{useRef,useState,useEffect} from 'react';
+import {useFrame} from '@react-three/fiber';
+import {Html} from '@react-three/drei';
+import {ArenaEnv,CoinPickup,ObstacleBox,GameHud,PauseOverlay,useKeyboardControls} from './ArenaEnv.jsx';
+const sfx=(f=440,t='sine',d=.12)=>{try{const c=new(window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(.12,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+d);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+d);}catch{}};
+const COINS=[[4,-3],[-4,-4],[0,-6],[6,2],[-6,3],[3,5],[-3,5],[0,1],[7,-6],[-7,-1],[5,7],[-5,7]];
+export default function GameComponent(){
+ const pRef=useRef(),eRef=useRef(),keys=useRef({});
+ const [score,setScore]=useState(0),[lives,setLives]=useState(3),[time,setTime]=useState(45),[paused,setPaused]=useState(false),[muted,setMuted]=useState(false),[state,setState]=useState('menu');
+ const [coins,setCoins]=useState(()=>COINS.map(([x,z],id)=>({id,x,z,taken:false})));
+ const {getDir}=useKeyboardControls();
+ const reset=()=>{setScore(0);setLives(3);setTime(45);setCoins(COINS.map(([x,z],id)=>({id,x,z,taken:false})));if(pRef.current)pRef.current.position.set(0,.5,7);if(eRef.current)eRef.current.position.set(0,.6,-7);};
+ const start=()=>{reset();setState('playing');if(!muted)sfx(660,'triangle',.2);};
+ useEffect(()=>{const dn=e=>{keys.current[e.key.toLowerCase()]=true;if(e.key==='Escape')setPaused(p=>!p);if(e.key==='Enter'&&state!=='playing')start();if(e.key.toLowerCase()==='r'){reset();setState('playing');}};const up=e=>keys.current[e.key.toLowerCase()]=false;window.addEventListener('keydown',dn);window.addEventListener('keyup',up);return()=>{window.removeEventListener('keydown',dn);window.removeEventListener('keyup',up);};},[state,muted]);
+ useEffect(()=>{if(state!=='playing'||paused)return;const id=setInterval(()=>setTime(t=>{if(t<=1){setState('lost');return 0;}return t-1;}),1000);return()=>clearInterval(id);},[state,paused]);
+ useFrame((st,dt)=>{const p=pRef.current,e=eRef.current;if(!p||!e)return;if(state==='menu'){const a=st.clock.elapsedTime*.25;st.camera.position.set(Math.sin(a)*11,7,Math.cos(a)*11);st.camera.lookAt(0,0,0);return;}if(paused||state!=='playing')return;const{x,z}=getDir(),sp=keys.current['shift']?13:8;p.position.x=Math.max(-9,Math.min(9,p.position.x+x*sp*dt));p.position.z=Math.max(-9,Math.min(9,p.position.z+z*sp*dt));p.rotation.y+=dt*3;const dx=p.position.x-e.position.x,dz=p.position.z-e.position.z,d=Math.hypot(dx,dz)||1,es=3.2+score*.18;e.position.x+=dx/d*es*dt;e.position.z+=dz/d*es*dt;e.rotation.y+=dt*5;st.camera.position.lerp({x:p.position.x*.55,y:11,z:p.position.z+10},.08);st.camera.lookAt(p.position.x,0,p.position.z);if(d<1){setLives(l=>{const n=l-1;if(n<=0)setState('lost');return n;});if(!muted)sfx(90,'sawtooth',.25);p.position.set(0,.5,7);e.position.set(0,.6,-7);}setCoins(cs=>{let hit=false;const n=cs.map(c=>{if(!c.taken&&Math.hypot(p.position.x-c.x,p.position.z-c.z)<1.2){hit=true;return{...c,taken:true};}return c;});if(hit){setScore(s=>{const ns=s+1;if(ns>=COINS.length)setState('won');return ns;});if(!muted)sfx(880,'triangle',.15);}return hit?n:cs;});});
+ return(<group><ArenaEnv/><mesh ref={pRef} position={[0,.5,7]} castShadow><sphereGeometry args={[.55,24,24]}/><meshStandardMaterial color="#38bdf8" emissive="#0369a1" emissiveIntensity={.7}/></mesh><mesh ref={eRef} position={[0,.6,-7]} castShadow><icosahedronGeometry args={[.65,0]}/><meshStandardMaterial color="#ef4444" emissive="#7f1d1d" emissiveIntensity={.8}/></mesh>{coins.map(c=><CoinPickup key={c.id} position={[c.x,.6,c.z]} collected={c.taken}/>) }<ObstacleBox position={[0,.6,0]} size={[3,1.2,1.2]}/><ObstacleBox position={[-5,.6,-2]} size={[1.2,1.2,3]}/><ObstacleBox position={[5,.6,3]} size={[1.2,1.2,3]}/><GameHud title="NEON ORB RUSH" score={score} total={coins.length}/><PauseOverlay paused={paused} onTogglePause={()=>setPaused(!paused)} soundMuted={muted} onToggleSound={()=>setMuted(!muted)} onExit={()=>{setPaused(false);setState('menu');}}/>{state!=='playing'&&<Html fullscreen calculatePosition={(_,__,s)=>[s.width/2,s.height/2]}><div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',background:'radial-gradient(circle,rgba(2,6,23,.25),rgba(2,6,23,.88))',color:'#fff',fontFamily:'sans-serif',textAlign:'center'}}><h1 style={{fontSize:52,margin:0,letterSpacing:3,color:'#38bdf8',textShadow:'0 0 25px #0ea5e9'}}>NEON ORB RUSH</h1><p style={{opacity:.9}}>{state==='won'?'🏆 YOU WIN! All orbs collected!':state==='lost'?'💀 GAME OVER':'Collect all 12 orbs in 45s. Dodge the red hunter!'}</p><p style={{fontSize:13,opacity:.75}}>WASD / Arrows Move • Shift Sprint • Esc Pause • R Restart</p><button onClick={start} style={{pointerEvents:'auto',marginTop:14,background:'#0ea5e9',color:'#fff',border:'none',padding:'14px 34px',borderRadius:12,fontSize:18,fontWeight:800,cursor:'pointer',boxShadow:'0 0 20px #0ea5e9'}}>▶ START GAME</button><div style={{marginTop:14,fontSize:14}}>❤️ {lives} &nbsp; ⏱️ {time}s &nbsp; 💎 {score}/{coins.length}</div></div></Html>}{state==='playing'&&<Html fullscreen calculatePosition={(_,__,s)=>[s.width/2,s.height/2]}><div style={{position:'absolute',top:54,left:'50%',transform:'translateX(-50%)',color:'#fff',background:'rgba(0,0,0,.55)',padding:'6px 14px',borderRadius:20,fontFamily:'sans-serif',fontWeight:700,fontSize:13}}>❤️ {lives} ⏱️ {time}s 💎 {score}/{coins.length}</div></Html>}</group>);
 }

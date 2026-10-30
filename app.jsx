@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import GameViewport, { viewportApi } from "./src/engine/GameViewport";
 import { compileJsxComponent } from "./src/engine/DynamicJsxRenderer.jsx";
 import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFromRawJson } from "./src/engine/agentHarness.js";
-import { runLimits, contextWindow } from "./src/mobile/context.js";
+import { runLimits, contextWindow, buildMemory, memoryBudget } from "./src/mobile/context.js";
 import {
   GAME_WORLD, ENVIRONMENT_ASSETS, COINS, COIN_RULES, PLAYER, physicsFallSpeed
 } from "./src/game/index.js";
@@ -3550,7 +3550,11 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       };
 
       const callModel = async (task, history) => {
+        const win = contextWindow("meta", "spark-1.3");
+        const priorChat = sessions.find((s) => s.id === currentId)?.messages || [];
+        const mem = buildMemory(priorChat, memoryBudget(win));
         const sys = systemPrompt(snapshot(), { isMobile: false }) + "\n" +
+          (mem.text ? `\n\nCONVERSATION SO FAR (earlier turns in this session; current goal comes below):\n${mem.text}\n` : "") +
           "\n\nCRITICAL LOCAL DISK ACCESS & ASSET IMPORT MANDATE: You run natively inside Spider Engine on Desktop (Windows Electron) with FULL access to the user's local disk, Downloads folder, and file system! NEVER tell the user 'I cannot access your files' or 'please upload/drag-and-drop'! When the user provides a path (e.g. C:\\Users\\...\\Downloads\\modern-city-block) or asks to import an FBX/GLB/3D asset, IMMEDIATELY call importAsset({ path: '...' }) to copy the files into public/assets/ and mount it in GameComponent.jsx using useFBX or useGLTF!\n" +
           "\nCRITICAL CONTROLS MANDATE: CREATE GAMES FOR KEYBOARD, NOT FOR SCREEN! Always implement responsive physical keyboard controls (WASD, Arrow Keys, Spacebar for jump/action/brake, Shift for sprint, and 'R' key to restart). NEVER create on-screen touch buttons, virtual joysticks, or touch d-pads on the screen. The engine is designed for desktop keyboard gameplay. CRITICAL RESTART RULE: NEVER write `location.reload()` on 'R' or restart! That reloads the whole engine. 'R' key must ONLY reset local component React state (health, score, wave, player position) in-place without page reload!\n" +
           "\nCRITICAL UI/HUD MANDATE — NEVER CREATE FLOATING 3D <Html> CARDS OR HUGE HUD BOXES: NEVER create massive floating HTML cards, health bars, controls lists, or rectangular HUD boxes floating in 3D space (<Html position={[x,y,z]} ...>). They float awkwardly in mid-air, obstruct the player's 3D view, look amateurish, and ruin game immersion. AVOID <Html> entirely whenever possible. The 3D viewport MUST remain 100% clean, cinematic, and unobstructed. If game stats (score, HP) are needed, use subtle 3D elements (like <Text> from '@react-three/drei' or tiny 3D mesh bars above characters), OR ultra-minimal translucent corner text (<Html fullscreen> with position: absolute, top: 12, left: 12), NEVER a giant floating card in the middle of the screen!\n" +

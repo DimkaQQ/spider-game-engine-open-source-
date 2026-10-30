@@ -23,13 +23,24 @@ export function contextWindow(providerId, model, setting = "auto") {
 export const estimateTokens = (text) => Math.ceil(String(text || "").length / 4);
 
 function turnLines(messages) {
-  return messages
-    .filter((m) => !m.queued && m.text)
-    .map((m) => {
-      if (m.role === "user") return { who: "User", text: m.text };
-      const tools = m.steps?.length ? ` [tools: ${[...new Set(m.steps.map((s) => s.tool))].join(", ")}]` : "";
-      return { who: m.ok === false ? "Assistant (failed)" : "Assistant", text: `${m.text}${tools}` };
-    });
+  const result = [];
+  for (const m of (messages || [])) {
+    if (m.queued) continue;
+    if (m.role) {
+      if (m.text) {
+        if (m.role === "user") {
+          result.push({ who: "User", text: m.text });
+        } else {
+          const tools = m.steps?.length ? ` [tools: ${[...new Set(m.steps.map((s) => s.tool))].join(", ")}]` : "";
+          result.push({ who: m.ok === false ? "Assistant (failed)" : "Assistant", text: `${m.text}${tools}` });
+        }
+      }
+    } else if (m.q || m.a) {
+      if (m.q) result.push({ who: "User", text: m.q });
+      if (m.a) result.push({ who: m.ok === false ? "Assistant (failed)" : "Assistant", text: m.a });
+    }
+  }
+  return result;
 }
 
 /**
