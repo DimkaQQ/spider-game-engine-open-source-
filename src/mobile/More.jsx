@@ -330,6 +330,12 @@ function AiSettings({ s, notify }) {
       </div>
 
       <div className="sp-field">
+        <span>Voice input language</span>
+        <Segmented label="Voice language" value={settings.voiceLang} onChange={(voiceLang) => setSettings({ voiceLang })} options={[{ value: "auto", label: "Auto" }, { value: "en", label: "English" }, { value: "ru", label: "Русский" }]} />
+        <small className="sp-muted">The mic button in the AI tab uses your browser's speech recognition (Chrome, Edge, Safari).</small>
+      </div>
+
+      <div className="sp-field">
         <span>Agent permissions</span>
         <Segmented label="Permissions" value={settings.permission} onChange={(permission) => setSettings({ permission })} options={[{ value: "ask", label: "Ask first" }, { value: "auto", label: "Auto" }]} />
         <small className="sp-muted">{settings.permission === "ask" ? "The agent asks before writing, editing or deleting files." : "The agent edits files without asking. Use for fast prototypes."}</small>

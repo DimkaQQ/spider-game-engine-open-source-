@@ -71,8 +71,9 @@ export function useStudio() {
   const flat = useMemo(() => flatten(groups), [groups]);
 
   const [selectedId, setSelectedId] = useState(project.select === undefined ? "player" : project.select);
-  const [activeJsx, setActiveJsx] = useState(null);
-  const [activeJsxName, setActiveJsxName] = useState(null);
+  const mountedAtBoot = project.mountedFile ? project.files.find((f) => f.name === project.mountedFile) : null;
+  const [activeJsx, setActiveJsx] = useState(mountedAtBoot ? mountedAtBoot.content : null);
+  const [activeJsxName, setActiveJsxName] = useState(mountedAtBoot ? mountedAtBoot.name : null);
   const [codeError, setCodeError] = useState(null);
 
   const [isPlaying, setIsPlaying] = useState(false);

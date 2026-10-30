@@ -4,7 +4,7 @@
  * Author: M4SPIDER (support@m4spider.com)
  */
 import React, { useEffect, useRef, useState } from "react";
-import { Check, ClipboardCopy, FilePlus2, Pencil, Play, RotateCcw, Square, Trash2, Wand2, Copy as CopyIcon } from "lucide-react";
+import { AlignLeft, Check, ClipboardCopy, WrapText, FilePlus2, Pencil, Play, RotateCcw, Square, Trash2, Wand2, Copy as CopyIcon } from "lucide-react";
 import { STARTER_CODE } from "./store.js";
 import { Sheet, cx } from "./ui.jsx";
 
@@ -19,12 +19,89 @@ const SNIPPETS = [
 
 const KEYS = ["Tab", "{", "}", "(", ")", "<", ">", "/", "=", '"', ";", "[", "]", "$"];
 
+/**
+ * Break dense one-line code into readable lines. Aware of strings, template literals,
+ * comments and parentheses (so `for (a; b; c)` stays on one line). Not a full prettier.
+ */
+function formatCode(src) {
+  let out = "";
+  let depth = 0;
+  let paren = 0;
+  let i = 0;
+  const nl = () => {
+    out = out.replace(/[ \t]+$/, "");
+    if (!out.endsWith("\n")) out += "\n";
+    out += "  ".repeat(Math.max(0, depth));
+  };
+  while (i < src.length) {
+    const c = src[i];
+    const n = src[i + 1];
+    if (c === "/" && n === "/") {
+      const e = src.indexOf("\n", i);
+      const end = e === -1 ? src.length : e;
+      out += src.slice(i, end);
+      i = end;
+      continue;
+    }
+    if (c === "/" && n === "*") {
+      const e = src.indexOf("*/", i + 2);
+      const end = e === -1 ? src.length : e + 2;
+      out += src.slice(i, end);
+      i = end;
+      continue;
+    }
+    if (c === "'" || c === '"' || c === "`") {
+      let j = i + 1;
+      while (j < src.length && src[j] !== c) j += src[j] === "\\" ? 2 : 1;
+      out += src.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    if (c === "(") paren++;
+    if (c === ")") paren = Math.max(0, paren - 1);
+    if (c === "\n") {
+      out += c + "  ".repeat(Math.max(0, depth));
+      i++;
+      while (src[i] === " " || src[i] === "\t") i++;
+      continue;
+    }
+    if (c === "{" && paren === 0) {
+      depth++;
+      out += c;
+      i++;
+      if (src[i] !== "}") nl();
+      continue;
+    }
+    if (c === "}" && paren === 0) {
+      depth = Math.max(0, depth - 1);
+      nl();
+      out += c;
+      i++;
+      if (src[i] === ";" || src[i] === ",") { out += src[i]; i++; }
+      if (src[i] !== undefined && src[i] !== ")" && src[i] !== "\n") nl();
+      continue;
+    }
+    if (c === ";" && paren === 0) {
+      out += c;
+      i++;
+      while (src[i] === " ") i++;
+      if (src[i] !== "\n" && src[i] !== undefined) nl();
+      continue;
+    }
+    out += c;
+    i++;
+  }
+  return out.replace(/\n{3,}/g, "\n\n").trimEnd() + "\n";
+}
+
 export default function Code({ s, notify }) {
   const { files, activeJsxName, codeError } = s;
   const [active, setActive] = useState(() => s.project.mountedFile || files[0]?.name);
   const [draft, setDraft] = useState("");
   const [dirty, setDirty] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [beforeFormat, setBeforeFormat] = useState(null);
+  const wrap = s.settings.wrapCode !== false;
   const [dialog, setDialog] = useState(null); // {type:'new'|'rename', value}
   const gutter = useRef(null);
   const area = useRef(null);
@@ -154,12 +231,14 @@ export default function Code({ s, notify }) {
       </div>
 
       <div className="sp-editor">
-        <div className="sp-gutter" ref={gutter} aria-hidden="true">
-          <pre>{Array.from({ length: lines }, (_, i) => i + 1).join("\n")}</pre>
-        </div>
+        {!wrap && (
+          <div className="sp-gutter" ref={gutter} aria-hidden="true">
+            <pre>{Array.from({ length: lines }, (_, i) => i + 1).join("\n")}</pre>
+          </div>
+        )}
         <textarea
           ref={area}
-          className="sp-textarea"
+          className={cx("sp-textarea", wrap && "is-wrap")}
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);
@@ -178,7 +257,7 @@ export default function Code({ s, notify }) {
           autoCapitalize="off"
           autoCorrect="off"
           autoComplete="off"
-          wrap="off"
+          wrap={wrap ? "soft" : "off"}
           aria-label={`Editing ${file.name}`}
         />
       </div>
@@ -196,6 +275,17 @@ export default function Code({ s, notify }) {
           <button type="button" onClick={() => { navigator.clipboard?.writeText(draft); setMenu(false); notify("Copied", "ok"); }}>
             <ClipboardCopy size={18} /> Copy code
           </button>
+          <button type="button" onClick={() => { s.setSettings({ wrapCode: !wrap }); setMenu(false); }}>
+            <WrapText size={18} /> Wrap long lines: {wrap ? "on" : "off"}
+          </button>
+          <button type="button" onClick={() => { setBeforeFormat(draft); setDraft(formatCode(draft)); setDirty(true); setMenu(false); notify("Formatted", "ok"); }}>
+            <AlignLeft size={18} /> Format code (one statement per line)
+          </button>
+          {beforeFormat != null && (
+            <button type="button" onClick={() => { setDraft(beforeFormat); setDirty(true); setBeforeFormat(null); setMenu(false); notify("Format undone", "ok"); }}>
+              <RotateCcw size={18} /> Undo format
+            </button>
+          )}
           <button type="button" onClick={() => { setMenu(false); setDialog({ type: "rename", value: file.name }); }}>
             <Pencil size={18} /> Rename
           </button>

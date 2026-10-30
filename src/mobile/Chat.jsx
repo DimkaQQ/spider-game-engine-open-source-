@@ -4,8 +4,9 @@
  * Author: M4SPIDER (support@m4spider.com)
  */
 import React, { useEffect, useRef, useState } from "react";
+import { startVoice, voiceLang, voiceSupported } from "./voice.js";
 import {
-  ArrowUp, Check, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
+  ArrowUp, Mic, Check, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
 } from "lucide-react";
 import { Sheet, cx } from "./ui.jsx";
 
@@ -59,6 +60,31 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
   const [sheet, setSheet] = useState(null); // 'history' | 'model'
   const end = useRef(null);
   const input = useRef(null);
+  const [listening, setListening] = useState(false);
+  const voice = useRef(null);
+  const canVoice = voiceSupported();
+
+  const toggleVoice = () => {
+    if (voice.current) {
+      voice.current.stop();
+      return;
+    }
+    const base = text.trim() ? `${text.trim()} ` : "";
+    setListening(true);
+    voice.current = startVoice({
+      lang: voiceLang(settings.voiceLang),
+      onText: (t) => {
+        setText(base + t);
+        requestAnimationFrame(() => grow(input.current));
+      },
+      onEnd: () => {
+        voice.current = null;
+        setListening(false);
+      },
+      onError: (m) => notify(m, "warn"),
+    });
+  };
+  useEffect(() => () => voice.current?.stop(), []);
 
   useEffect(() => {
     end.current?.scrollIntoView({ block: "end", behavior: "smooth" });
@@ -211,7 +237,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
             ref={input}
             rows={1}
             value={text}
-            placeholder={busy ? "Steer the agent while it works…" : "Describe a game or a change…"}
+            placeholder={listening ? "Listening…" : busy ? "Steer the agent while it works…" : "Describe a game or a change…"}
             onChange={(e) => {
               setText(e.target.value);
               grow(e.target);
@@ -219,6 +245,11 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
             enterKeyHint="send"
             aria-label="Message"
           />
+          {canVoice && (
+            <button type="button" className={cx("sp-mic", listening && "is-on")} onClick={toggleVoice} aria-pressed={listening} aria-label={listening ? "Stop listening" : "Speak your prompt"}>
+              <Mic size={20} />
+            </button>
+          )}
           {busy && !text.trim() ? (
             <button type="button" className="sp-send is-stop" onClick={s.stop} aria-label="Stop agent">
               <Square size={16} fill="currentColor" />
