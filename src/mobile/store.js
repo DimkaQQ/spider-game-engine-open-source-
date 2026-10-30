@@ -215,6 +215,7 @@ export const DEFAULT_SETTINGS = {
   autosave: true,
   wrapCode: true,
   voiceLang: "auto",
+  contextWindow: "auto",
 };
 
 export const loadSettings = () => {

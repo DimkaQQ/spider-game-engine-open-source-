@@ -28,9 +28,22 @@ import {
   saveSettings,
   haptic,
 } from "./store.js";
+import { buildMemory, contextWindow, memoryBudget, runLimits } from "./context.js";
 import { PROVIDERS, baseUrlFor, chat, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
 
 const MAX_UNDO = 40;
+
+// Rules the agent must follow for on-screen controls in games it writes.
+const TOUCH_CONTROLS_RULES = [
+  "TOUCH CONTROLS LAYOUT (mandatory for every game that needs movement or buttons):",
+  "- Draw controls in a fullscreen HTML overlay (<Html fullscreen>) with position:absolute and inline styles. Never place them in 3D space and never let them move or follow the camera.",
+  "- FIXED PLACES: joystick base bottom-LEFT (left: max(16px, env(safe-area-inset-left)); bottom: max(20px, env(safe-area-inset-bottom))), action / jump buttons bottom-RIGHT with the same insets. Thumb-sized: joystick base about 120px, knob about 52px, buttons at least 64px.",
+  "- Works in portrait AND landscape: use a size that follows the screen, for example Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.3) clamped between 96 and 150. Read the size in state and update it on the window 'resize' and 'orientationchange' events (remove the listeners in the effect cleanup). In landscape keep the same corners; the controls must not jump or overlap the play area centre.",
+  "- The joystick tracks one pointer: onPointerDown capture the pointer, onPointerMove update the knob (clamped to the base radius), onPointerUp/Cancel reset to centre. Set touch-action:none and user-select:none on the controls. Keep the stick value in a ref, not in React state, so the game loop reads it every frame.",
+  "- Only the controls take pointer events (pointerEvents:'auto'); the overlay container uses pointerEvents:'none' so the 3D scene underneath can still be dragged.",
+  "- HUD (score, lives) goes top-centre, below the safe-area inset, and never covers the controls.",
+  "",
+].join("\n");
 const CORE_IDS = new Set(["player", "camera", "weapon", "terrain", "water", "sky", "lighting", "fog", "postprocess", "dir-light", "sky-light", "point-lights"]);
 
 const flatten = (groups) => (groups || []).flatMap((g) => g?.children || []).filter(Boolean);
@@ -703,6 +716,8 @@ export function useStudio() {
       })
     );
   }, []);
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
   const sessionRefId = useRef(sessionId);
   sessionRefId.current = sessionId;
 
@@ -1048,8 +1063,10 @@ export function useStudio() {
         pushMessage({ role: "assistant", ok: false, text: `No ${provNow.name} key yet. Open More, then Settings, then AI, paste your key, then ask again.` });
         return;
       }
+      const priorMessages = sessionsRef.current.find((x) => x.id === sessionRefId.current)?.messages || [];
       pushMessage({ role: "user", text: goal });
       setBusy(true);
+      let compactedLogged = false;
       abortRef.current = false;
       ctrlRef.current = new AbortController();
       const steps = [];
@@ -1060,9 +1077,20 @@ export function useStudio() {
       const touch = true;
       try {
         const callModel = async (task, history) => {
+          const cfgNow = aiCfgRef.current;
+          const provNow = providerById(cfgNow.provider);
+          const modelNow = cfgNow.model[provNow.id] || (cfgNow.models[provNow.id] || provNow.models)[0];
+          const win = contextWindow(provNow.id, modelNow, settingsRef.current.contextWindow);
+          const mem = buildMemory(priorMessages, memoryBudget(win));
+          if (mem.compacted && !compactedLogged) {
+            compactedLogged = true;
+            log("Info", `Context compacted: kept ${mem.kept} of ${mem.turns} earlier messages (window ${Math.round(win / 1000)}K tokens)`);
+          }
           const sys =
             systemPrompt(snapshotText(), { isMobile: touch }) +
+            (mem.text ? `\n\nCONVERSATION SO FAR (oldest first; the current goal comes below):\n${mem.text}\n` : "") +
             "\n\nCRITICAL MOBILE REQUIREMENT: The user is on a PHONE touchscreen. No keyboard controls (no WASD / arrows / space). All movement, steering and actions must be touch controlled (tap, swipe, drag, large on-screen buttons).\n" +
+            TOUCH_CONTROLS_RULES +
             GAME_BUILDER_PRIMER;
           const messages =
             history.length === 0
@@ -1109,6 +1137,7 @@ export function useStudio() {
           ctx: { runTool, isAborted: () => abortRef.current },
           callModel,
           maxSteps: GAME_STEPS,
+          ...runLimits(contextWindow(aiCfgRef.current.provider, aiCfgRef.current.model[aiCfgRef.current.provider], settingsRef.current.contextWindow)),
           getQueuedMessages: () => {
             if (!queueRef.current.length) return [];
             const m = [...queueRef.current];

@@ -541,7 +541,7 @@ export function parseAgentReply(raw) {
   };
 }
 
-export async function runAgent(task, { ctx, callModel, onEvent, maxSteps = MAX_STEPS, getQueuedMessages }) {
+export async function runAgent(task, { ctx, callModel, onEvent, maxSteps = MAX_STEPS, getQueuedMessages, historyKeep = 8, obsChars = 1200 }) {
   const history = [];
   let consecutiveParseErrors = 0;
 
@@ -622,8 +622,8 @@ export async function runAgent(task, { ctx, callModel, onEvent, maxSteps = MAX_S
     }
 
     // Compact observation to max 1200 chars in history so context doesn't explode
-    const compactObservation = observation.length > 1200
-      ? observation.slice(0, 1200) + `... [truncated ${observation.length - 1200} chars]`
+    const compactObservation = observation.length > obsChars
+      ? observation.slice(0, obsChars) + `... [truncated ${observation.length - obsChars} chars]`
       : observation;
 
     // Compact action args if it contains huge code/content so history doesn't explode token limits
@@ -655,8 +655,8 @@ export async function runAgent(task, { ctx, callModel, onEvent, maxSteps = MAX_S
     );
 
     // Keep history lean (at most last 8 turns) so token count stays small and fast
-    if (history.length > 10) {
-      history.splice(0, history.length - 8);
+    if (history.length > historyKeep + 2) {
+      history.splice(0, history.length - historyKeep);
     }
   }
   return `Agent completed task. Work is preserved in the scene and project files.`;
