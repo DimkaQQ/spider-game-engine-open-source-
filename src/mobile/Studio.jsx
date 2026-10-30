@@ -89,6 +89,17 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
     camTimer.current = setTimeout(() => setCamOpen(false), 4500);
   };
   useEffect(() => () => clearTimeout(camTimer.current), []);
+  // The transform tools fold into one round button too (shows the active tool).
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolsTimer = useRef(null);
+  const openTools = () => {
+    setToolsOpen(true);
+    clearTimeout(toolsTimer.current);
+    toolsTimer.current = setTimeout(() => setToolsOpen(false), 4500);
+  };
+  useEffect(() => () => clearTimeout(toolsTimer.current), []);
+  const currentTool = GIZMOS.find((g) => g.id === gizmo) || GIZMOS[1];
+
   const currentCam = CAMERAS.find((c) => c.id === cameraMode) || CAMERAS[0];
 
   const left = coins.filter((c) => !c.taken).length;
@@ -155,22 +166,31 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
         </div>
 
         {/* tool rail */}
-        {!isPlaying && (
-          <div className="sp-float sp-float-tl sp-rail" role="toolbar" aria-label="Transform tools">
-            {GIZMOS.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                className={cx("sp-rail-btn", gizmo === g.id && "is-on")}
-                aria-label={g.label}
-                aria-pressed={gizmo === g.id}
-                onClick={() => setGizmo(g.id)}
-              >
-                <g.icon size={19} />
-              </button>
-            ))}
-          </div>
-        )}
+        {!isPlaying &&
+          (toolsOpen ? (
+            <div className="sp-float sp-float-tl sp-rail" role="toolbar" aria-label="Transform tools">
+              {GIZMOS.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={cx("sp-rail-btn", gizmo === g.id && "is-on")}
+                  aria-label={g.label}
+                  aria-pressed={gizmo === g.id}
+                  onClick={() => {
+                    setGizmo(g.id);
+                    clearTimeout(toolsTimer.current);
+                    toolsTimer.current = setTimeout(() => setToolsOpen(false), 900);
+                  }}
+                >
+                  <g.icon size={19} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className="sp-fab sp-tool-btn" onClick={openTools} aria-label={`Tool: ${currentTool.label}. Tap to change`}>
+              <currentTool.icon size={19} />
+            </button>
+          ))}
 
         {full && isPlaying && (
           <button type="button" className="sp-stop-fab" onClick={togglePlay} aria-label="Stop playing">

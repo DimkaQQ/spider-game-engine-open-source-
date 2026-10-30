@@ -601,3 +601,7 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 @media (max-height: 520px) {
   .sp-float-tl.sp-rail { flex-direction: row; }
 }
+
+/* tool button (folded rail), same corner as the rail */
+.sp-tool-btn { position: absolute; z-index: 12; top: 10px; left: 10px; background: var(--accent); border-color: transparent; color: #fff; }
+.sp-app.is-full .sp-tool-btn { top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); }
