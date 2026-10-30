@@ -18,6 +18,9 @@ import {
   loadCurrentId,
   loadProjects,
   loadSessions,
+  applyInterrupted,
+  saveInflight,
+  clearInflight,
   loadSettings,
   makeProject,
   newSession,
@@ -688,8 +691,25 @@ export function useStudio() {
   const [loadingModels, setLoadingModels] = useState(false);
   const aiCfgRef = useRef(aiCfg);
   aiCfgRef.current = aiCfg;
-  const [sessions, setSessions] = useState(loadSessions);
-  const [sessionId, setSessionId] = useState(() => loadSessions()[0].id);
+  const [initialSessions] = useState(() => applyInterrupted(loadSessions()));
+  const [sessions, setSessions] = useState(initialSessions);
+  const [sessionId, setSessionId] = useState(initialSessions[0].id);
+  const inflight = useRef(null);
+  const unloading = useRef(false);
+  useEffect(() => {
+    // when the page is going away, a failing fetch must not wipe the record of the interrupted run
+    const down = () => (unloading.current = true);
+    const up = () => (unloading.current = false);
+    window.addEventListener("pagehide", down);
+    window.addEventListener("pageshow", up);
+    return () => {
+      window.removeEventListener("pagehide", down);
+      window.removeEventListener("pageshow", up);
+    };
+  }, []);
+  const persistInflight = useCallback(() => {
+    if (inflight.current) saveInflight({ ...inflight.current, queued: [...queueRef.current] });
+  }, []);
   const [busy, setBusy] = useState(false);
   const [stream, setStream] = useState(null); // { thought, text, steps[] }
   const [permission, setPermission] = useState(null); // { tool, detail, resolve }
@@ -1052,6 +1072,7 @@ export function useStudio() {
       if (!goal) return;
       if (busy) {
         queueRef.current.push(goal);
+        persistInflight();
         setQueued([...queueRef.current]);
         pushMessage({ role: "user", text: goal, queued: true });
         return;
@@ -1066,6 +1087,8 @@ export function useStudio() {
       const priorMessages = sessionsRef.current.find((x) => x.id === sessionRefId.current)?.messages || [];
       pushMessage({ role: "user", text: goal });
       setBusy(true);
+      inflight.current = { sessionId: sessionRefId.current, goal, startedAt: Date.now(), steps: [] };
+      persistInflight();
       let compactedLogged = false;
       abortRef.current = false;
       ctrlRef.current = new AbortController();
@@ -1148,20 +1171,30 @@ export function useStudio() {
           onEvent: (ev) => {
             if (ev.type === "action") {
               steps.push({ tool: ev.tool, state: "run" });
+              if (inflight.current) inflight.current.steps = steps.map((x) => ({ ...x }));
+              persistInflight();
               setStream((s) => ({ ...(s || {}), steps: [...steps] }));
               log("Info", `Agent → ${ev.tool}`);
             } else if (ev.type === "observation") {
               const last = steps[steps.length - 1];
               if (last) last.state = /^TOOL ERROR|COMPILATION ERROR/.test(ev.observation) ? "err" : "ok";
+              if (inflight.current) inflight.current.steps = steps.map((x) => ({ ...x }));
+              persistInflight();
               setStream((s) => ({ ...(s || {}), steps: [...steps] }));
             } else if (ev.type === "error") log("Warning", `Agent retry: ${ev.message}`);
           },
         });
         pushMessage({ role: "assistant", ok: true, text: String(final), steps: steps.map((s) => ({ ...s })), canUndo: true });
       } catch (e) {
-        pushMessage({ role: "assistant", ok: false, text: `Agent failed: ${e.message}`, steps: steps.map((s) => ({ ...s })) });
-        log("Warning", `Agent failed: ${e.message}`);
+        if (!unloading.current) {
+          pushMessage({ role: "assistant", ok: false, text: `Agent failed: ${e.message}`, steps: steps.map((s) => ({ ...s })) });
+          log("Warning", `Agent failed: ${e.message}`);
+        }
       } finally {
+        if (!unloading.current) {
+          inflight.current = null;
+          clearInflight();
+        }
         setStream(null);
         setBusy(false);
         setPermission(null);
@@ -1173,10 +1206,37 @@ export function useStudio() {
         }
       }
     },
-    [busy, log, pushMessage, pushUndo, runTool, snapshotText]
+    [busy, log, persistInflight, pushMessage, pushUndo, runTool, snapshotText]
   );
   const sendRef = useRef(null);
   sendRef.current = send;
+
+  // While the agent works: keep the screen awake (a sleeping phone suspends the tab and kills the run)
+  // and ask before the page is closed or reloaded.
+  useEffect(() => {
+    if (!busy) return undefined;
+    let lock = null;
+    const acquire = async () => {
+      try {
+        lock = (await navigator.wakeLock?.request("screen")) || null;
+      } catch {}
+    };
+    acquire();
+    const onVisible = () => document.visibilityState === "visible" && acquire();
+    const onUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("beforeunload", onUnload);
+      try {
+        lock?.release();
+      } catch {}
+    };
+  }, [busy]);
 
   const stop = useCallback(() => {
     abortRef.current = true;

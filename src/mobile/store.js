@@ -236,6 +236,39 @@ export function newSession() {
 
 export const META_KEYS = K;
 
+/* ---- in-flight agent run: survives a reload so the chat can say what happened and offer Retry ---- */
+const INFLIGHT = "spider-m-inflight";
+export const saveInflight = (rec) => write(INFLIGHT, rec);
+export const clearInflight = () => {
+  try {
+    localStorage.removeItem(INFLIGHT);
+  } catch {}
+};
+/** If a run was cut off by a reload, append an "interrupted" note (with Retry) to its chat. */
+export function applyInterrupted(list) {
+  const rec = read(INFLIGHT, null);
+  if (!rec || !rec.goal) return list;
+  clearInflight();
+  if (Date.now() - (rec.startedAt || 0) > 24 * 3600 * 1000) return list;
+  const target = list.find((s) => s.id === rec.sessionId) || list[0];
+  const n = (rec.steps || []).length;
+  const queued = rec.queued || [];
+  const note = {
+    id: `${Date.now()}-int`,
+    role: "assistant",
+    ok: false,
+    interrupted: true,
+    retryText: [rec.goal, ...queued].join("\n\n"),
+    text:
+      `The page reloaded, or the app went to the background, while the agent was working${n ? ` (it had done ${n} step${n > 1 ? "s" : ""})` : ""}, so this run stopped.` +
+      ` Everything it already wrote to your scene and files is saved.` +
+      (queued.length ? ` ${queued.length} message${queued.length > 1 ? "s" : ""} you sent during the run ${queued.length > 1 ? "were" : "was"} not processed.` : "") +
+      " Tap Retry to continue.",
+    steps: (rec.steps || []).map((s) => ({ tool: s.tool, state: s.state === "run" ? "err" : s.state })),
+  };
+  return list.map((s) => (s.id === target.id ? { ...s, messages: [...s.messages, note], updatedAt: Date.now() } : s));
+}
+
 export function download(name, text, mime = "text/plain") {
   try {
     const blob = new Blob([text], { type: mime });
