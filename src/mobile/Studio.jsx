@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Box, Camera, ChevronUp, Film, Gamepad2, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
+  Box, Camera, ChevronUp, Film, Gamepad2, Video, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
   SlidersHorizontal, Bot, Trash2, Undo2, Coins as CoinsIcon,
 } from "lucide-react";
 import GameViewport, { viewportApi } from "../engine/GameViewport.jsx";
@@ -238,7 +238,7 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
             </div>
           ) : (
             <button type="button" className="sp-cam-btn" onClick={openCams} aria-label={`Camera: ${currentCam.label}. Tap to change`}>
-              <currentCam.icon size={18} />
+              <Video size={20} />
             </button>
           )
         )}
