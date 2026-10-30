@@ -65,6 +65,11 @@ export default function MobileApp() {
   const go = useCallback((id, page = null) => {
     setTab(id);
     if (id === "more") setMorePage(page);
+    if (id === "studio") {
+      setTimeout(() => {
+        window.dispatchEvent(new Event("resize"));
+      }, 50);
+    }
   }, []);
 
   const eff = tab;

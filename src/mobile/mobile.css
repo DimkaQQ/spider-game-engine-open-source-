@@ -426,11 +426,11 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 .sp-ask-actions, .sp-ask-opts { display: flex; flex-wrap: wrap; gap: 8px; }
 .sp-ask-actions .sp-btn, .sp-ask-opts .sp-btn { flex: 1 1 auto; }
 
-.sp-composer { flex: none; padding: 8px 12px 10px; background: var(--bg); }
+.sp-composer { flex: none; padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--bg); }
 .sp-queued { font-size: 11px; color: var(--text-3); padding: 0 8px 6px; }
 .sp-composer-row { display: flex; align-items: flex-end; gap: 8px; padding: 6px 6px 6px 16px; border-radius: 26px; background: var(--surface); border: 1px solid var(--line-2); }
 .sp-composer-row:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.sp-app .sp-composer-row textarea { flex: 1; min-height: 44px; max-height: 132px; padding: 10px 0; border: 0; border-radius: 0; background: transparent; resize: none; line-height: 1.4; box-shadow: none; }
+.sp-app .sp-composer-row textarea { flex: 1; min-height: 44px; max-height: 132px; padding: 10px 0; border: 0; border-radius: 0; background: transparent; resize: none; line-height: 1.4; box-shadow: none; font-size: 16px !important; -webkit-text-size-adjust: 100%; color: var(--text, #f1f5f9); }
 .sp-app .sp-composer-row textarea:focus { box-shadow: none; }
 .sp-send { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: #fff; box-shadow: none; }
 .sp-send.is-stop { background: var(--bad); box-shadow: none; }

@@ -102,6 +102,15 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
     end.current?.scrollIntoView({ block: "end", behavior: "smooth" });
   }, [session.messages.length, stream?.thought, stream?.steps?.length, permission, question]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const onViewportResize = () => {
+      end.current?.scrollIntoView({ block: "nearest" });
+    };
+    window.visualViewport.addEventListener("resize", onViewportResize);
+    return () => window.visualViewport.removeEventListener("resize", onViewportResize);
+  }, []);
+
   const grow = (el) => {
     if (!el) return;
     el.style.height = "auto";
@@ -277,6 +286,12 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
             onChange={(e) => {
               setText(e.target.value);
               grow(e.target);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
             }}
             enterKeyHint="send"
             aria-label="Message"
