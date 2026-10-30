@@ -88,7 +88,9 @@ import {
   Edit3,
   FolderKanban,
   Video,
-  X
+  X,
+  Paperclip,
+  MessageCircle
 } from "lucide-react";
 import { sfx } from "./src/engine/audioSynthesizer.js";
 
@@ -7970,42 +7972,29 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             )}
 
-            {/* Muse Transcriber active listening wave banner */}
-            {isTranscribing && (
-              <div className="flex items-center justify-between px-3 py-1.5 mx-2 mb-1 bg-gradient-to-r from-rose-50 via-purple-50 to-indigo-50 border border-rose-200/90 rounded-xl text-xs text-rose-800 shadow-2xs animate-fadeIn">
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-0.5 h-3">
-                    <span className="muse-wave-bar h-2"></span>
-                    <span className="muse-wave-bar h-3.5"></span>
+            {/* Top Status Header: 💬 Chat  🔴 Listening... */}
+            <div className="flex items-center gap-1.5 text-xs font-semibold px-2.5 pt-2 pb-1 text-slate-700 select-none">
+              <MessageCircle size={15} className="text-[#00c8ff] fill-[#00c8ff] shrink-0" />
+              <span className="text-slate-800 text-xs font-bold">Chat</span>
+              {isTranscribing && (
+                <span className="flex items-center gap-1.5 text-red-500 text-xs ml-2 font-medium animate-fadeIn">
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  Listening...
+                  <div className="flex items-center gap-0.5 h-2.5 ml-1">
                     <span className="muse-wave-bar h-1.5"></span>
-                    <span className="muse-wave-bar h-4"></span>
+                    <span className="muse-wave-bar h-3"></span>
+                    <span className="muse-wave-bar h-1"></span>
                     <span className="muse-wave-bar h-2.5"></span>
                   </div>
-                  <span className="font-bold text-[11px] text-rose-700">Muse Transcribing... speak into mic</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleTranscriber}
-                  className="px-2 py-0.5 text-[10px] font-bold bg-rose-600 text-white rounded-md hover:bg-rose-700 cursor-pointer shadow-xs"
-                >
-                  Done
-                </button>
-              </div>
-            )}
+                </span>
+              )}
+            </div>
 
-            <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-1.5 border-t border-slate-100 flex items-end gap-1 bg-white">
-              {/* + opens the file manager for ANY file — parser allowlists models/images/audio */}
-              <button
-                type="button"
-                onClick={() => aiFileRef.current?.click()}
-                title="Attach any file (Ctrl+V)"
-                className="p-1 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-sm leading-none mb-0.5 shrink-0"
-              >
-                +
-              </button>
+            <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-2 pt-0.5 flex items-end gap-1.5 bg-white border-t border-slate-100">
               <input ref={aiFileRef} type="file" accept="*/*" className="hidden" onChange={(e) => { handleAskFile(e.target.files?.[0]); e.target.value = ""; }} />
 
-              <div className="flex-1 min-w-0 relative flex items-center">
+              {/* The rounded search input with camera & paperclip inside on the right */}
+              <div className="flex-1 min-w-0 bg-white rounded-2xl border-2 border-[#3b82f6]/70 focus-within:border-[#2563eb] shadow-2xs flex items-center px-3 py-1.5 transition">
                 <textarea
                   ref={aiTextareaRef}
                   autoFocus
@@ -8015,7 +8004,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   onChange={(e) => {
                     setAiPrompt(e.target.value);
                     e.target.style.height = "auto";
-                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 28), 110)}px`;
+                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 24), 110)}px`;
                   }}
                   onKeyDown={(e) => {
                     e.stopPropagation();
@@ -8024,53 +8013,80 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       handleAskAiSubmit(e);
                     }
                   }}
-                  placeholder={aiThinking ? "Working..." : isTranscribing ? "Listening... speak now" : "Search or ask AI... (/blender)"}
-                  className={`w-full text-xs font-medium text-slate-900 placeholder:text-slate-400 pl-2.5 ${isTranscribing ? "pr-14 bg-rose-50/50 border-rose-300 ring-1 ring-rose-200" : "pr-8 bg-slate-50 hover:bg-white focus:bg-white border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"} py-1.5 rounded-xl border focus:outline-none resize-none min-h-[28px] max-h-[110px] leading-snug no-scrollbar transition`}
+                  placeholder={aiThinking ? "Working..." : isTranscribing ? "Listening to your voice..." : "Message Spider AI... (/blender)"}
+                  className="w-full text-xs font-medium text-slate-800 outline-none bg-transparent resize-none leading-snug placeholder:text-slate-400 py-0.5 no-scrollbar min-h-[22px] max-h-[110px]"
                   style={{ height: "auto" }}
                 />
 
-                {/* Mic AS INPUT IN SEARCH BAR (Right inner adornment with live sound wave animation) */}
-                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 select-none pointer-events-auto">
-                  {isTranscribing && (
-                    <div className="flex items-center gap-0.5 h-3 px-0.5 animate-fadeIn">
-                      <span className="muse-wave-bar h-2"></span>
-                      <span className="muse-wave-bar h-3.5"></span>
-                      <span className="muse-wave-bar h-1.5"></span>
-                      <span className="muse-wave-bar h-3"></span>
-                    </div>
-                  )}
+                {/* Inner icons: Camera & Paperclip */}
+                <div className="flex items-center gap-1.5 ml-1 shrink-0 text-slate-400 select-none">
                   <button
                     type="button"
-                    onClick={toggleTranscriber}
-                    title={isTranscribing ? "Stop voice transcriber" : "Muse Voice Input — speak into search bar"}
-                    className={`p-1 rounded-full transition cursor-pointer flex items-center justify-center shrink-0 ${
-                      isTranscribing
-                        ? "bg-rose-500 text-white shadow-xs animate-pulse ring-2 ring-rose-200 scale-105"
-                        : "text-slate-400 hover:text-indigo-600 hover:bg-slate-200/60"
-                    }`}
+                    onClick={() => aiFileRef.current?.click()}
+                    title="Attach image / camera"
+                    className="p-0.5 text-slate-400 hover:text-blue-600 transition cursor-pointer"
                   >
-                    {isTranscribing ? <MicOff className="w-3 h-3 text-white" /> : <Mic className="w-3.5 h-3.5" />}
+                    <Camera size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => aiFileRef.current?.click()}
+                    title="Attach file (Ctrl+V)"
+                    className="p-0.5 text-slate-400 hover:text-blue-600 transition cursor-pointer"
+                  >
+                    <Paperclip size={15} />
                   </button>
                 </div>
               </div>
 
-              {/* Primary submit button */}
+              {/* 1. Mic Button (Connected to Muse Transcriber): Idle = light blue-gray; Listening = bright red with black border & MicOff */}
               <button
-                type="submit"
-                className={`p-1 mb-0.5 transition shrink-0 ${aiPrompt.trim() || aiAttachedImage ? "text-indigo-600 hover:text-indigo-700 cursor-pointer" : "text-slate-300 cursor-not-allowed"}`}
-                title={aiThinking ? "Queue follow-up (Enter)" : "Send (Enter)"}
-                disabled={!aiPrompt.trim() && !aiAttachedImage}
+                type="button"
+                onClick={toggleTranscriber}
+                title={isTranscribing ? "Stop Muse Transcriber" : "Muse Transcriber (Voice-to-Text)"}
+                className={`w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer ${
+                  isTranscribing
+                    ? "bg-[#f85149] text-black border-2 border-black/90 shadow-md animate-pulse"
+                    : "bg-[#eef2f7] text-[#0284c7] hover:bg-[#e2e8f0] border border-slate-200/40"
+                }`}
               >
-                <Send className="w-3.5 h-3.5" />
+                {isTranscribing ? <MicOff size={17} strokeWidth={2.4} className="text-black" /> : <Mic size={17} strokeWidth={2.2} />}
               </button>
-              {aiThinking && (
+
+              {/* 2. Plus Button */}
+              <button
+                type="button"
+                onClick={() => aiFileRef.current?.click()}
+                title="Attach file (+)"
+                className="w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-[#eef2f7] text-[#0284c7] hover:bg-[#e2e8f0] border border-slate-200/40"
+              >
+                <Plus size={19} strokeWidth={2.2} />
+              </button>
+
+              {/* 3. Send / Submit Button */}
+              {aiThinking ? (
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); stopAgent(); }}
-                  className="p-1 mb-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
+                  className="w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white shadow-md transition-all cursor-pointer active:scale-95"
                   title="Stop agent execution"
                 >
-                  <Square className="w-2.5 h-2.5 fill-rose-600" />
+                  <Square size={14} fill="white" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!aiPrompt.trim() && !aiAttachedImage}
+                  className={`w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-sm ${
+                    aiPrompt.trim() || aiAttachedImage
+                      ? "bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
+                      : "bg-[#2563eb]/50 text-white/70 cursor-not-allowed"
+                  }`}
+                  title="Send (Enter)"
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 22h16" /><path d="M12 2v20" /><path d="M12 2l-8 14h16z" className="fill-white" />
+                  </svg>
                 </button>
               )}
             </form>
