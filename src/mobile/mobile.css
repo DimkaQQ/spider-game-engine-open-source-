@@ -530,3 +530,32 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 
 /* long single-line code wraps instead of scrolling sideways */
 .sp-app textarea.sp-textarea.is-wrap { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; }
+
+/* ---------- syntax highlighting: coloured <pre> under a transparent textarea ---------- */
+:root {
+  --tk-k: #8250df; --tk-s: #0a7a3c; --tk-c: #6e7781; --tk-n: #b35900; --tk-t: #0550ae; --tk-f: #953800;
+}
+:root[data-theme="dark"] {
+  --tk-k: #c4a1ff; --tk-s: #7ee2a0; --tk-c: #8b949e; --tk-n: #ffb86b; --tk-t: #79b8ff; --tk-f: #ffa657;
+}
+.sp-code-stack { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+.sp-app .sp-hl,
+.sp-app textarea.sp-textarea { margin: 0; padding: 12px; font: 13px/20px var(--mono); letter-spacing: 0; tab-size: 2; white-space: pre; word-break: normal; text-align: left; }
+.sp-app .sp-hl { position: absolute; top: 0; left: 0; min-width: 100%; color: var(--text); pointer-events: none; will-change: transform; user-select: none; -webkit-user-select: none; }
+.sp-app .sp-hl.is-wrap { right: 0; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sp-hl i { font-style: normal; }
+.sp-hl .tk-k { color: var(--tk-k); font-weight: 600; }
+.sp-hl .tk-s { color: var(--tk-s); }
+.sp-hl .tk-c { color: var(--tk-c); font-style: italic; }
+.sp-hl .tk-n { color: var(--tk-n); }
+.sp-hl .tk-t { color: var(--tk-t); }
+.sp-hl .tk-f { color: var(--tk-f); }
+.sp-app textarea.sp-textarea { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; color: transparent; caret-color: var(--text); background: transparent; scrollbar-width: none; }
+.sp-app textarea.sp-textarea::-webkit-scrollbar { display: none; }
+.sp-app textarea.sp-textarea::selection { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+
+/* line numbers when lines wrap: drawn inside the highlight layer so they follow wrapped rows */
+.sp-hl .hl-line { position: relative; min-height: 20px; padding-left: 40px; }
+.sp-hl .hl-line::before { content: attr(data-n); position: absolute; left: -12px; top: 0; width: 44px; text-align: right; color: var(--text-3); user-select: none; -webkit-user-select: none; }
+.sp-app .sp-hl.is-wrap { background-image: linear-gradient(var(--line), var(--line)); background-size: 1px 100%; background-repeat: no-repeat; background-position: 38px 0; }
+.sp-app textarea.sp-textarea.has-nums { padding-left: 52px; }
