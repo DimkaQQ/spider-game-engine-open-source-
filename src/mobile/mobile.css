@@ -530,3 +530,15 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 
 /* long single-line code wraps instead of scrolling sideways */
 .sp-app textarea.sp-textarea.is-wrap { white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; }
+
+/* ---------- fullscreen viewport ---------- */
+.sp-app.is-full .sp-top,
+.sp-app.is-full .sp-tabbar,
+.sp-app.is-full .sp-dock { display: none; }
+.sp-app.is-full .sp-viewport { margin: 0; border-radius: 0; box-shadow: none; }
+.sp-app.is-full .sp-float-tr { top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); }
+.sp-app.is-full .sp-float-tl { top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); }
+.sp-app.is-full .sp-cams { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.sp-app.is-full .sp-fps { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.sp-app.is-full .sp-hud { top: calc(12px + env(safe-area-inset-top, 0px)); }
+.sp-stop-fab { position: absolute; z-index: 13; top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--bad); color: #fff; font-weight: 700; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }

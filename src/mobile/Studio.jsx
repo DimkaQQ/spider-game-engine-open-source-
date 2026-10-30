@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useRef, useState } from "react";
 import {
-  Camera, ChevronUp, Copy, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
+  Camera, ChevronUp, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
   SlidersHorizontal, Bot, Trash2, Undo2, Coins as CoinsIcon,
 } from "lucide-react";
 import GameViewport, { viewportApi } from "../engine/GameViewport.jsx";
@@ -72,7 +72,7 @@ function Joystick({ onChange }) {
   );
 }
 
-export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI }) {
+export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI, full = false, onToggleFull }) {
   const {
     groups, selectedId, setSelectedId, selected, isPlaying, gizmo, setGizmo, cameraMode, setCameraMode,
     settings, activeJsx, activeJsxName, setFps, fps, keys, setKeys, jump, score, coins, togglePlay,
@@ -134,6 +134,9 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI 
           <button type="button" className="sp-fab" onClick={shot} aria-label="Screenshot">
             <Camera size={18} />
           </button>
+          <button type="button" className="sp-fab" onClick={onToggleFull} aria-label={full ? "Exit fullscreen" : "Fullscreen"} aria-pressed={full}>
+            {full ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          </button>
           <button type="button" className="sp-fab" onClick={onOpenView} aria-label="View options">
             <SlidersHorizontal size={18} />
           </button>
@@ -155,6 +158,12 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI 
               </button>
             ))}
           </div>
+        )}
+
+        {full && isPlaying && (
+          <button type="button" className="sp-stop-fab" onClick={togglePlay} aria-label="Stop playing">
+            <Square size={14} fill="currentColor" /> Stop
+          </button>
         )}
 
         {fps > 0 && <div className="sp-fps">{fps} fps</div>}
