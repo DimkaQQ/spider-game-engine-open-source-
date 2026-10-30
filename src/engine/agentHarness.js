@@ -225,6 +225,7 @@ export function systemPrompt(snapshot, opts = {}) {
     "     * Call check3DView to verify that the game is running cleanly with 0 errors in the 3D Viewport.",
     "     * If check3DView reports any error, use editFile to fix the broken line immediately.",
     "     * Only conclude when the 3D Viewport is verified 100% HEALTHY & PLAYABLE.",
+    "- NO MARKDOWN ASTERISKS: NEVER output double asterisks (**) or single asterisks (*) anywhere in your responses. Do not wrap words in **bold** or *italic*. Output completely clean, purified plain text with natural punctuation and emoji only (never use **).",
     "- DIRECT FULFILLMENT: Build EXACTLY what the user asks for! If the user asks for Chess, YOU MUST BUILD 3D CHESS! Never refuse, avoid, or substitute another game when a specific game is requested.",
     "- NO SCENERY SPAM: Focus 100% on the requested game, its rules, and its modular code. Do not spawn random decorative clutter.",
     "- 100% LAG-FREE 60 FPS REACT THREE FIBER ARCHITECTURE:",

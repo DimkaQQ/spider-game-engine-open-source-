@@ -92,6 +92,18 @@ import {
 } from "lucide-react";
 import { sfx } from "./src/engine/audioSynthesizer.js";
 
+// Text purifier: strips all ** asterisks, bold markers, and markdown clutter from UI
+export function purifyUiText(text) {
+  if (!text) return "";
+  if (typeof text !== "string") return String(text);
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/\*\*/g, "")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/^#+\s+/gm, "");
+}
+
 
 // --- CONSOLE LOGS (start empty — real boot lines are logged on mount) ---
 const INITIAL_LOGS = [];
@@ -1162,7 +1174,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
       if (sub === "off" || sub === "disconnect" || sub === "stop") {
         connectToBlender({ enabled: false }).then(() => {
-          pushMsg(promptText, "Blender Real-Time MCP Bridge turned OFF.\n\nType `/blender` anytime or click the Blender badge to reconnect.", true);
+          pushMsg(promptText, "Blender Real-Time MCP Bridge turned OFF.", true);
         });
         return;
       }
@@ -1175,10 +1187,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
       connectToBlender({ port: targetPort, enabled: true }).then((res) => {
         const statusText = res.connected
-          ? `🟢 **Blender MCP Connected!** Successfully established real-time bridge on \`localhost:${targetPort}\`.\n\nSpider AI can now stream 3D commands, generate geometry in Blender, and import .glb models into your scene.`
-          : `⚠️ **Blender MCP Bridge (Port ${targetPort})**\n\n${res.error || "Blender socket listener not detected."}\n\n**To connect:**\n1. Open Blender.\n2. In Blender: go to *Edit > Preferences > Add-ons* and enable **Blender MCP**.\n3. Click **Start Listener** on port \`${targetPort}\`.\n4. Type \`/blender\` again to connect!`;
+          ? `🟢 Blender MCP Connected on localhost:${targetPort}. Ready for 3D generation.`
+          : `Blender MCP (port ${targetPort}): Offline. Note: 3D models (.glb/.fbx) work directly in the engine without running Blender.`;
 
-        pushMsg(promptText, statusText, res.connected, { isBlenderCard: true, port: targetPort });
+        pushMsg(promptText, statusText, res.connected);
       });
       return;
     }
@@ -1351,7 +1363,18 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     try {
       const raw = localStorage.getItem("spider-ai-sessions");
       const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
+      if (Array.isArray(arr)) {
+        return arr.map((s) => ({
+          ...s,
+          messages: (s.messages || []).map((m) => ({
+            ...m,
+            q: purifyUiText(m.q),
+            a: purifyUiText(m.a),
+            isBlenderCard: false
+          }))
+        }));
+      }
+      return [];
     } catch { return []; }
   });
   const [currentId, setCurrentId] = useState(() => {
@@ -1374,7 +1397,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const pushMsg = (q, a, ok = true, extra = {}) => {
     const clean = q.replace(/^📎 /, "");
     const title = clean.slice(0, 36) || "New chat";
-    const msgObj = { q, a, ok, ...extra };
+    const msgObj = { q, a: purifyUiText(a), ok, ...extra, isBlenderCard: false };
     let id = currentId;
     if (!id || !sessions.some((s) => s.id === id)) {
       id = `chat-${Date.now()}`;
@@ -7706,48 +7729,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         </div>
                       )}
 
-                      {/* Real-time Blender MCP Card */}
-                      {h.isBlenderCard && (
-                        <div className="rounded-2xl border border-indigo-200/90 bg-gradient-to-br from-indigo-50/80 via-white to-amber-50/40 p-3 my-1.5 shadow-2xs space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-lg bg-orange-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                                🎨
-                              </div>
-                              <div>
-                                <div className="font-bold text-[12px] text-slate-850 flex items-center gap-1.5">
-                                  Blender Real-Time MCP Bridge
-                                  <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${blenderMcpStatus === "connected" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
-                                    {blenderMcpStatus === "connected" ? "🟢 Connected" : "⚪ Standby / Offline"}
-                                  </span>
-                                </div>
-                                <div className="text-[10px] text-slate-400 font-mono">127.0.0.1:{h.port || blenderMcpPort || 9876}</div>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => connectToBlender({ enabled: !blenderMcpEnabled, port: h.port || blenderMcpPort })}
-                              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg cursor-pointer transition ${
-                                blenderMcpEnabled ? "bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200" : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs"
-                              }`}
-                            >
-                              {blenderMcpEnabled ? "Turn Bridge OFF" : "Turn Bridge ON"}
-                            </button>
-                          </div>
-                          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
-                            <span>💡 Models (.glb/.fbx) work directly in engine without Blender app</span>
-                            <button
-                              type="button"
-                              onClick={() => connectToBlender({ enabled: true, port: h.port || blenderMcpPort })}
-                              className="text-indigo-600 hover:underline font-bold cursor-pointer"
-                            >
-                              🔄 Test Connection
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className={`px-3.5 py-2 rounded-2xl rounded-bl-md text-[13px] leading-relaxed shadow-2xs ${h.ok ? "bg-slate-100/90 text-slate-900 border border-slate-200/80 font-normal" : "bg-amber-50 text-amber-900 border border-amber-200 font-medium"}`}>{h.a}</div>
+                      <div className={`px-3.5 py-2 rounded-2xl rounded-bl-md text-[13px] leading-relaxed shadow-2xs ${h.ok ? "bg-slate-100/90 text-slate-900 border border-slate-200/80 font-normal" : "bg-amber-50 text-amber-900 border border-amber-200 font-medium"}`}>{purifyUiText(h.a)}</div>
                       {/* Per-message icon actions — Edit · Reuse · Copy · Delete */}
                       <div className="flex items-center gap-0.5 pl-1 opacity-60 group-hover/msg:opacity-100 transition">
                         <button
