@@ -121,7 +121,7 @@ export const GAME_BUILDER_PRIMER = [
   "    4. Camera Animation: In 'menu' state, slowly orbit/pan the camera across the 3D world (`st.camera.position.set(...)`). Clicking Start or pressing Space/Enter transitions to 'playing'.",
   "    5. Clean Combat View: During 'playing', keep the 3D viewport clean and cinematic — NEVER clutter the screen with giant paragraphs of controls!",
   "  - CRITICAL UNIVERSAL GAME HUD MANDATE (ALWAYS VISIBLE EVERYWHERE):",
-  "    ALWAYS include the sleek top-left glassmorphic HUD pill in ALL games! Import `<GameHud>` from './ArenaEnv.jsx' (or render it docked at top: 14, left: 14). It MUST be visible ALL THE TIME across all states (menu, playing, gameover), displaying title, stats (HP, Wave, Score), green health bar, and blue stamina/action bar!",
+  "    ALWAYS include the sleek glassmorphic HUD pill in ALL games! Import `<GameHud>` from './ArenaEnv.jsx' (or render it docked at bottom-center: bottom: 20, left: '50%', transform: 'translateX(-50%)' on the open arena floor). It MUST be visible ALL THE TIME across all states (menu, playing, gameover), displaying title, stats (HP, Wave, Score), green health bar, and blue stamina/action bar!",
   "  - Keep GameComponent.jsx compact (<45 lines) to avoid token truncation!",
   "  - RE-USE the modular arena helper './ArenaEnv.jsx' (ArenaEnv, CoinPickup, ObstacleBox, GameHud, useKeyboardControls):",
   "    ```jsx",

@@ -222,28 +222,36 @@ export function GameHud({
   kills = 0,
   combo = 0,
   message = '',
-  statsText
+  statsText,
+  position = 'bottom-center'
 }) {
   const hpPercent = Math.max(0, Math.min(100, (hp / maxHp) * 100));
   const staPercent = Math.max(0, Math.min(100, (stamina / maxStamina) * 100));
   const info = statsText ?? (total > 0 ? `Score ${score}/${total}` : `♥ ${Math.round(hp)}  Wave ${wave}  Kills ${kills}${combo > 0 ? `  Combo x${combo}` : ''}`);
+
+  const posStyle = position === 'bottom-center'
+    ? { bottom: 20, left: '50%', transform: 'translateX(-50%)' }
+    : position === 'bottom-left'
+    ? { bottom: 20, left: 20 }
+    : { top: 14, left: 14 };
 
   return (
     <Html fullscreen style={{ pointerEvents: 'none' }}>
       <div
         style={{
           position: 'absolute',
-          top: 14,
-          left: 14,
-          background: 'rgba(15, 23, 42, 0.85)',
-          padding: '10px 16px',
-          borderRadius: 12,
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
+          ...posStyle,
+          background: 'rgba(15, 23, 42, 0.88)',
+          padding: '10px 18px',
+          borderRadius: 14,
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
           color: '#ffffff',
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
-          zIndex: 40
+          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
+          zIndex: 40,
+          minWidth: 260,
+          textAlign: 'center'
         }}
       >
         <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: 1, color: '#fbcfe8', textTransform: 'uppercase' }}>

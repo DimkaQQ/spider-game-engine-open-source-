@@ -477,20 +477,48 @@ export default function GameComponent() {
       )}
 
       {/* ========================================================================= */}
-      {/* 🎮 SLEEK CINEMATIC HUD (ALWAYS VISIBLE ACROSS ALL STATES — DOCKED TOP-LEFT) */}
+      {/* 🎮 SLEEK CINEMATIC HUD (DOCKED AT BOTTOM-CENTER ON ARENA FLOOR) */}
       {/* ========================================================================= */}
       <Html fullscreen style={{ pointerEvents: 'none' }}>
         <div ref={vg} style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 90px rgba(220,0,0,.95)', opacity: 0, transition: 'opacity .1s' }} />
-        <div style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(15, 23, 42, 0.85)', padding: '10px 16px', borderRadius: 12, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontFamily: 'system-ui, sans-serif', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 40 }}>
-          <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: 1, color: '#fbcfe8' }}>TSUSHIMA SAMURAI DUEL</div>
-          <div ref={ht} style={{ fontSize: 11, marginTop: 4, fontWeight: 600 }}>HP 100</div>
-          <div style={{ width: 190, height: 7, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
-            <div ref={hb} style={{ height: '100%', background: '#22c55e', width: '100%' }} />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 20,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            pointerEvents: 'auto',
+            background: 'rgba(15, 23, 42, 0.88)',
+            padding: '10px 18px',
+            borderRadius: 14,
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            color: '#fff',
+            fontFamily: 'system-ui, sans-serif',
+            boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+            zIndex: 40,
+            userSelect: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            minWidth: 260
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: 1.5, color: '#fbcfe8', textAlign: 'center' }}>
+            TSUSHIMA SAMURAI DUEL
           </div>
-          <div style={{ width: 190, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
-            <div ref={sb} style={{ height: '100%', background: '#38bdf8', width: '100%' }} />
+          <div ref={ht} style={{ fontSize: 11, marginTop: 4, fontWeight: 600, color: '#e2e8f0', textAlign: 'center' }}>
+            ♥ 100 Wave 1 Kills 0 Combo x0
           </div>
-          <div ref={ms} style={{ color: '#fde68a', fontWeight: 700, marginTop: 5, fontSize: 11 }}></div>
+          <div style={{ width: 230, height: 7, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 4 }}>
+            <div ref={hb} style={{ height: '100%', background: '#22c55e', width: '100%', transition: 'width 0.15s ease' }} />
+          </div>
+          <div style={{ width: 230, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
+            <div ref={sb} style={{ height: '100%', background: '#38bdf8', width: '100%', transition: 'width 0.15s ease' }} />
+          </div>
+          <div ref={ms} style={{ color: '#fde68a', fontWeight: 700, marginTop: 5, fontSize: 11, textAlign: 'center' }}>
+            🌸 WAVE 1 — DRAW YOUR KATANA
+          </div>
         </div>
       </Html>
     </group>
