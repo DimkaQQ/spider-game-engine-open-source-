@@ -1,15 +1,18 @@
 import React, { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
+import { PauseOverlay } from './ArenaEnv';
 
 export default function ZombieDefense() {
   const [kills, setKills] = useState(0);
   const [hp, setHp] = useState(100);
+  const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(false);
   const heroRef = useRef();
   const enemyRef = useRef();
 
   useFrame((_, delta) => {
-    if (hp <= 0) return;
+    if (hp <= 0 || paused) return;
     const t = window.__spiderVirtualTouch || { x: 0, z: 0 };
     if (heroRef.current) {
       heroRef.current.position.x += t.x * delta * 8;
@@ -31,6 +34,7 @@ export default function ZombieDefense() {
   });
 
   const onSmiteZombie = () => {
+    if (paused) return;
     if (enemyRef.current) {
       enemyRef.current.position.x = (Math.random() - 0.5) * 16;
       enemyRef.current.position.z = (Math.random() - 0.5) * 16;
@@ -71,6 +75,15 @@ export default function ZombieDefense() {
           <small style={{ color: '#f87171' }}>Tap the red zombie to attack!</small>
         </div>
       </Html>
+
+      {/* In-game Pause/Play, Icon-Only Sound Toggle, and Exit (Esc) overlay */}
+      <PauseOverlay
+        paused={paused}
+        onTogglePause={() => setPaused(!paused)}
+        soundMuted={muted}
+        onToggleSound={() => setMuted(!muted)}
+        onExit={() => setPaused(false)}
+      />
     </group>
   );
 }

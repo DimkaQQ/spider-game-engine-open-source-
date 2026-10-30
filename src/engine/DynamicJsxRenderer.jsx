@@ -314,6 +314,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       "CoinPickup",
       "ObstacleBox",
       "GameHud",
+      "PauseOverlay",
+      "GameNav",
       "ChessBoardEnv",
       "PieceModel",
       "ChessPiece"
@@ -362,6 +364,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       ArenaModule.CoinPickup,
       ArenaModule.ObstacleBox,
       ArenaModule.GameHud,
+      ArenaModule.PauseOverlay,
+      ArenaModule.GameNav,
       ChessBoardEnvModule.ChessBoardEnv,
       PiecesModule.PieceModel,
       PiecesModule.PieceModel

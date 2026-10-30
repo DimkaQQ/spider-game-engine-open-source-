@@ -3561,7 +3561,12 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           "3. Menu Presentation: Centered, atmospheric title screen with bold stylized title, a prominent [ ⚔️ START / PLAY ] button, and [ 📜 CONTROLS ] button. When rendered with `<Html fullscreen>`, it MUST be centered (`inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'`) with backdrop blur and dark radial gradient. Or render in pure 3D world space using `<Billboard>` with `<Text>` and 3D `<mesh>` buttons!\n" +
           "4. In 'menu' state, slowly pan/orbit the camera around the 3D scene (`st.camera.position.set(...)`). When player clicks the Start button or presses Space/Enter, play a start sound effect and transition to 'playing'!\n" +
           "5. During gameplay ('playing'), the viewport MUST remain clean — NO giant wall of controls text ruining the view!\n" +
-          "6. UNIVERSAL GAME HUD & MOBILE JOYSTICK MANDATE (NEVER MAKE JOYSTICK USELESS):\n" +
+          "6. IN-GAME PAUSE, PLAY, SOUND & EXIT CONTROLS (CRITICAL):\n" +
+          "   - Always include in-game pause/resume (`paused`, `setPaused(!paused)`). In useFrame, freeze game loop when paused.\n" +
+          "   - Icon-only sound toggle: Use a clean icon button ONLY (`🔊` / `🔇`) without any cluttered text.\n" +
+          "   - Resume & Exit: Provide Resume (`▶`) and Exit (`✕`). Pressing Exit MUST exit fullscreen (`document.exitFullscreen?.()`) and return to menu/editor. On PC, listen to Escape key (`e.key === 'Escape'`) to toggle pause or exit fullscreen!\n" +
+          "   - Re-use `<PauseOverlay paused={paused} onTogglePause={() => setPaused(!paused)} soundMuted={muted} onToggleSound={() => setMuted(!muted)} onExit={() => setPaused(false)} />` from './ArenaEnv.jsx'!\n" +
+          "7. UNIVERSAL GAME HUD & MOBILE JOYSTICK MANDATE (NEVER MAKE JOYSTICK USELESS):\n" +
           "   - MOBILE & JOYSTICK SUPPORT: NEVER rely solely on desktop physical keyboard events! On phones/tablets players use the virtual joystick. ALWAYS import `useKeyboardControls` from './ArenaEnv.jsx' (or read `window.__spiderVirtualTouch || { x: 0, z: 0 }`), which automatically unifies WASD, Arrow keys, and mobile virtual stick movement so the joystick works 100% of the time!\n" +
           "   - RESPONSIVE SCREEN HUD: ALWAYS pass `calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]}` on `<Html fullscreen>` so the HUD never drifts when the camera moves. Use `maxWidth: 'min(92vw, 420px)', width: 'max-content'`. On mobile screens (<768px), dock the HUD at top-center (`top: 12, left: '50%', transform: 'translateX(-50%)'`) so it NEVER covers or obstructs the thumb joystick at the bottom!\n" +
           GAME_BUILDER_PRIMER;

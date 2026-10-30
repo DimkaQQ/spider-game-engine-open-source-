@@ -390,3 +390,211 @@ export function Menu3D({
     </group>
   );
 }
+
+/**
+ * Modern In-Game Navigation & Pause Overlay
+ * Features:
+ * - Clean Pause / Play toggle button at top-right
+ * - Clean icon-only Sound toggle (🔊 / 🔇) - no clutter text
+ * - Resume button (▶️)
+ * - Exit button (✕) which exits fullscreen (ESC on PC)
+ * - Keyboard ESC listener to toggle pause / exit
+ */
+export function PauseOverlay({
+  paused = false,
+  onTogglePause,
+  soundMuted = false,
+  onToggleSound,
+  onExit,
+  title = 'PAUSED'
+}) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' || e.code === 'Escape') {
+        if (onTogglePause) onTogglePause();
+        else if (onExit) onExit();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onTogglePause, onExit]);
+
+  const handleExitClick = () => {
+    try {
+      if (typeof document !== 'undefined' && document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+    } catch {}
+    if (onExit) onExit();
+  };
+
+  return (
+    <Html fullscreen calculatePosition={(_, __, size) => [size.width / 2, size.height / 2]} style={{ pointerEvents: 'none' }}>
+      {/* Top right floating quick-buttons */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 'calc(14px + env(safe-area-inset-top, 0px))',
+          right: 'calc(14px + env(safe-area-inset-right, 0px))',
+          display: 'flex',
+          gap: 10,
+          zIndex: 60,
+          pointerEvents: 'auto'
+        }}
+      >
+        {onToggleSound && (
+          <button
+            type="button"
+            onClick={onToggleSound}
+            aria-label={soundMuted ? 'Unmute sound' : 'Mute sound'}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'rgba(15, 23, 42, 0.85)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: soundMuted ? '#f87171' : '#38bdf8',
+              fontSize: 18,
+              cursor: 'pointer',
+              display: 'grid',
+              placeItems: 'center',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              outline: 'none'
+            }}
+          >
+            {soundMuted ? '🔇' : '🔊'}
+          </button>
+        )}
+        {onTogglePause && (
+          <button
+            type="button"
+            onClick={onTogglePause}
+            aria-label={paused ? 'Resume game' : 'Pause game'}
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: paused ? '#2563eb' : 'rgba(15, 23, 42, 0.85)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#ffffff',
+              fontSize: 16,
+              cursor: 'pointer',
+              display: 'grid',
+              placeItems: 'center',
+              backdropFilter: 'blur(8px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              outline: 'none'
+            }}
+          >
+            {paused ? '▶' : '⏸'}
+          </button>
+        )}
+      </div>
+
+      {/* Centered Modal Backdrop when Paused */}
+      {paused && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(2, 6, 23, 0.75)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 55,
+            pointerEvents: 'auto',
+            fontFamily: 'system-ui, -apple-system, sans-serif'
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.92)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: 20,
+              padding: '28px 36px',
+              textAlign: 'center',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+              minWidth: 260,
+              maxWidth: '90vw'
+            }}
+          >
+            <h2 style={{ margin: '0 0 20px 0', color: '#f8fafc', fontSize: 22, fontWeight: 800, letterSpacing: 1.5 }}>
+              {title}
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                type="button"
+                onClick={onTogglePause}
+                style={{
+                  background: '#2563eb',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 12,
+                  padding: '12px 24px',
+                  fontWeight: 700,
+                  fontSize: 15,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 14px rgba(37,99,235,0.4)'
+                }}
+              >
+                <span>▶</span> Resume
+              </button>
+
+              {onToggleSound && (
+                <button
+                  type="button"
+                  onClick={onToggleSound}
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    color: '#e2e8f0',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    borderRadius: 12,
+                    padding: '10px 20px',
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                  }}
+                >
+                  <span>{soundMuted ? '🔇' : '🔊'}</span> Sound: {soundMuted ? 'Off' : 'On'}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleExitClick}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.18)',
+                  color: '#f87171',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: 12,
+                  padding: '10px 20px',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8
+                }}
+              >
+                <span>✕</span> Exit Game (Esc)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Html>
+  );
+}
+export const GameNav = PauseOverlay;
