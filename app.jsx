@@ -3560,6 +3560,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           "3. Menu Presentation: Centered, atmospheric title screen with bold stylized title, a prominent [ ⚔️ START / PLAY ] button, and [ 📜 CONTROLS ] button. When rendered with `<Html fullscreen>`, it MUST be centered (`inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'`) with backdrop blur and dark radial gradient. Or render in pure 3D world space using `<Billboard>` with `<Text>` and 3D `<mesh>` buttons!\n" +
           "4. In 'menu' state, slowly pan/orbit the camera around the 3D scene (`st.camera.position.set(...)`). When player clicks the Start button or presses Space/Enter, play a start sound effect and transition to 'playing'!\n" +
           "5. During gameplay ('playing'), the viewport MUST remain clean — NO giant wall of controls text ruining the view!\n" +
+          "6. UNIVERSAL GAME HUD: ALWAYS keep the sleek top-left glassmorphic HUD (<GameHud> from './ArenaEnv.jsx' or docked at top: 14, left: 14) visible ALL THE TIME across all game states (menu, playing, game over). Display title, HP, stamina/score, and stats so the player always has their status!\n" +
           GAME_BUILDER_PRIMER;
         let messages;
         if (history.length === 0) {
@@ -4453,7 +4454,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       getLogs: () => consoleLogs.slice(-25),
       captureScreenshot: () => {
         try {
-          const url = viewportApi.capture?.();
+          const url = viewportApi.capture?.() || (typeof document !== "undefined" ? (document.querySelector("canvas")?.toDataURL?.("image/jpeg", 0.82) || "") : "");
           return { ok: !!url, dataUrl: url, dataUrlLength: (url || "").length };
         } catch (e) {
           return { ok: false, error: String(e) };

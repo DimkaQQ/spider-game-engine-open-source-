@@ -477,24 +477,22 @@ export default function GameComponent() {
       )}
 
       {/* ========================================================================= */}
-      {/* 🎮 SLEEK CINEMATIC HUD (ONLY VISIBLE DURING PLAYING — DOCKED TOP-LEFT) */}
+      {/* 🎮 SLEEK CINEMATIC HUD (ALWAYS VISIBLE ACROSS ALL STATES — DOCKED TOP-LEFT) */}
       {/* ========================================================================= */}
-      {gameState === 'playing' && (
-        <Html fullscreen style={{ pointerEvents: 'none' }}>
-          <div ref={vg} style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 90px rgba(220,0,0,.95)', opacity: 0, transition: 'opacity .1s' }} />
-          <div style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(15, 23, 42, 0.82)', padding: '10px 16px', borderRadius: 12, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontFamily: 'system-ui, sans-serif' }}>
-            <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: 1, color: '#fbcfe8' }}>TSUSHIMA SAMURAI DUEL</div>
-            <div ref={ht} style={{ fontSize: 11, marginTop: 4, fontWeight: 600 }}>HP 100</div>
-            <div style={{ width: 190, height: 7, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
-              <div ref={hb} style={{ height: '100%', background: '#22c55e', width: '100%' }} />
-            </div>
-            <div style={{ width: 190, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
-              <div ref={sb} style={{ height: '100%', background: '#38bdf8', width: '100%' }} />
-            </div>
-            <div ref={ms} style={{ color: '#fde68a', fontWeight: 700, marginTop: 5, fontSize: 11 }}></div>
+      <Html fullscreen style={{ pointerEvents: 'none' }}>
+        <div ref={vg} style={{ position: 'absolute', inset: 0, boxShadow: 'inset 0 0 90px rgba(220,0,0,.95)', opacity: 0, transition: 'opacity .1s' }} />
+        <div style={{ position: 'absolute', top: 14, left: 14, background: 'rgba(15, 23, 42, 0.85)', padding: '10px 16px', borderRadius: 12, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.12)', color: '#fff', fontFamily: 'system-ui, sans-serif', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', zIndex: 40 }}>
+          <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: 1, color: '#fbcfe8' }}>TSUSHIMA SAMURAI DUEL</div>
+          <div ref={ht} style={{ fontSize: 11, marginTop: 4, fontWeight: 600 }}>HP 100</div>
+          <div style={{ width: 190, height: 7, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
+            <div ref={hb} style={{ height: '100%', background: '#22c55e', width: '100%' }} />
           </div>
-        </Html>
-      )}
+          <div style={{ width: 190, height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
+            <div ref={sb} style={{ height: '100%', background: '#38bdf8', width: '100%' }} />
+          </div>
+          <div ref={ms} style={{ color: '#fde68a', fontWeight: 700, marginTop: 5, fontSize: 11 }}></div>
+        </div>
+      </Html>
     </group>
   );
 }

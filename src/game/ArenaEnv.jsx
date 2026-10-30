@@ -208,34 +208,63 @@ export function ObstacleBox({ position = [0, 0.6, 0], size = [2, 1.2, 2], color 
 }
 
 /**
- * Sleek Glassmorphic Game HUD
+ * Sleek Glassmorphic Game HUD (Always visible across all games, dual-gauge health/stamina/score bars)
  */
-export function GameHud({ title = 'ARCADE ARENA', score = 0, total = 8, won = false, onRestart }) {
-  const isWon = won || (total > 0 && score >= total);
+export function GameHud({
+  title = 'SPIDER ARENA',
+  hp = 100,
+  maxHp = 100,
+  stamina = 100,
+  maxStamina = 100,
+  score = 0,
+  total = 0,
+  wave = 1,
+  kills = 0,
+  combo = 0,
+  message = '',
+  statsText
+}) {
+  const hpPercent = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+  const staPercent = Math.max(0, Math.min(100, (stamina / maxStamina) * 100));
+  const info = statsText ?? (total > 0 ? `Score ${score}/${total}` : `♥ ${Math.round(hp)}  Wave ${wave}  Kills ${kills}${combo > 0 ? `  Combo x${combo}` : ''}`);
 
   return (
     <Html fullscreen style={{ pointerEvents: 'none' }}>
       <div
         style={{
           position: 'absolute',
-          top: 12,
-          left: 12,
-          background: 'rgba(15, 23, 42, 0.75)',
+          top: 14,
+          left: 14,
+          background: 'rgba(15, 23, 42, 0.85)',
+          padding: '10px 16px',
+          borderRadius: 12,
           backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          padding: '6px 14px',
-          borderRadius: '10px',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
           color: '#ffffff',
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          fontSize: '12px'
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+          zIndex: 40
         }}
       >
-        <span style={{ fontWeight: 800, color: '#60a5fa' }}>{title}</span>
-        <span style={{ fontWeight: 700, color: '#fbbf24' }}>Score: {score}/{total}</span>
-        {isWon && <span style={{ color: '#4ade80', fontWeight: 800 }}>VICTORY! Press R to Play Again</span>}
+        <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: 1, color: '#fbcfe8', textTransform: 'uppercase' }}>
+          {title}
+        </div>
+        <div style={{ fontSize: 11, marginTop: 4, fontWeight: 600, color: '#e2e8f0' }}>
+          {info}
+        </div>
+        {/* Health / Primary Bar */}
+        <div style={{ width: 190, height: 7, background: 'rgba(255, 255, 255, 0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 4 }}>
+          <div style={{ height: '100%', background: '#22c55e', width: `${hpPercent}%`, transition: 'width 0.15s ease' }} />
+        </div>
+        {/* Stamina / Secondary Bar */}
+        <div style={{ width: 190, height: 4, background: 'rgba(255, 255, 255, 0.15)', borderRadius: 4, overflow: 'hidden', marginTop: 3 }}>
+          <div style={{ height: '100%', background: '#38bdf8', width: `${staPercent}%`, transition: 'width 0.15s ease' }} />
+        </div>
+        {message && (
+          <div style={{ color: '#fde68a', fontWeight: 700, marginTop: 4, fontSize: 11 }}>
+            {message}
+          </div>
+        )}
       </div>
     </Html>
   );
