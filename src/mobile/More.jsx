@@ -331,6 +331,12 @@ function AiSettings({ s, notify }) {
       </div>
 
       <div className="sp-field">
+        <span>Context window</span>
+        <Segmented label="Context window" value={settings.contextWindow || "auto"} onChange={(contextWindow) => setSettings({ contextWindow })} options={[{ value: "auto", label: "Auto" }, { value: "128k", label: "128K" }, { value: "200k", label: "200K" }, { value: "1m", label: "1M" }]} />
+        <small className="sp-muted">How much text the agent may keep in mind. Earlier chat is compacted automatically before it fills the window. Auto uses 1M for Meta Muse, Gemini and GPT-4.1, 200K for Claude and 128K for others.</small>
+      </div>
+
+      <div className="sp-field">
         <span>Voice input language</span>
         <Segmented label="Voice language" value={settings.voiceLang} onChange={(voiceLang) => setSettings({ voiceLang })} options={[{ value: "auto", label: "Auto" }, { value: "en", label: "English" }, { value: "ru", label: "Русский" }]} />
         <small className="sp-muted">The mic button in the AI tab uses your browser's speech recognition (Chrome, Edge, Safari).</small>

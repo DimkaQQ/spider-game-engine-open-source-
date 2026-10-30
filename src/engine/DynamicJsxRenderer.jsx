@@ -15,6 +15,7 @@ import * as Lucide from "lucide-react";
 import { transform } from "sucrase";
 import { Chess } from "chess.js";
 import { sfx, SoundEffects } from "./audioSynthesizer.js";
+import * as TouchKit from "./touchControls.jsx";
 
 class JsxErrorBoundary extends Component {
   constructor(props) {
@@ -118,6 +119,7 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
       "@react-three/fiber": Fiber,
       "@react-three/drei": Drei,
       "lucide-react": Lucide,
+      "spider-touch": TouchKit,
       "chess.js": { Chess, default: Chess },
       audio: { sfx, SoundEffects, default: sfx },
       sound: { sfx, SoundEffects, default: sfx },

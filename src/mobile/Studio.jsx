@@ -3,9 +3,9 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  * Author: M4SPIDER (support@m4spider.com)
  */
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Box, Camera, ChevronUp, Film, Gamepad2, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
+  Box, Camera, ChevronUp, Film, Gamepad2, Video, Copy, Maximize2, Minimize2, Square, Eye, EyeOff, MousePointer2, Move, Redo2, Rotate3d, Scale3d,
   SlidersHorizontal, Bot, Trash2, Undo2, Coins as CoinsIcon,
 } from "lucide-react";
 import GameViewport, { viewportApi } from "../engine/GameViewport.jsx";
@@ -80,6 +80,28 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
     undo, redo, undoCount, toggleVisible, duplicate, removeNode, onViewportTransform, timeOfDay, files, resetScore,
   } = s;
 
+  // Camera modes stay folded into one round button so they never cover the FPS badge or the scene.
+  const [camOpen, setCamOpen] = useState(false);
+  const camTimer = useRef(null);
+  const openCams = () => {
+    setCamOpen(true);
+    clearTimeout(camTimer.current);
+    camTimer.current = setTimeout(() => setCamOpen(false), 4500);
+  };
+  useEffect(() => () => clearTimeout(camTimer.current), []);
+  // The transform tools fold into one round button too (shows the active tool).
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolsTimer = useRef(null);
+  const openTools = () => {
+    setToolsOpen(true);
+    clearTimeout(toolsTimer.current);
+    toolsTimer.current = setTimeout(() => setToolsOpen(false), 4500);
+  };
+  useEffect(() => () => clearTimeout(toolsTimer.current), []);
+  const currentTool = GIZMOS.find((g) => g.id === gizmo) || GIZMOS[1];
+
+  const currentCam = CAMERAS.find((c) => c.id === cameraMode) || CAMERAS[0];
+
   const left = coins.filter((c) => !c.taken).length;
   const customGame = Boolean(activeJsx);
 
@@ -144,22 +166,31 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
         </div>
 
         {/* tool rail */}
-        {!isPlaying && (
-          <div className="sp-float sp-float-tl sp-rail" role="toolbar" aria-label="Transform tools">
-            {GIZMOS.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                className={cx("sp-rail-btn", gizmo === g.id && "is-on")}
-                aria-label={g.label}
-                aria-pressed={gizmo === g.id}
-                onClick={() => setGizmo(g.id)}
-              >
-                <g.icon size={19} />
-              </button>
-            ))}
-          </div>
-        )}
+        {!isPlaying &&
+          (toolsOpen ? (
+            <div className="sp-float sp-float-tl sp-rail" role="toolbar" aria-label="Transform tools">
+              {GIZMOS.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={cx("sp-rail-btn", gizmo === g.id && "is-on")}
+                  aria-label={g.label}
+                  aria-pressed={gizmo === g.id}
+                  onClick={() => {
+                    setGizmo(g.id);
+                    clearTimeout(toolsTimer.current);
+                    toolsTimer.current = setTimeout(() => setToolsOpen(false), 900);
+                  }}
+                >
+                  <g.icon size={19} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className="sp-fab sp-tool-btn" onClick={openTools} aria-label={`Tool: ${currentTool.label}. Tap to change`}>
+              <currentTool.icon size={19} />
+            </button>
+          ))}
 
         {full && isPlaying && (
           <button type="button" className="sp-stop-fab" onClick={togglePlay} aria-label="Stop playing">
@@ -205,14 +236,31 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
 
         {/* camera pills */}
         {!isPlaying && (
-          <div className="sp-cams" role="radiogroup" aria-label="Camera">
-            {CAMERAS.map((c) => (
-              <button key={c.id} type="button" role="radio" aria-checked={cameraMode === c.id} className={cx(cameraMode === c.id && "is-on")} onClick={() => setCameraMode(c.id)}>
-                <c.icon size={15} />
-                <span>{c.label}</span>
-              </button>
-            ))}
-          </div>
+          camOpen ? (
+            <div className="sp-cams" role="radiogroup" aria-label="Camera">
+              {CAMERAS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={cameraMode === c.id}
+                  className={cx(cameraMode === c.id && "is-on")}
+                  onClick={() => {
+                    setCameraMode(c.id);
+                    clearTimeout(camTimer.current);
+                    camTimer.current = setTimeout(() => setCamOpen(false), 900);
+                  }}
+                >
+                  <c.icon size={15} />
+                  <span>{c.label}</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" className="sp-cam-btn" onClick={openCams} aria-label={`Camera: ${currentCam.label}. Tap to change`}>
+              <Video size={20} />
+            </button>
+          )
         )}
 
         {empty && !isPlaying && (

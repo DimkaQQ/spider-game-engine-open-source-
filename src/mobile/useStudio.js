@@ -18,6 +18,9 @@ import {
   loadCurrentId,
   loadProjects,
   loadSessions,
+  applyInterrupted,
+  saveInflight,
+  clearInflight,
   loadSettings,
   makeProject,
   newSession,
@@ -28,9 +31,22 @@ import {
   saveSettings,
   haptic,
 } from "./store.js";
+import { buildMemory, contextWindow, memoryBudget, runLimits } from "./context.js";
 import { PROVIDERS, baseUrlFor, chat, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
 
 const MAX_UNDO = 40;
+
+// Rules the agent must follow for on-screen controls in games it writes.
+const TOUCH_CONTROLS_RULES = [
+  "TOUCH CONTROLS (mandatory for every game that moves or has buttons):",
+  "- NEVER write your own joystick or on-screen buttons and never read the keyboard yourself. Use the built-in kit: import { useTouch, TouchControls } from 'spider-touch'.",
+  "- const touch = useTouch(); then read it inside useFrame every frame: touch.move.x (right is +1) and touch.move.y (forward/up is +1) are -1..1; touch.a and touch.b are booleans (jump, action); touch.presses.a / touch.presses.b are counters that go up once per tap (use them for one-shot actions like jump or shoot).",
+  "- Render <TouchControls touch={touch} buttons={['Jump']} /> as a child of the game's root <group>. Up to two buttons: buttons={['Jump','Shoot']} maps to touch.a and touch.b.",
+  "- The kit puts the joystick in a FIXED place (bottom-left) and the buttons bottom-right, sizes them from the viewport, and keeps them there in portrait and landscape. The same touch object also reacts to WASD / arrows / Space / E on a computer, so you do not need any other input code.",
+  "- Do not draw other controls in those corners. Put score and lives top-centre.",
+  "- Minimal pattern: const touch = useTouch(); const ref = useRef(); useFrame((_, dt) => { ref.current.position.x += touch.move.x * 6 * dt; ref.current.position.z -= touch.move.y * 6 * dt; }); return (<group><mesh ref={ref}>...</mesh><TouchControls touch={touch} buttons={['Jump']} /></group>);",
+  "",
+].join("\n");
 const CORE_IDS = new Set(["player", "camera", "weapon", "terrain", "water", "sky", "lighting", "fog", "postprocess", "dir-light", "sky-light", "point-lights"]);
 
 const flatten = (groups) => (groups || []).flatMap((g) => g?.children || []).filter(Boolean);
@@ -675,8 +691,25 @@ export function useStudio() {
   const [loadingModels, setLoadingModels] = useState(false);
   const aiCfgRef = useRef(aiCfg);
   aiCfgRef.current = aiCfg;
-  const [sessions, setSessions] = useState(loadSessions);
-  const [sessionId, setSessionId] = useState(() => loadSessions()[0].id);
+  const [initialSessions] = useState(() => applyInterrupted(loadSessions()));
+  const [sessions, setSessions] = useState(initialSessions);
+  const [sessionId, setSessionId] = useState(initialSessions[0].id);
+  const inflight = useRef(null);
+  const unloading = useRef(false);
+  useEffect(() => {
+    // when the page is going away, a failing fetch must not wipe the record of the interrupted run
+    const down = () => (unloading.current = true);
+    const up = () => (unloading.current = false);
+    window.addEventListener("pagehide", down);
+    window.addEventListener("pageshow", up);
+    return () => {
+      window.removeEventListener("pagehide", down);
+      window.removeEventListener("pageshow", up);
+    };
+  }, []);
+  const persistInflight = useCallback(() => {
+    if (inflight.current) saveInflight({ ...inflight.current, queued: [...queueRef.current] });
+  }, []);
   const [busy, setBusy] = useState(false);
   const [stream, setStream] = useState(null); // { thought, text, steps[] }
   const [permission, setPermission] = useState(null); // { tool, detail, resolve }
@@ -703,6 +736,8 @@ export function useStudio() {
       })
     );
   }, []);
+  const sessionsRef = useRef(sessions);
+  sessionsRef.current = sessions;
   const sessionRefId = useRef(sessionId);
   sessionRefId.current = sessionId;
 
@@ -1037,6 +1072,7 @@ export function useStudio() {
       if (!goal) return;
       if (busy) {
         queueRef.current.push(goal);
+        persistInflight();
         setQueued([...queueRef.current]);
         pushMessage({ role: "user", text: goal, queued: true });
         return;
@@ -1048,8 +1084,12 @@ export function useStudio() {
         pushMessage({ role: "assistant", ok: false, text: `No ${provNow.name} key yet. Open More, then Settings, then AI, paste your key, then ask again.` });
         return;
       }
+      const priorMessages = sessionsRef.current.find((x) => x.id === sessionRefId.current)?.messages || [];
       pushMessage({ role: "user", text: goal });
       setBusy(true);
+      inflight.current = { sessionId: sessionRefId.current, goal, startedAt: Date.now(), steps: [] };
+      persistInflight();
+      let compactedLogged = false;
       abortRef.current = false;
       ctrlRef.current = new AbortController();
       const steps = [];
@@ -1060,9 +1100,20 @@ export function useStudio() {
       const touch = true;
       try {
         const callModel = async (task, history) => {
+          const cfgNow = aiCfgRef.current;
+          const provNow = providerById(cfgNow.provider);
+          const modelNow = cfgNow.model[provNow.id] || (cfgNow.models[provNow.id] || provNow.models)[0];
+          const win = contextWindow(provNow.id, modelNow, settingsRef.current.contextWindow);
+          const mem = buildMemory(priorMessages, memoryBudget(win));
+          if (mem.compacted && !compactedLogged) {
+            compactedLogged = true;
+            log("Info", `Context compacted: kept ${mem.kept} of ${mem.turns} earlier messages (window ${Math.round(win / 1000)}K tokens)`);
+          }
           const sys =
             systemPrompt(snapshotText(), { isMobile: touch }) +
+            (mem.text ? `\n\nCONVERSATION SO FAR (oldest first; the current goal comes below):\n${mem.text}\n` : "") +
             "\n\nCRITICAL MOBILE REQUIREMENT: The user is on a PHONE touchscreen. No keyboard controls (no WASD / arrows / space). All movement, steering and actions must be touch controlled (tap, swipe, drag, large on-screen buttons).\n" +
+            TOUCH_CONTROLS_RULES +
             GAME_BUILDER_PRIMER;
           const messages =
             history.length === 0
@@ -1109,6 +1160,7 @@ export function useStudio() {
           ctx: { runTool, isAborted: () => abortRef.current },
           callModel,
           maxSteps: GAME_STEPS,
+          ...runLimits(contextWindow(aiCfgRef.current.provider, aiCfgRef.current.model[aiCfgRef.current.provider], settingsRef.current.contextWindow)),
           getQueuedMessages: () => {
             if (!queueRef.current.length) return [];
             const m = [...queueRef.current];
@@ -1119,20 +1171,30 @@ export function useStudio() {
           onEvent: (ev) => {
             if (ev.type === "action") {
               steps.push({ tool: ev.tool, state: "run" });
+              if (inflight.current) inflight.current.steps = steps.map((x) => ({ ...x }));
+              persistInflight();
               setStream((s) => ({ ...(s || {}), steps: [...steps] }));
               log("Info", `Agent → ${ev.tool}`);
             } else if (ev.type === "observation") {
               const last = steps[steps.length - 1];
               if (last) last.state = /^TOOL ERROR|COMPILATION ERROR/.test(ev.observation) ? "err" : "ok";
+              if (inflight.current) inflight.current.steps = steps.map((x) => ({ ...x }));
+              persistInflight();
               setStream((s) => ({ ...(s || {}), steps: [...steps] }));
             } else if (ev.type === "error") log("Warning", `Agent retry: ${ev.message}`);
           },
         });
         pushMessage({ role: "assistant", ok: true, text: String(final), steps: steps.map((s) => ({ ...s })), canUndo: true });
       } catch (e) {
-        pushMessage({ role: "assistant", ok: false, text: `Agent failed: ${e.message}`, steps: steps.map((s) => ({ ...s })) });
-        log("Warning", `Agent failed: ${e.message}`);
+        if (!unloading.current) {
+          pushMessage({ role: "assistant", ok: false, text: `Agent failed: ${e.message}`, steps: steps.map((s) => ({ ...s })) });
+          log("Warning", `Agent failed: ${e.message}`);
+        }
       } finally {
+        if (!unloading.current) {
+          inflight.current = null;
+          clearInflight();
+        }
         setStream(null);
         setBusy(false);
         setPermission(null);
@@ -1144,10 +1206,37 @@ export function useStudio() {
         }
       }
     },
-    [busy, log, pushMessage, pushUndo, runTool, snapshotText]
+    [busy, log, persistInflight, pushMessage, pushUndo, runTool, snapshotText]
   );
   const sendRef = useRef(null);
   sendRef.current = send;
+
+  // While the agent works: keep the screen awake (a sleeping phone suspends the tab and kills the run)
+  // and ask before the page is closed or reloaded.
+  useEffect(() => {
+    if (!busy) return undefined;
+    let lock = null;
+    const acquire = async () => {
+      try {
+        lock = (await navigator.wakeLock?.request("screen")) || null;
+      } catch {}
+    };
+    acquire();
+    const onVisible = () => document.visibilityState === "visible" && acquire();
+    const onUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("beforeunload", onUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("beforeunload", onUnload);
+      try {
+        lock?.release();
+      } catch {}
+    };
+  }, [busy]);
 
   const stop = useCallback(() => {
     abortRef.current = true;

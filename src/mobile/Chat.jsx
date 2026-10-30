@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { startVoice, voiceLang, voiceSupported } from "./voice.js";
 import {
-  ArrowUp, Mic, Check, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
+  ArrowUp, Mic, Check, RotateCcw, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
 } from "lucide-react";
 import { Sheet, cx } from "./ui.jsx";
 
@@ -26,7 +26,7 @@ function Step({ s }) {
   );
 }
 
-function Message({ m, last, onUndo }) {
+function Message({ m, last, onUndo, onRetry, busy }) {
   if (m.role === "user") {
     return (
       <div className="sp-msg is-user">
@@ -45,6 +45,11 @@ function Message({ m, last, onUndo }) {
         </div>
       )}
       <p>{m.text}</p>
+      {m.interrupted && last && (
+        <button type="button" className="sp-btn is-primary" disabled={busy} onClick={() => onRetry(m.retryText)}>
+          <RotateCcw size={15} /> Retry
+        </button>
+      )}
       {last && m.canUndo && (
         <button type="button" className="sp-link" onClick={onUndo}>
           <Undo2 size={14} /> Undo scene changes
@@ -167,7 +172,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
         )}
 
         {session.messages.map((m, i) => (
-          <Message key={m.id} m={m} last={i === session.messages.length - 1} onUndo={() => { s.undoAgent(); notify("Scene restored", "ok"); }} />
+          <Message key={m.id} m={m} last={i === session.messages.length - 1} busy={busy} onRetry={s.send} onUndo={() => { s.undoAgent(); notify("Scene restored", "ok"); }} />
         ))}
 
         {busy && stream && (
@@ -237,7 +242,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
             ref={input}
             rows={1}
             value={text}
-            placeholder={listening ? "Listening…" : busy ? "Steer the agent while it works…" : "Describe a game or a change…"}
+            placeholder={listening ? "Listening…" : busy ? "Steer the agent…" : "Describe a game or change…"}
             onChange={(e) => {
               setText(e.target.value);
               grow(e.target);
