@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
+import { Billboard, Text, Html } from '@react-three/drei';
 
 const s = (f = 440, t = 'sine', d = 0.1) => {
   try {
@@ -16,6 +16,34 @@ const s = (f = 440, t = 'sine', d = 0.1) => {
     o.stop(C.currentTime + d);
   } catch (e) {}
 };
+
+function Button3D({ position, text, onClick, color = '#b91c1c', hoverColor = '#dc2626', width = 4.4, height = 0.82 }) {
+  const [hov, sHov] = useState(false);
+  const [prs, sPrs] = useState(false);
+  return (
+    <group
+      position={position}
+      onPointerOver={(e) => { e.stopPropagation(); sHov(true); if (typeof document !== 'undefined') document.body.style.cursor = 'pointer'; }}
+      onPointerOut={(e) => { e.stopPropagation(); sHov(false); sPrs(false); if (typeof document !== 'undefined') document.body.style.cursor = 'default'; }}
+      onPointerDown={(e) => { e.stopPropagation(); sPrs(true); }}
+      onPointerUp={(e) => { e.stopPropagation(); sPrs(false); onClick?.(); }}
+    >
+      <mesh position={[0, 0, prs ? -0.06 : 0]} castShadow receiveShadow>
+        <boxGeometry args={[width, height, 0.22]} />
+        <meshStandardMaterial
+          color={hov ? hoverColor : color}
+          emissive={hov ? hoverColor : '#1e1b4b'}
+          emissiveIntensity={hov ? 0.75 : 0.25}
+          roughness={0.2}
+          metalness={0.7}
+        />
+      </mesh>
+      <Text position={[0, 0, prs ? 0.08 : 0.15]} fontSize={height * 0.44} color="#ffffff" anchorX="center" anchorY="middle">
+        {text}
+      </Text>
+    </group>
+  );
+}
 
 export default function GameComponent() {
   const [gameState, setGameState] = useState('menu'); // 'menu' | 'controls' | 'playing' | 'gameover'
@@ -65,6 +93,13 @@ export default function GameComponent() {
         if (e.code === 'Space' || e.code === 'Enter') {
           e.preventDefault();
           startDuel();
+        }
+        return;
+      }
+      if (gameState === 'controls') {
+        if (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault();
+          setGameState('menu');
         }
         return;
       }
@@ -121,14 +156,15 @@ export default function GameComponent() {
     if (gameState === 'menu' || gameState === 'controls') {
       const camT = t * 0.25;
       st.camera.position.set(Math.sin(camT) * 10, 5.2, 8 + Math.cos(camT) * 5);
-      st.camera.lookAt(0, 1.8, -3);
+      st.camera.lookAt(0, 2.5, 0);
       return;
     }
 
-    // GAMEOVER CAMERA: Dramatic high-angle slow dolly
+    // GAMEOVER CAMERA: Dramatic slow orbit
     if (gameState === 'gameover') {
-      st.camera.position.set(g.x + Math.sin(t * 0.2) * 5, 5, g.z + 8);
-      st.camera.lookAt(g.x, 0.8, g.z);
+      const camT = t * 0.2;
+      st.camera.position.set(Math.sin(camT) * 9, 5.5, 9 + Math.cos(camT) * 5);
+      st.camera.lookAt(0, 2.5, 0);
       return;
     }
 
@@ -352,207 +388,96 @@ export default function GameComponent() {
       ))}
 
       {/* ========================================================================= */}
-      {/* 🌸 CINEMATIC AAA TITLE MENU (CENTERED, GLASSMORPHIC, INTERACTIVE) */}
+      {/* 🌸 TRUE 3D BILLBOARD TITLE & START MENU (PURE 3D WEBGL — ZERO HTML CUTOFFS) */}
       {/* ========================================================================= */}
       {gameState === 'menu' && (
-        <Html fullscreen style={{ pointerEvents: 'auto' }}>
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'radial-gradient(circle at center, rgba(15, 23, 42, 0.35) 0%, rgba(2, 6, 23, 0.85) 100%)',
-            backdropFilter: 'blur(3px)',
-            fontFamily: '"Times New Roman", serif, system-ui',
-            color: '#fff',
-            userSelect: 'none',
-            zIndex: 50
-          }}>
-            <div style={{ fontSize: 13, letterSpacing: 8, color: '#f472b6', textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
-              🌸 GHOST OF TSUSHIMA 🌸
-            </div>
-            <div style={{ fontSize: 44, fontWeight: 900, letterSpacing: 6, color: '#fef08a', textShadow: '0 4px 24px rgba(234, 179, 8, 0.5), 0 2px 4px #000', textAlign: 'center' }}>
-              SAMURAI DUEL
-            </div>
-            <div style={{ fontSize: 13, color: '#cbd5e1', letterSpacing: 3, marginTop: 4, marginBottom: 28, fontStyle: 'italic' }}>
-              The Way of the Ghost · Blade of Honor
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 270 }}>
-              <button
-                onClick={startDuel}
-                style={{
-                  background: 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)',
-                  color: '#fff',
-                  border: '1px solid #f87171',
-                  padding: '13px 24px',
-                  borderRadius: 10,
-                  fontSize: 15,
-                  fontWeight: 800,
-                  letterSpacing: 2,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 18px rgba(220, 38, 38, 0.4)',
-                  transition: 'transform 0.15s, box-shadow 0.15s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 10
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.04)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                ⚔️ ENTER DUEL
-              </button>
-
-              <button
-                onClick={() => setGameState('controls')}
-                style={{
-                  background: 'rgba(30, 41, 59, 0.85)',
-                  color: '#e2e8f0',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '10px 24px',
-                  borderRadius: 10,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: 2,
-                  cursor: 'pointer',
-                  transition: 'background 0.15s'
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(51, 65, 85, 0.95)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(30, 41, 59, 0.85)'; }}
-              >
-                📜 HOW TO PLAY
-              </button>
-            </div>
-
-            <div style={{ marginTop: 24, fontSize: 11, letterSpacing: 2, color: '#94a3b8' }}>
-              PRESS <strong style={{ color: '#fef08a' }}>SPACE</strong> OR <strong style={{ color: '#fef08a' }}>ENTER</strong> TO COMMENCE
-            </div>
-          </div>
-        </Html>
+        <Billboard follow={true} position={[0, 3.8, 0]}>
+          <mesh position={[0, 0, -0.05]}>
+            <planeGeometry args={[11, 5.8]} />
+            <meshStandardMaterial color="#020617" transparent opacity={0.88} roughness={0.25} metalness={0.8} />
+          </mesh>
+          <mesh position={[0, 0, -0.04]}>
+            <planeGeometry args={[11.15, 5.95]} />
+            <meshBasicMaterial color="#eab308" wireframe />
+          </mesh>
+          <Text position={[0, 1.9, 0.05]} fontSize={0.34} color="#f472b6" letterSpacing={0.2} anchorX="center" anchorY="middle">
+            🌸 GHOST OF TSUSHIMA 🌸
+          </Text>
+          <Text position={[0, 1.15, 0.05]} fontSize={1.05} color="#fef08a" outlineWidth={0.07} outlineColor="#991b1b" anchorX="center" anchorY="middle">
+            SAMURAI DUEL
+          </Text>
+          <Text position={[0, 0.45, 0.05]} fontSize={0.3} color="#cbd5e1" anchorX="center" anchorY="middle">
+            The Way of the Ghost · Blade of Honor
+          </Text>
+          <Button3D position={[0, -0.5, 0.1]} text="⚔️ ENTER DUEL (SPACE)" onClick={startDuel} width={4.8} color="#b91c1c" hoverColor="#dc2626" />
+          <Button3D position={[0, -1.5, 0.1]} text="📜 HOW TO PLAY" onClick={() => setGameState('controls')} width={4.8} color="#1e293b" hoverColor="#334155" />
+        </Billboard>
       )}
 
       {/* ========================================================================= */}
-      {/* 📜 CONTROLS & STANCES MODAL */}
+      {/* 📜 TRUE 3D CONTROLS GUIDE (PURE 3D BILLBOARD IN WEBGL) */}
       {/* ========================================================================= */}
       {gameState === 'controls' && (
-        <Html fullscreen style={{ pointerEvents: 'auto' }}>
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'rgba(2, 6, 23, 0.9)',
-            backdropFilter: 'blur(6px)',
-            color: '#fff',
-            fontFamily: 'system-ui, sans-serif',
-            userSelect: 'none',
-            zIndex: 60
-          }}>
-            <div style={{ background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: 16, padding: '24px 32px', maxWidth: 420, textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: '#fef08a', letterSpacing: 2 }}>SAMURAI COMBAT STANCES</div>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 4 }}>Master the Way of the Katana to survive all waves</div>
-
-              <div style={{ marginTop: 18, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
-                <div><span style={{ color: '#38bdf8', fontWeight: 700 }}>WASD / Arrows:</span> Move & Steer Samurai</div>
-                <div><span style={{ color: '#f472b6', fontWeight: 700 }}>J / Left Click:</span> Light Katana Slash</div>
-                <div><span style={{ color: '#fb923c', fontWeight: 700 }}>K / Right Click:</span> Heavy Armor-Breaker Strike</div>
-                <div><span style={{ color: '#a78bfa', fontWeight: 700 }}>Spacebar:</span> Quick Dodge Roll</div>
-                <div><span style={{ color: '#34d399', fontWeight: 700 }}>Shift:</span> Hold to Block Attacks</div>
-                <div><span style={{ color: '#facc15', fontWeight: 700 }}>F Key:</span> Perfect Timed Parry & Counter-Stun</div>
-              </div>
-
-              <button
-                onClick={() => setGameState('menu')}
-                style={{
-                  marginTop: 22,
-                  background: '#2563eb',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '10px 24px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                ← BACK TO MENU
-              </button>
-            </div>
-          </div>
-        </Html>
+        <Billboard follow={true} position={[0, 3.8, 0]}>
+          <mesh position={[0, 0, -0.05]}>
+            <planeGeometry args={[12, 6.8]} />
+            <meshStandardMaterial color="#020617" transparent opacity={0.93} roughness={0.25} metalness={0.8} />
+          </mesh>
+          <mesh position={[0, 0, -0.04]}>
+            <planeGeometry args={[12.15, 6.95]} />
+            <meshBasicMaterial color="#38bdf8" wireframe />
+          </mesh>
+          <Text position={[0, 2.4, 0.05]} fontSize={0.65} color="#fef08a" outlineWidth={0.05} outlineColor="#0369a1" anchorX="center" anchorY="middle">
+            SAMURAI COMBAT STANCES
+          </Text>
+          <Text position={[0, 1.6, 0.05]} fontSize={0.32} color="#ffffff" anchorX="center" anchorY="middle">
+            WASD / Arrows: Move & Steer Samurai
+          </Text>
+          <Text position={[0, 1.05, 0.05]} fontSize={0.32} color="#f472b6" anchorX="center" anchorY="middle">
+            J / Left Click: Light Katana Slash
+          </Text>
+          <Text position={[0, 0.5, 0.05]} fontSize={0.32} color="#fb923c" anchorX="center" anchorY="middle">
+            K / Right Click: Heavy Armor-Breaker Strike
+          </Text>
+          <Text position={[0, -0.05, 0.05]} fontSize={0.32} color="#a78bfa" anchorX="center" anchorY="middle">
+            Spacebar: Quick Dodge Roll
+          </Text>
+          <Text position={[0, -0.6, 0.05]} fontSize={0.32} color="#34d399" anchorX="center" anchorY="middle">
+            Shift: Hold to Block Attacks
+          </Text>
+          <Text position={[0, -1.15, 0.05]} fontSize={0.32} color="#facc15" anchorX="center" anchorY="middle">
+            F Key: Perfect Timed Parry & Counter-Stun
+          </Text>
+          <Button3D position={[0, -2.15, 0.1]} text="← BACK TO MENU (ESC)" onClick={() => setGameState('menu')} width={4.2} color="#2563eb" hoverColor="#3b82f6" />
+        </Billboard>
       )}
 
       {/* ========================================================================= */}
-      {/* 💀 DRAMATIC GAME OVER MODAL */}
+      {/* 💀 TRUE 3D GAME OVER BILLBOARD (PURE 3D WEBGL — ZERO CUTOFFS) */}
       {/* ========================================================================= */}
       {gameState === 'gameover' && (
-        <Html fullscreen style={{ pointerEvents: 'auto' }}>
-          <div style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'radial-gradient(circle at center, rgba(127, 29, 29, 0.4) 0%, rgba(2, 6, 23, 0.92) 100%)',
-            backdropFilter: 'blur(4px)',
-            color: '#fff',
-            fontFamily: '"Times New Roman", serif, system-ui',
-            userSelect: 'none',
-            zIndex: 50
-          }}>
-            <div style={{ fontSize: 44, fontWeight: 900, color: '#ef4444', letterSpacing: 4, textShadow: '0 2px 16px rgba(239,68,68,0.6)' }}>
-              FALLEN IN HONOR
-            </div>
-            <div style={{ fontSize: 15, color: '#fef08a', letterSpacing: 2, marginTop: 8 }}>
-              {`WAVE ${G.current.w}  ·  KILLS ${G.current.k}  ·  COMBO x${G.current.cb}`}
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
-              <button
-                onClick={rst}
-                style={{
-                  background: 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)',
-                  color: '#fff',
-                  border: '1px solid #f87171',
-                  padding: '12px 24px',
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 800,
-                  letterSpacing: 2,
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 18px rgba(220, 38, 38, 0.5)'
-                }}
-              >
-                ↺ RETRY DUEL (R)
-              </button>
-              <button
-                onClick={() => setGameState('menu')}
-                style={{
-                  background: 'rgba(30, 41, 59, 0.85)',
-                  color: '#e2e8f0',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '12px 20px',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                TITLE MENU
-              </button>
-            </div>
-          </div>
-        </Html>
+        <Billboard follow={true} position={[0, 3.8, 0]}>
+          <mesh position={[0, 0, -0.05]}>
+            <planeGeometry args={[11, 5.2]} />
+            <meshStandardMaterial color="#020617" transparent opacity={0.92} roughness={0.25} metalness={0.8} />
+          </mesh>
+          <mesh position={[0, 0, -0.04]}>
+            <planeGeometry args={[11.15, 5.35]} />
+            <meshBasicMaterial color="#ef4444" wireframe />
+          </mesh>
+          <Text position={[0, 1.45, 0.05]} fontSize={0.95} color="#ef4444" outlineWidth={0.07} outlineColor="#450a0a" anchorX="center" anchorY="middle">
+            FALLEN IN HONOR
+          </Text>
+          <Text position={[0, 0.65, 0.05]} fontSize={0.34} color="#fef08a" anchorX="center" anchorY="middle">
+            {`WAVE ${G.current.w}  ·  KILLS ${G.current.k}  ·  COMBO x${G.current.cb}`}
+          </Text>
+          <Button3D position={[-2.3, -0.7, 0.1]} text="↺ RETRY DUEL (R)" onClick={rst} width={4.2} color="#b91c1c" hoverColor="#dc2626" />
+          <Button3D position={[2.3, -0.7, 0.1]} text="TITLE MENU" onClick={() => setGameState('menu')} width={4.0} color="#1e293b" hoverColor="#334155" />
+        </Billboard>
       )}
 
       {/* ========================================================================= */}
-      {/* 🎮 SLEEK CINEMATIC HUD (ONLY VISIBLE DURING PLAYING — ZERO SCREEN CLUTTER) */}
+      {/* 🎮 SLEEK CINEMATIC HUD (ONLY VISIBLE DURING PLAYING — DOCKED TOP-LEFT) */}
       {/* ========================================================================= */}
       {gameState === 'playing' && (
         <Html fullscreen style={{ pointerEvents: 'none' }}>
