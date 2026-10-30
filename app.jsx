@@ -33,6 +33,7 @@ import {
   Download,
   Save,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   ChevronUp,
   Settings,
@@ -832,6 +833,7 @@ export default function App() {
     }
   });
   const [isDirectGameOverlayCollapsed, setIsDirectGameOverlayCollapsed] = useState(false);
+  const [isGameControlsCollapsed, setIsGameControlsCollapsed] = useState(false);
 
   // Multi-Select Scripting State: 1 file = single active script; 2+ files / full project = unified full game scene
   const [selectedScriptNames, setSelectedScriptNames] = useState(() => new Set(["GameComponent.jsx"]));
@@ -7222,72 +7224,95 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 {/* --- FLOATING GAME VIEW CONTROLS & RECORDER (Visible on side of 3D Viewport only, never in Code Mode) --- */}
                 {!isEnvMode && artifactViewMode === "viewport" && (viewportTab === "Game View" || activeJsxCode || isArtifactFullscreen) && (
                   <div className="absolute top-3 right-3 z-30 flex items-center gap-2 select-none">
-                    {/* Screen Recorder Button on side of Game View */}
-                    <button
-                      onClick={toggleViewportRecording}
-                      title={isViewportRecording ? "Click to Stop and Export MP4 Video" : "Record Game View 3D Canvas (60 FPS MP4)"}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg border transition cursor-pointer select-none backdrop-blur-md ${
-                        isViewportRecording
-                          ? "bg-rose-600/95 text-white border-rose-400 shadow-rose-600/50 animate-pulse"
-                          : "bg-slate-900/85 hover:bg-slate-900 text-white border-slate-700/80 hover:border-rose-500/50"
-                      }`}
-                    >
-                      <span className={`w-2.5 h-2.5 rounded-full ${isViewportRecording ? "bg-white animate-ping" : "bg-rose-500"}`} />
-                      {isViewportRecording ? (
-                        <>
-                          <span className="font-mono text-xs">REC {formatRecordTime(viewportRecordSeconds)}</span>
-                          <span className="text-[9px] bg-rose-800 px-1.5 py-0.5 rounded font-black tracking-wider uppercase text-white">Stop</span>
-                        </>
-                      ) : (
-                        <>
-                          <Video className="w-3.5 h-3.5 text-rose-400" />
-                          <span>Record Game</span>
-                        </>
-                      )}
-                    </button>
-
-                    {/* Snapshot Screenshot */}
-                    <button
-                      onClick={() => {
-                        const url = viewportApi.capture?.(true);
-                        if (url) appendLog("Success", "Game View snapshot screenshot saved!");
-                        else appendLog("Warning", "Game View canvas not ready.");
-                      }}
-                      title="Capture Game Screenshot"
-                      className="p-1.5 bg-slate-900/85 hover:bg-slate-900 text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition flex items-center justify-center"
-                    >
-                      <Camera className="w-4 h-4 text-slate-300 hover:text-white" />
-                    </button>
-
-                    {/* Cursor Lock / Block Button */}
-                    <button
-                      onClick={toggleViewportCursorLock}
-                      title={isViewportCursorLocked ? "Cursor Blocked on Viewport (Press Alt+Win+G to release)" : "Block Viewport Cursor (Alt+Win+G)"}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg border transition cursor-pointer select-none backdrop-blur-md ${
-                        isViewportCursorLocked
-                          ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/60 shadow-cyan-500/20"
-                          : "bg-slate-900/85 hover:bg-slate-900 text-slate-300 border-slate-700/80 hover:text-white"
-                      }`}
-                    >
-                      {isViewportCursorLocked ? <Lock className="w-3.5 h-3.5 text-cyan-400" /> : <Unlock className="w-3.5 h-3.5 text-slate-400" />}
-                      <span className="hidden sm:inline">{isViewportCursorLocked ? "Cursor Blocked" : "Lock Cursor"}</span>
-                    </button>
-
-                    {/* FPS Telemetry */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/85 backdrop-blur-md rounded-xl text-xs font-bold text-white border border-slate-700/80 shadow-lg">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <span>{fps} FPS</span>
-                    </div>
-
-                    {/* Fullscreen Toggle — only displayed in Fullscreen mode (no duplicate in normal mode) */}
-                    {isArtifactFullscreen && (
+                    {isGameControlsCollapsed ? (
+                      /* Collapsed state: button with > / < to open back up */
                       <button
-                        onClick={toggleViewportFullscreen}
-                        title="Exit Fullscreen"
-                        className="p-1.5 bg-slate-900/85 hover:bg-slate-900 text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition flex items-center justify-center"
+                        onClick={() => setIsGameControlsCollapsed(false)}
+                        title="Open Game Controls Menu"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/85 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition select-none backdrop-blur-md active:scale-95"
                       >
-                        <Minimize2 className="w-4 h-4 text-slate-300 hover:text-white" />
+                        <ChevronLeft className="w-3.5 h-3.5 text-cyan-400" />
+                        <span className="text-xs font-bold text-slate-200">Controls</span>
                       </button>
+                    ) : (
+                      <>
+                        {/* Screen Recorder Button on side of Game View */}
+                        <button
+                          onClick={toggleViewportRecording}
+                          title={isViewportRecording ? "Click to Stop and Export MP4 Video" : "Record Game View 3D Canvas (60 FPS MP4)"}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg border transition cursor-pointer select-none backdrop-blur-md ${
+                            isViewportRecording
+                              ? "bg-rose-600/95 text-white border-rose-400 shadow-rose-600/50 animate-pulse"
+                              : "bg-slate-900/85 hover:bg-slate-900 text-white border-slate-700/80 hover:border-rose-500/50"
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-full ${isViewportRecording ? "bg-white animate-ping" : "bg-rose-500"}`} />
+                          {isViewportRecording ? (
+                            <>
+                              <span className="font-mono text-xs">REC {formatRecordTime(viewportRecordSeconds)}</span>
+                              <span className="text-[9px] bg-rose-800 px-1.5 py-0.5 rounded font-black tracking-wider uppercase text-white">Stop</span>
+                            </>
+                          ) : (
+                            <>
+                              <Video className="w-3.5 h-3.5 text-rose-400" />
+                              <span>Record Game</span>
+                            </>
+                          )}
+                        </button>
+
+                        {/* Snapshot Screenshot */}
+                        <button
+                          onClick={() => {
+                            const url = viewportApi.capture?.(true);
+                            if (url) appendLog("Success", "Game View snapshot screenshot saved!");
+                            else appendLog("Warning", "Game View canvas not ready.");
+                          }}
+                          title="Capture Game Screenshot"
+                          className="p-1.5 bg-slate-900/85 hover:bg-slate-900 text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition flex items-center justify-center"
+                        >
+                          <Camera className="w-4 h-4 text-slate-300 hover:text-white" />
+                        </button>
+
+                        {/* Cursor Lock / Block Button */}
+                        <button
+                          onClick={toggleViewportCursorLock}
+                          title={isViewportCursorLocked ? "Cursor Blocked on Viewport (Press Alt+Win+G to release)" : "Block Viewport Cursor (Alt+Win+G)"}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg border transition cursor-pointer select-none backdrop-blur-md ${
+                            isViewportCursorLocked
+                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-400/60 shadow-cyan-500/20"
+                              : "bg-slate-900/85 hover:bg-slate-900 text-slate-300 border-slate-700/80 hover:text-white"
+                          }`}
+                        >
+                          {isViewportCursorLocked ? <Lock className="w-3.5 h-3.5 text-cyan-400" /> : <Unlock className="w-3.5 h-3.5 text-slate-400" />}
+                          <span className="hidden sm:inline">{isViewportCursorLocked ? "Cursor Blocked" : "Lock Cursor"}</span>
+                        </button>
+
+                        {/* FPS Telemetry */}
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/85 backdrop-blur-md rounded-xl text-xs font-bold text-white border border-slate-700/80 shadow-lg">
+                          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                          <span>{fps} FPS</span>
+                        </div>
+
+                        {/* Fullscreen Toggle — only displayed in Fullscreen mode (no duplicate in normal mode) */}
+                        {isArtifactFullscreen && (
+                          <button
+                            onClick={toggleViewportFullscreen}
+                            title="Exit Fullscreen"
+                            className="p-1.5 bg-slate-900/85 hover:bg-slate-900 text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition flex items-center justify-center"
+                          >
+                            <Minimize2 className="w-4 h-4 text-slate-300 hover:text-white" />
+                          </button>
+                        )}
+
+                        {/* Collapse Menu Button (Option >) */}
+                        <button
+                          onClick={() => setIsGameControlsCollapsed(true)}
+                          title="Collapse Menu (>)"
+                          className="p-1.5 bg-slate-900/85 hover:bg-slate-900 text-slate-300 hover:text-white rounded-xl border border-slate-700/80 shadow-lg cursor-pointer transition flex items-center justify-center backdrop-blur-md active:scale-95"
+                        >
+                          <ChevronRight className="w-4 h-4 text-slate-300 hover:text-white" />
+                        </button>
+                      </>
                     )}
                   </div>
                 )}
