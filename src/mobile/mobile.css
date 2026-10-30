@@ -58,7 +58,23 @@
   color-scheme: dark;
 }
 
-html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg); color: var(--text); }
+html.sp-mobile, html.sp-mobile body, html.sp-mobile #root {
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+html.sp-mobile:has(.is-playing),
+html.sp-mobile:has(.is-full),
+html.sp-mobile body:has(.is-playing),
+html.sp-mobile body:has(.is-full) {
+  background: #0b0f19 !important;
+}
 
 .sp-app,
 .sp-app * { box-sizing: border-box; }
