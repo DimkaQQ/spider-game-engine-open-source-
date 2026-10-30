@@ -26,6 +26,7 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 - **Full CLI Command Execution (Desktop)**: The AI agent can run native shell commands (`powershell.exe` on Windows, `/bin/bash` on Linux/Unix) with live streaming output.
 - **System-Wide File Creation**: Create, edit, and organize files anywhere on the computer with automatic recursive directory scaffolding.
 - **Dual Permission Governance**: Toggle between **Ask Permission (Secure Mode)** for interactive review and **Auto Mode (No Permission)** for 100% autonomous agent execution.
+- **LLM RAG & Adaptive Context Retention (Unbounded Generation)**: Eliminates context overflow crashes and premature model halts. Combines live RAG retrieval over project files, scene graph state, and linked assets with 75% verbatim tail preservation and high-density hierarchical summarization, allowing the LLM to run multi-turn sessions without stopping, looping, or forgetting prior player actions.
 - **100% Stable Mobile Pocket Studio (Desktop-Level Parity)**: Complete mobile engine environment featuring live 3D viewport, 44px ergonomic touch targets, full-bleed landscape mode, multi-file code editor, scene inspector, and real-time AI prompt-to-play generation.
 - **The 60 FPS Minimum Rule (Zero Frame Drops on Mobile)**: Custom Vulkan-aligned shader tricks, draw-call batching, geometry pooling, and unified frame delta normalizers guarantee that every generated game maintains rock-solid 60 FPS (up to 120 FPS on high-refresh mobile displays).
 - **Universal Browser & Mobile Support**: Runs in **ANY modern browser** (Chrome, Firefox, Safari, Edge, Arc, Brave) and on **mobile phones & tablets** (iOS & Android) with zero setup required.
@@ -43,7 +44,7 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 
 ---
 
-## 🏛️ Engine Architecture Diagrams (7 Core Systems)
+## 🏛️ Engine Architecture Diagrams (8 Core Systems)
 
 ### Diagram 1: High-Level System Architecture & Cross-Platform Runtime
 ```mermaid
@@ -267,6 +268,42 @@ flowchart TD
 
 ---
 
+### Diagram 8: LLM RAG & Adaptive Context Memory Pipeline (Zero Model Halts)
+```mermaid
+flowchart TD
+    subgraph ContextEngine["Live Engine State & Knowledge Base"]
+        UserGoal["User Goal & Chat History"]
+        LiveSceneGraph["Live 3D Scene Graph & Actor Tree"]
+        ProjectFiles["Project Files & Modular Components\n(ArenaEnv, sound synthesizers, assets)"]
+        ASTCache["AST Compilation State & Error Stack"]
+    end
+
+    subgraph RAGPipeline["Spider RAG Retrieval & Context Budgeter"]
+        Retriever["Dynamic RAG Retriever\n(Fetches active JSX, relevant modules, and 3D snapshots on demand)"]
+        Budgeter["Context Window Budgeter\n(Scales memory ratio adaptively across 128K / 200K / 1M token windows)"]
+        VerbatimTail["75% Verbatim Tail Preserver\n(Recent conversation turns, code, and tool payloads kept 100% intact)"]
+        HeadSummarizer["Semantic Head Summarizer\n(Distills older background turns into high-density memory bullets)"]
+    end
+
+    subgraph LLMExecution["Unbounded LLM Execution"]
+        CuratedPrompt["Curated Context-Rich Agent Prompt\n(Pinned root goal + summarized history + verbatim tail + RAG context)"]
+        ModelInference["LLM Inference Loop (Meta Llama / Muse)\n(Zero Stalls · No Forgetfulness · 25-60 Turns Headroom)"]
+        ToolAction["Tool Execution\n(render_jsx, runCommand, moveObject, check3DView)"]
+    end
+
+    ContextEngine --> Retriever
+    Retriever --> Budgeter
+    Budgeter --> VerbatimTail
+    Budgeter --> HeadSummarizer
+    VerbatimTail --> CuratedPrompt
+    HeadSummarizer --> CuratedPrompt
+    CuratedPrompt --> ModelInference
+    ModelInference --> ToolAction
+    ToolAction --> ContextEngine
+```
+
+---
+
 ## 📱 100% Stable Mobile Pocket Studio (Desktop-Level Parity)
 
 Spider Game Engine features a completely unified, **100% stable Mobile Pocket Studio** that delivers the exact same power, stability, and capabilities as the desktop suite, redesigned from the ground up for one-handed mobile creation and gaming.
@@ -287,6 +324,30 @@ Our core engine philosophy mandates that **no generated 3D game drops below 60 F
    - Analog virtual stick with 44px thumb targets that dispatches both `window.__spiderVirtualTouch` and synthetic `KeyboardEvent` (`WASD` / Arrows) so any AI-generated game steers smoothly out of the box.
 6. **Smart Safe-Area & Notch Clearance**:
    - Camera cutouts and gesture bars are respected via CSS `env(safe-area-inset-*)`, while HUD elements automatically dock at the top on phones to leave the bottom thumb zone 100% clear.
+
+---
+
+## 🧠 LLM RAG & Adaptive Context Memory (Zero Context Halts)
+
+Traditional AI coding assistants suffer from the dreaded **context cliff**: after a few turns, token budgets saturate, code is aggressively sliced at arbitrary character counts, and the agent halts, crashes with syntax truncation errors, or completely forgets prior user instructions and game state.
+
+Spider Game Engine solves this with a native **LLM RAG & Adaptive Context Memory Architecture** that guarantees unbounded, continuous multi-turn game creation:
+
+### 1. 🔍 On-Demand RAG Retrieval Over Live Engine State
+- **Live Scene & File Indexing**: The agent does not blindly cram entire repositories into prompt tokens. Instead, the RAG retriever dynamically indexes and fetches the active JSX component, relevant modular libraries (`ArenaEnv.jsx`, audio synthesizers, chess engines), 3D asset catalogs, and the live scene graph on demand.
+- **Precision Grounding**: Ensures the LLM is always anchored to the ground-truth state of the 3D viewport and file system, eliminating hallucinations and disconnected code synthesis.
+
+### 2. 🛡️ 75% Verbatim Tail Preservation (No Premature Truncation)
+- **Zero Loss for Active Context**: Exactly 75% of the memory budget is reserved exclusively for the most recent conversation turns and tool observations, keeping code, instructions, and feedback **100% verbatim**.
+- **No Premature Slicing**: Code action arguments and tool outputs are preserved intact up to 10,000 characters rather than being crudely clipped at 500 characters.
+
+### 3. 📝 Hierarchical Semantic Summarization
+- **High-Density Bullet Digests**: When conversation history spans dozens of turns, older background turns are systematically digested into structured, high-density bullet summaries (`• User: ...`, `• Assistant: ...`).
+- **Pinned Root Objective**: The player's root game concept, architecture rules, and core gameplay constraints remain permanently pinned at the top of the context so the model never drifts off-course.
+
+### 4. 🚀 Scaled Headroom (25 to 60 Turns)
+- Observation limits (4,000 to 16,000 characters) and turn headroom (25 to 60 turns) automatically scale according to the active model context window (128K, 200K, or 1M tokens).
+- **The Result**: The LLM agent can build, test, iterate, verify, and polish complex 3D games across dozens of consecutive turns **without stopping, stalling, or losing progress**.
 
 ---
 
