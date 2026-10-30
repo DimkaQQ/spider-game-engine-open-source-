@@ -605,3 +605,13 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 /* tool button (folded rail), same corner as the rail */
 .sp-tool-btn { position: absolute; z-index: 12; top: 10px; left: 10px; background: var(--accent); border-color: transparent; color: #fff; }
 .sp-app.is-full .sp-tool-btn { top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); }
+
+/* message options */
+.sp-msg { position: relative; }
+.sp-msg-more { align-self: flex-end; display: inline-grid; place-items: center; width: 32px; height: 28px; margin: 2px -8px -6px auto; border-radius: 9px; color: inherit; opacity: 0.6; background: color-mix(in srgb, currentColor 12%, transparent); }
+.sp-msg-more:active { opacity: 1; }
+.sp-msg.is-user .sp-msg-more { color: #fff; }
+.sp-editing { display: flex; align-items: center; gap: 8px; margin: 0 4px 8px; padding: 4px 4px 4px 12px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
+.sp-editing span { flex: 1; min-width: 0; }
+.sp-editing .sp-icon-btn { width: 36px; height: 36px; color: var(--accent); }
+.sp-msg.is-user { display: flex; flex-direction: column; }
