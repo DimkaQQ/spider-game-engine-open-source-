@@ -101,6 +101,19 @@ function startMcpBridge() {
           try { return !w.webContents.getURL().includes("splash.html"); } catch { return false; }
         }) || wins[0];
         console.log("MCP calling window:", win.id, "URL:", win.webContents.getURL());
+        if (tool === "captureWindow") {
+          const image = await win.capturePage();
+          const dataUrl = image.toDataURL();
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true, result: { dataUrl } }));
+          return;
+        }
+        if (tool === "eval") {
+          const resEval = await win.webContents.executeJavaScript(String(args?.expr || ""), true);
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ ok: true, result: resEval }));
+          return;
+        }
         let result;
         for (let tries = 0; tries < 3; tries++) {
           try {
@@ -148,18 +161,18 @@ function createWindow(splash) {
   const isStandalone = fs.existsSync(standaloneConfigPath) || process.argv.includes('--standalone')
 
   const win = new BrowserWindow({
-    width: isStandalone ? 1440 : 560,
-    height: isStandalone ? 900 : 360,
-    minWidth: isStandalone ? 1024 : 560,
-    minHeight: isStandalone ? 680 : 360,
+    width: 1440,
+    height: 900,
+    minWidth: 1024,
+    minHeight: 680,
     useContentSize: true,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#03070e',
     autoHideMenuBar: true,
     show: false,
     center: true,
     minimizable: true,
-    maximizable: isStandalone,
-    resizable: isStandalone,
+    maximizable: true,
+    resizable: true,
     icon: path.join(__dirname, '../build/icon-square.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -189,13 +202,12 @@ function createWindow(splash) {
   }
 
   win.webContents.on('did-finish-load', async () => {
-    console.log("Page finished loading! Checking root element...");
     try {
       const html = await win.webContents.executeJavaScript('document.getElementById("root")?.innerHTML');
-      console.log("Root element HTML length:", html ? html.length : "null/empty", "preview:", html ? html.slice(0, 100) : "");
-    } catch (e) {
-      console.log("Root element check error:", e);
-    }
+      if (!html || html.length === 0) {
+        console.warn("Root element is empty on finish load");
+      }
+    } catch (e) {}
   });
 
   win.once('ready-to-show', () => {

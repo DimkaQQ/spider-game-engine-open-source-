@@ -85,8 +85,10 @@ import {
   Minimize2,
   Edit3,
   FolderKanban,
+  Video,
   X
 } from "lucide-react";
+import { sfx } from "../engine/audioSynthesizer.js";
 
 
 // --- CONSOLE LOGS (start empty — real boot lines are logged on mount) ---
@@ -675,6 +677,10 @@ export default function App() {
   const [activeJsxCode, setActiveJsxCode] = useState(() => {
     try {
       const saved = localStorage.getItem("spider-active-jsx-code");
+      if (saved && (saved.includes("function Tower") || saved.includes('color="#846a49"') || saved.includes('color="#6a5c4e"'))) {
+        localStorage.removeItem("spider-active-jsx-code");
+        return null;
+      }
       return saved && saved.trim() ? saved : null;
     } catch { return null; }
   });
@@ -815,8 +821,12 @@ export default function App() {
       try {
         const savedCode = await idbGetScene("active-jsx-code");
         if (savedCode && savedCode.code) {
-          setActiveJsxCode((cur) => cur || savedCode.code);
-          setActiveJsxName((cur) => cur || savedCode.name || "GameComponent.jsx");
+          if (savedCode.code.includes("function Tower") || savedCode.code.includes('color="#846a49"') || savedCode.code.includes('color="#6a5c4e"')) {
+            await idbSaveScene("active-jsx-code", { code: null, name: null, updatedAt: Date.now() });
+          } else {
+            setActiveJsxCode((cur) => cur || savedCode.code);
+            setActiveJsxName((cur) => cur || savedCode.name || "GameComponent.jsx");
+          }
         }
       } catch (err) {}
     })();
@@ -1054,9 +1064,25 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       appendLog(ok ? "Success" : "Warning", `Ask AI file: ${text}`);
       setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     };
-    if (/\.(glb|gltf|fbx|obj)$/i.test(file.name) || /\.(png|jpe?g|webp)$/i.test(file.name)) {
+
+    // Images: Read as base64 and attach directly for Vision Analysis by Muse / Meta model!
+    if (/\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result;
+        if (dataUrl) {
+          setAiAttachedImage({ name: file.name, url: dataUrl });
+          aiAttachedImageRef.current = { name: file.name, url: dataUrl };
+          appendLog("Success", `Image "${file.name}" attached for Vision Analysis`);
+        }
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    if (/\.(glb|gltf|fbx|obj)$/i.test(file.name)) {
       handleImportAssetFile(file);
-      push(true, `Accepted ${/model|glb|gltf|fbx|obj/i.test(file.name) ? "3D model" : "image"} — spawned into ${sceneLabel}.`);
+      push(true, `Accepted 3D model — spawned into ${sceneLabel}.`);
       return;
     }
     if (/\.(mp3|wav|ogg|m4a)$/i.test(file.name)) {
@@ -1068,11 +1094,11 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       push(true, `Audio "${entry.name}" imported — find it in Content Browser > Audio, press play to preview.`);
       return;
     }
-    push(false, `Rejected "${file.name}" — parser allows only 3D models (.glb .gltf .fbx .obj), images (.png .jpg .webp), audio (.mp3 .wav .ogg).`);
+    push(false, `Rejected "${file.name}" — parser allows 3D models (.glb .gltf .fbx .obj), images (.png .jpg .webp), audio (.mp3 .wav .ogg).`);
   };
 
-  // Ask AI — powered entirely by Meta API agent reasoning, no regex pattern matching
-  const runAskAi = async (raw, q) => {
+  // Ask AI — powered entirely by Meta API agent reasoning, no regex pattern interception
+  const runAskAi = async (raw, q, attachedImg) => {
     currentGoalRef.current = raw;
     if (!metaKeyRef.current) {
       setAiThinking(false);
@@ -1099,31 +1125,39 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       return;
     }
 
-    // Direct execution by Spider AI agent — no regex pattern interception
+    // Direct execution by Spider AI agent with image vision payload
     setAiPrompt("");
-    await runAgentGoal(raw);
+    await runAgentGoal(raw, attachedImg?.url);
   };
 
   const handleAskAiSubmit = (e, overrideText) => {
     e.preventDefault();
     try { e.target?.querySelector?.("input")?.blur(); } catch {}
     const raw = (overrideText ?? aiPrompt).trim();
-    const q = raw.toLowerCase();
-    if (!q) return;
+    const currentImg = aiAttachedImageRef.current;
+    if (!raw && !currentImg) return;
     setAiPrompt("");
+    if (aiTextareaRef.current) {
+      aiTextareaRef.current.style.height = "auto";
+    }
+    setAiAttachedImage(null);
+    aiAttachedImageRef.current = null;
+
+    const promptText = raw || (currentImg ? `Visually analyze this attached reference image "${currentImg.name}". Recreate its exact 3D visual scene, architecture, environment, lighting, colors, and atmospheric mood with procedural sound (Web Audio API) using render_jsx!` : "");
+    const q = promptText.toLowerCase();
 
     // Multi-chat / message queuing: chat with agent while working without stopping streaming!
     if (aiThinking) {
-      appendLog("Info", `Live mid-stream message delivered: "${raw}"`);
-      pushMsg("You", raw, true);
-      messageQueueRef.current.push(raw);
+      appendLog("Info", `Live mid-stream message delivered: "${promptText}"`);
+      pushMsg(promptText, "Queued: message received and forwarded to agent.", true);
+      messageQueueRef.current.push(promptText);
       setQueuedMessages([...messageQueueRef.current]);
       setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
       return;
     }
 
-    appendLog("Info", `Ask AI: "${raw}"`);
-    setActiveQuery(raw);
+    appendLog("Info", `Ask AI: "${promptText}"${currentImg ? ` [Image attached: ${currentImg.name}]` : ""}`);
+    setActiveQuery(promptText);
     setAiThinking(true);
     setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     const effort = thinkLevel === "auto" ? "medium" : thinkLevel;
@@ -1131,12 +1165,12 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       const nodes = ((sceneGroups || []).flatMap((g) => g?.children || [])).length;
       const turns = aiHistory.length;
       const compacted = turns > 6 ? turns - 6 : 0;
-      appendLog("Info", `Reasoning (high): parsing "${raw}" against ${nodes} actors + ${PRIMITIVE_SHAPES.length} 3D primitives… context: ${turns} turns${compacted > 0 ? ` (${compacted} auto-compacted)` : ""}`);
+      appendLog("Info", `Reasoning (high): parsing "${promptText}" against ${nodes} actors + ${PRIMITIVE_SHAPES.length} 3D primitives… context: ${turns} turns${compacted > 0 ? ` (${compacted} auto-compacted)` : ""}`);
     }
     // Thinking shimmer window — then the router runs for real
     setTimeout(async () => {
       try {
-        await runAskAi(raw, q);
+        await runAskAi(promptText, q, currentImg);
         if (effort === "high") appendLog("Info", `Reasoning (high): done — see reply above.`);
       } catch (err) {
         appendLog("Warning", `Ask AI error: ${err?.message || err}`);
@@ -1246,7 +1280,35 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   };
   const consoleInputRef = useRef(null);
   const [aiPrompt, setAiPrompt] = useState("");
+  const aiTextareaRef = useRef(null);
   const [aiAnswer, setAiAnswer] = useState("");
+
+  // Clipboard copy-paste image handler for Ask AI vision
+  const handlePasteToChat = useCallback((e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item && item.type && item.type.startsWith("image/")) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const dataUrl = event.target?.result;
+            if (dataUrl) {
+              const name = file.name && file.name !== "image.png" ? file.name : `clipboard-${Date.now()}.png`;
+              setAiAttachedImage({ name, url: dataUrl });
+              aiAttachedImageRef.current = { name, url: dataUrl };
+              appendLog("Success", `Pasted image "${name}" from clipboard for Vision Analysis`);
+            }
+          };
+          reader.readAsDataURL(file);
+        }
+        return;
+      }
+    }
+  }, []);
   // Recent chats — sessions with pins, persisted locally
   const [sessions, setSessions] = useState(() => {
     try {
@@ -1388,6 +1450,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const [copiedMsg, setCopiedMsg] = useState(null); // index of just-copied bubble
   const [pendingConfirm, setPendingConfirm] = useState(null); // {label, run} Claude-Code-style yes/no
   const aiFileRef = useRef(null);
+  const [aiAttachedImage, setAiAttachedImage] = useState(null); // { name, url } for multimodal Vision analysis
+  const aiAttachedImageRef = useRef(null);
+  aiAttachedImageRef.current = aiAttachedImage;
   const [audioAssets, setAudioAssets] = useState([]); // imported audio: {id,name,url}
   // Meta API key — encrypted at rest (OS keychain), plaintext lives only in memory
   const metaKeyRef = useRef(null);
@@ -1399,23 +1464,23 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     try {
       const saved = localStorage.getItem("spider-meta-model");
       if (saved) return saved;
-      return "muse-spark-1.3";
+      return "muse-wonder";
     }
-    catch { return "muse-spark-1.3"; }
+    catch { return "muse-wonder"; }
   });
   const [metaModels, setMetaModels] = useState(() => {
     try {
       const raw = localStorage.getItem("spider-meta-models");
       const arr = raw ? JSON.parse(raw) : [];
       if (Array.isArray(arr) && arr.length > 0) return arr;
-      return ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"];
-    } catch { return ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"]; }
+      return ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"];
+    } catch { return ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]; }
   });
   // Friendly names for Meta models — fetched list stays source of truth (declared after state: no TDZ)
   const friendlyModel = (id) => {
     const low = String(id).toLowerCase();
-    if (low.includes("wonder-full") || (low.includes("wonder") && low.includes("full"))) return { name: "Wonder Full", desc: "Most advanced, hardest tasks" };
-    if (low.includes("wonder")) return { name: "Wonder", desc: "Complex tasks, plans & delegates" };
+    if (low.includes("wonder-full") || (low.includes("wonder") && low.includes("full"))) return { name: "Muse Wonder Full", desc: "Most advanced, hardest tasks" };
+    if (low.includes("wonder")) return { name: "Muse Wonder", desc: "Complex tasks, plans & autonomous generation" };
     if (low.includes("1.3") && low.includes("contributor")) return { name: "Spark 1.3 Contributor", desc: "Agentic coding, contributor tier" };
     if (low.includes("1.3")) return { name: "Spark 1.3", desc: "High-capacity agentic reasoning (Official)" };
     if (low.includes("1.2")) return { name: "Spark 1.2", desc: "Fast answers" };
@@ -1425,11 +1490,11 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return { name: pretty.charAt(0).toUpperCase() + pretty.slice(1), desc: "Meta model" };
   };
   const chatModels = (metaModels.length > 0 ? metaModels : []).filter((id) => id.toLowerCase().includes("spark") || id.toLowerCase().includes("wonder") || id.toLowerCase().includes("contributor") || id.toLowerCase().includes("llama"));
-  const modelChoices = chatModels.length > 0 ? chatModels : (metaModels.length > 0 ? metaModels : ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"]);
+  const modelChoices = chatModels.length > 0 ? chatModels : (metaModels.length > 0 ? metaModels : ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]);
   const effectiveModel = metaModel && modelChoices.includes(metaModel)
     ? metaModel
-    : (modelChoices[0] || "muse-spark-1.3");
-  const effectiveFriendly = effectiveModel ? friendlyModel(effectiveModel).name : "Spark 1.3";
+    : (modelChoices.includes("muse-wonder") ? "muse-wonder" : modelChoices[0] || "muse-wonder");
+  const effectiveFriendly = effectiveModel ? friendlyModel(effectiveModel).name : "Muse Wonder";
 
   // Meta keys must be pure header-safe text — strip invisible copy-paste junk
   const sanitizeKey = (s) => String(s || "").replace(/[\s\u200B-\u200D\uFEFF\u00A0]+/g, "").trim();
@@ -1483,8 +1548,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         setMetaModels(ids);
         try { localStorage.setItem("spider-meta-models", JSON.stringify(ids)); } catch {}
         setMetaModel((cur) => {
-          if (cur && ids.includes(cur)) return cur;
-          const chosen = ids.find((id) => id.includes("1.3")) || ids[0] || "muse-spark-1.3";
+          if (cur && (ids.includes(cur) || cur === "muse-wonder")) return cur;
+          const chosen = ids.find((id) => id.includes("wonder")) || ids.find((id) => id.includes("1.3")) || ids[0] || "muse-wonder";
           try { localStorage.setItem("spider-meta-model", chosen); } catch {}
           return chosen;
         });
@@ -1606,7 +1671,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       { role: "user", content: prompt }
     ];
 
-    let maxTokens = 4096;
+    let maxTokens = 8192;
     let messages = compactMetaMessages(rawMessages, 24000);
     const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     let lastError = null;
@@ -1615,9 +1680,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const fallbackCandidates = [
       chosenModel,
       ...(chosenModel.includes("contributor") ? [chosenModel.replace("-contributor", "")] : []),
+      "muse-wonder",
       "muse-spark-1.3",
-      "muse-spark-1.2",
-      "muse-wonder"
+      "muse-spark-1.2"
     ].filter((m, i, arr) => m && arr.indexOf(m) === i);
 
     for (let attempt = 1; attempt <= 4; attempt++) {
@@ -1630,7 +1695,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         try { appendLog("Warning", `Meta API retry (attempt 2) — switching to model "${currentModel}"...`); } catch {}
         await sleep(600);
         messages = compactMetaMessages(rawMessages, 16000);
-        maxTokens = 4096;
+        maxTokens = 8192;
       } else if (attempt === 3) {
         try { appendLog("Warning", `Meta API retry (attempt 3) — trying with simplified message payload on "${currentModel}"...`); } catch {}
         await sleep(1000);
@@ -1640,7 +1705,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           { role: "system", content: typeof sysMsg.content === "string" ? sysMsg.content.slice(0, 8000) : sys },
           { role: "user", content: typeof lastUser.content === "string" ? lastUser.content : String(prompt || "") }
         ];
-        maxTokens = 2048;
+        maxTokens = 4096;
       } else if (attempt === 4) {
         try { appendLog("Warning", `Meta API retry (attempt 4) — single-turn developer context prompt on "${currentModel}"...`); } catch {}
         await sleep(1500);
@@ -1648,7 +1713,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         messages = [
           { role: "user", content: `Context: ${sys.slice(0, 3000)}\n\nGoal: ${typeof lastUser.content === "string" ? lastUser.content : prompt}` }
         ];
-        maxTokens = 2048;
+        maxTokens = 4096;
       }
 
       const shouldStream = opts.stream !== false && attempt === 1;
@@ -1971,9 +2036,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       case "moveObject": {
         const n = findByName(args?.id);
         if (!n) throw new Error(`actor not found: ${args?.id}`);
-        const nx = args?.x !== undefined ? Number(args.x) : n.pos.x;
-        const ny = args?.y !== undefined ? Number(args.y) : n.pos.y;
-        const nz = args?.z !== undefined ? Number(args.z) : n.pos.z;
+        const nx = args?.x !== undefined ? Number(args.x) : (n?.pos?.x ?? 0);
+        const ny = args?.y !== undefined ? Number(args.y) : (n?.pos?.y ?? 0);
+        const nz = args?.z !== undefined ? Number(args.z) : (n?.pos?.z ?? 0);
         if (![nx, ny, nz].every(Number.isFinite)) throw new Error("x/y/z must be numbers");
         setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((c) => (c?.id === n.id ? { ...c, pos: { x: nx, y: ny, z: nz } } : c)) })));
         return `moved ${n.name} to (${nx}, ${ny}, ${nz})`;
@@ -2173,7 +2238,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         if (!n) throw new Error(`actor not found: ${args?.id}`);
         const p = args?.patch || {};
         const allowed = {};
-        if (p.pos) allowed.pos = { x: Number(p.pos.x ?? n.pos.x), y: Number(p.pos.y ?? n.pos.y), z: Number(p.pos.z ?? n.pos.z) };
+        if (p.pos) allowed.pos = { x: Number(p.pos.x ?? n?.pos?.x ?? 0), y: Number(p.pos.y ?? n?.pos?.y ?? 0), z: Number(p.pos.z ?? n?.pos?.z ?? 0) };
         if (p.scale) allowed.scale = { x: Number(p.scale.x ?? 1), y: Number(p.scale.y ?? 1), z: Number(p.scale.z ?? 1) };
         if (p.rot) allowed.rot = { x: Number(p.rot.x ?? 0), y: Number(p.rot.y ?? 0), z: Number(p.rot.z ?? 0) };
         for (const k of ["visible", "physics", "mass", "collision", "tag", "name"]) if (p[k] !== undefined) allowed[k] = p[k];
@@ -2681,7 +2746,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     }
   };
   // Agent run — ReAct loop with the harness; steps stream to chat + Console
-  const runAgentGoal = async (goal) => {
+  const runAgentGoal = async (goal, initialImageUrl = null) => {
     currentGoalRef.current = goal;
     if (!metaKeyRef.current) {
       say("Agent needs a Meta API key — paste one in Settings > AI & Keys first.", false);
@@ -2700,7 +2765,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     setActiveAgentPermission(null);
     setActiveAgentQuestion(null);
     const steps = GAME_STEPS;
-    appendLog("Info", `Agent started: "${goal}"`);
+    appendLog("Info", `Agent started: "${goal}"${initialImageUrl ? " (with vision image)" : ""}`);
     agentUndoRef.current = JSON.stringify(sceneRef.current.sceneGroups);
     pushUndoSnapshot(sceneRef.current.sceneGroups);
     const snapshot = () => {
@@ -2799,9 +2864,21 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
             : "") + GAME_BUILDER_PRIMER;
         let messages;
         if (history.length === 0) {
+          const imgUrl = initialImageUrl;
           messages = [
             { role: "system", content: sys },
-            { role: "user", content: `GOAL: ${task}\nReply with exactly one JSON object.` }
+            {
+              role: "user",
+              content: imgUrl
+                ? [
+                    {
+                      type: "text",
+                      text: `GOAL: ${task}\n\nSTRICT VISUAL REPLICATION INSTRUCTION (MATCH THE IMAGE EXACTLY):\n1. LOOK AT THE ATTACHED IMAGE CAREFULLY. The user explicitly instructed: "see image and generate exact like that image only not how it wishes". DO NOT freestyle or invent arbitrary objects.\n2. Recreate the EXACT architecture, towers, floating islands, cityscape, buildings, clouds, ground terrain, lighting angles, color palette, fog, and skybox visible in this image.\n3. DO NOT add unwanted mini-game mechanics (no score, no lives, no coins, no game-over screen). Recreate the exact visual scene in high fidelity.\n4. Provide smooth <OrbitControls makeDefault enableDamping dampingFactor={0.05} /> so the user can orbit, pan, and view the reconstructed 3D scene from all angles.\n5. Include procedural atmospheric ambient sound (Web Audio API with AudioContext and gentle ambient drone/wind/reverb synth) matching the image's environment.\n\nReply with exactly one JSON object.`
+                    },
+                    { type: "image_url", image_url: { url: imgUrl } }
+                  ]
+                : `GOAL: ${task}\nReply with exactly one JSON object.`
+            }
           ];
         } else {
           messages = [
@@ -3114,9 +3191,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     };
   }, [currentProject?.root]);
   const sanitizeGroups = (grps) =>
-    (grps || GAME_WORLD).map((g) => ({
+    (Array.isArray(grps) ? grps : GAME_WORLD).filter(Boolean).map((g) => ({
       ...g,
-      children: (g.children || []).filter((c) => !String(c.id).startsWith("spawn-chess-"))
+      children: (Array.isArray(g?.children) ? g.children : []).filter((c) => c && !String(c.id).startsWith("spawn-chess-"))
     }));
 
   const [sceneGroups, setSceneGroups] = useState(() => sanitizeGroups(currentProject?.groups));
@@ -3148,6 +3225,124 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const consoleEndRef = useRef(null);
   const viewportRef = useRef(null);
 
+  // 3D Viewport Pure Canvas MP4 Recorder (captures ONLY inside 3D viewport canvas)
+  const [isViewportRecording, setIsViewportRecording] = useState(false);
+  const [viewportRecordSeconds, setViewportRecordSeconds] = useState(0);
+  const viewportRecorderRef = useRef(null);
+  const viewportRecordChunksRef = useRef([]);
+  const viewportRecordTimerRef = useRef(null);
+
+  const startViewportRecording = useCallback(() => {
+    const canvas = viewportApi.getCanvas?.() || viewportApi.canvas || document.querySelector("canvas");
+    if (!canvas) {
+      appendLog("Warning", "Viewport 3D canvas not ready for recording.");
+      return;
+    }
+
+    try {
+      const stream = canvas.captureStream ? canvas.captureStream(60) : canvas.mozCaptureStream?.(60);
+      if (!stream) {
+        appendLog("Warning", "Could not capture 3D Viewport stream.");
+        return;
+      }
+
+      // Prioritize MP4 container formats, fallback to webm
+      const mimeTypes = [
+        "video/mp4;codecs=avc1",
+        "video/mp4",
+        "video/webm;codecs=h264",
+        "video/webm;codecs=vp9",
+        "video/webm"
+      ];
+      let selectedMime = "";
+      for (const m of mimeTypes) {
+        if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) {
+          selectedMime = m;
+          break;
+        }
+      }
+
+      const options = selectedMime
+        ? { mimeType: selectedMime, videoBitsPerSecond: 8000000 }
+        : { videoBitsPerSecond: 8000000 };
+
+      const rec = new MediaRecorder(stream, options);
+      viewportRecordChunksRef.current = [];
+
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          viewportRecordChunksRef.current.push(e.data);
+        }
+      };
+
+      rec.onstop = () => {
+        clearInterval(viewportRecordTimerRef.current);
+        setIsViewportRecording(false);
+        setViewportRecordSeconds(0);
+
+        if (viewportRecordChunksRef.current.length === 0) {
+          appendLog("Warning", "No video frames captured in recording.");
+          return;
+        }
+
+        const blob = new Blob(viewportRecordChunksRef.current, { type: selectedMime || "video/mp4" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, "0");
+        const filename = `SpiderEngine_Viewport_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}.mp4`;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1200);
+
+        const mb = (blob.size / (1024 * 1024)).toFixed(2);
+        appendLog("Success", `Viewport video exported: "${filename}" (${mb} MB, 60 FPS MP4)`);
+      };
+
+      rec.start(100); // 100ms slices
+      viewportRecorderRef.current = rec;
+      setIsViewportRecording(true);
+      setViewportRecordSeconds(0);
+      viewportRecordTimerRef.current = setInterval(() => {
+        setViewportRecordSeconds((s) => s + 1);
+      }, 1000);
+
+      appendLog("Info", "Started recording 3D Viewport canvas (60 FPS)... Click Stop to export MP4 video.");
+    } catch (err) {
+      appendLog("Warning", `Could not start Viewport recording: ${err?.message || err}`);
+      setIsViewportRecording(false);
+    }
+  }, []);
+
+  const stopViewportRecording = useCallback(() => {
+    if (viewportRecorderRef.current && viewportRecorderRef.current.state !== "inactive") {
+      try {
+        viewportRecorderRef.current.stop();
+      } catch (e) {
+        setIsViewportRecording(false);
+      }
+    }
+  }, []);
+
+  const toggleViewportRecording = useCallback(() => {
+    if (isViewportRecording) {
+      stopViewportRecording();
+    } else {
+      startViewportRecording();
+    }
+  }, [isViewportRecording, startViewportRecording, stopViewportRecording]);
+
+  const formatRecordTime = (sec) => {
+    const m = Math.floor(sec / 60).toString().padStart(2, "0");
+    const s = (sec % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
   // Fullscreen toggle for the 3D viewport panel
   const toggleViewportFullscreen = () => {
     if (!viewportRef.current) return;
@@ -3164,13 +3359,26 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       for (const group of sceneGroups) {
         if (group && Array.isArray(group.children)) {
           for (const child of group.children) {
-            if (child && child.id === id) return child;
+            if (child && child.id === id) {
+              return {
+                ...child,
+                pos: child.pos || { x: 0, y: 0, z: 0 },
+                rot: child.rot || { x: 0, y: 0, z: 0 },
+                scale: child.scale || { x: 1, y: 1, z: 1 }
+              };
+            }
           }
         }
       }
       for (const group of sceneGroups) {
         if (group && Array.isArray(group.children) && group.children.length > 0) {
-          return group.children[0];
+          const first = group.children[0];
+          return {
+            ...first,
+            pos: first?.pos || { x: 0, y: 0, z: 0 },
+            rot: first?.rot || { x: 0, y: 0, z: 0 },
+            scale: first?.scale || { x: 1, y: 1, z: 1 }
+          };
         }
       }
     }
@@ -3387,7 +3595,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           children: (g?.children || []).map((c) => {
             if (c.id !== id && c.name !== id) return c;
             found = true;
-            return { ...c, pos: { x: Number(x ?? c.pos.x), y: Number(y ?? c.pos.y), z: Number(z ?? c.pos.z) } };
+            return { ...c, pos: { x: Number(x ?? c?.pos?.x ?? 0), y: Number(y ?? c?.pos?.y ?? 0), z: Number(z ?? c?.pos?.z ?? 0) } };
           })
         })));
         return { ok: true, id };
@@ -3408,6 +3616,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           return { ok: false, error: String(e) };
         }
       },
+      startRecording: () => { startViewportRecording(); return { ok: true }; },
+      stopRecording: () => { stopViewportRecording(); return { ok: true }; },
       tool: async (name, args) => runAgentTool(name, args || {})
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -3429,7 +3639,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   }, [projects, currentProjectId]);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
-  const [showStartup, setShowStartup] = useState(!isStandaloneChess);
+  const [showStartup, setShowStartup] = useState(false);
   // (Native splash window now handles launch — see electron/splash.html)
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectTemplate, setNewProjectTemplate] = useState("normal");
@@ -3438,6 +3648,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const expandEditor = () => {
     try { window.spiderShell?.projectOpened?.(); } catch {}
   };
+  useEffect(() => {
+    expandEditor();
+  }, []);
   // Write a file into the project's own folder when it has one, else fall back to download
   // Project folder on demand — Ask AI can create files in it, picking it if unset
   const ensureProjectRoot = async () => {
@@ -3521,13 +3734,13 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const DEFAULT_UI = { hierarchyOpen: true, inspectorOpen: true, bottomLeftOpen: true, consoleOpen: true, viewportTab: "Viewport", bottomTab: "Content Browser", rightTab: "Inspector" };
   const applyUi = (ui) => {
     const u = { ...DEFAULT_UI, ...(ui || {}) };
-    setHierarchyOpen(u.hierarchyOpen);
-    setInspectorOpen(u.inspectorOpen);
-    setBottomLeftOpen(u.bottomLeftOpen);
-    setConsoleOpen(u.consoleOpen);
-    setViewportTab(u.viewportTab);
-    setBottomTab(u.bottomTab);
-    setRightTab(u.rightTab);
+    setHierarchyOpen(true);
+    setInspectorOpen(true);
+    setBottomLeftOpen(true);
+    setConsoleOpen(true);
+    setViewportTab(u.viewportTab || "Viewport");
+    setBottomTab(u.bottomTab || "Content Browser");
+    setRightTab(u.rightTab || "Inspector");
   };
   // Persist the live layout into the current project only (others untouched)
   useEffect(() => {
@@ -3824,8 +4037,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Play / Stop Engine Handler
   const handleTogglePlay = () => {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); // Space must jump, not re-click
-    const hasChessScene = sceneGroups.some((g) => (g.children || []).some((c) => String(c.id).startsWith("spawn-chess-")));
+    const hasChessScene = (sceneGroups || []).some((g) => (g?.children || []).some((c) => c && String(c.id).startsWith("spawn-chess-")));
     if (!isPlaying) {
+      sfx.playSelect();
       setIsPlaying(true);
       if (hasChessScene) {
         setChessActive(true);
@@ -3848,6 +4062,7 @@ if (typeof window !== "undefined") { window.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE__; }
 
     } else {
+      sfx.playBack();
       setIsPlaying(false);
       setViewportTab("Viewport");
       appendLog("Info", "Play mode stopped");
@@ -3937,7 +4152,10 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) {
         e.preventDefault();
         if (k === " " && !e.repeat) {
-          if (velY.current === 0) velY.current = PLAYER.jumpImpulse; // jump impulse (grounded only)
+          if (velY.current === 0) {
+            velY.current = PLAYER.jumpImpulse; // jump impulse (grounded only)
+            sfx.playJump();
+          }
           setKeysPressed((prev) => ({ ...prev, [k]: true }));
           return;
         }
@@ -3997,7 +4215,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               if (dx === 0 && dz === 0 && ny === node.pos.y) return node;
               if (dx !== 0 || dz !== 0) tutorialStats.current.moved = true;
               tutorialStats.current.maxY = Math.max(tutorialStats.current.maxY, ny);
-              let nx = Number(Math.max(PLAYER.bounds.minX, Math.min(PLAYER.bounds.maxX, node.pos.x + dx)).toFixed(1));
+              let nx = Number(Math.max(PLAYER.bounds.minX, Math.min(PLAYER.bounds.maxX, (node.pos?.x ?? 0) + dx)).toFixed(1));
               let nz = Number(Math.max(PLAYER.bounds.minZ, Math.min(PLAYER.bounds.maxZ, node.pos.z + dz)).toFixed(1));
               // Real BlockAll collision — slide out of every blocker circle
               for (const b of blockers) {
@@ -4030,7 +4248,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 ...node,
                 pos: {
                   ...node.pos,
-                  x: Number(Math.max(-60, Math.min(60, node.pos.x + dx)).toFixed(1)),
+                  x: Number(Math.max(-60, Math.min(60, (node.pos?.x ?? 0) + dx)).toFixed(1)),
                   z: Number(Math.max(-60, Math.min(60, node.pos.z + dz)).toFixed(1))
                 }
               };
@@ -4053,7 +4271,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
   // Shooting — click fires in Play; targets die, score pays (real TPP/FPP mechanic)
   const handleShoot = useCallback((hitId) => {
     tutorialStats.current.shots++;
+    sfx.playLaser();
     if (hitId && String(hitId).startsWith("spawn-target-")) {
+      sfx.playExplosion();
       setSceneGroups((prev) => (prev || []).map((g) => ({ ...g, children: (g?.children || []).map((c) => (c.id === hitId ? { ...c, visible: false } : c)) })));
       setScore((s) => {
         const ns = s + 50;
@@ -4096,13 +4316,15 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     if (!isPlaying) return;
     const p = (sceneGroups || []).flatMap((g) => g?.children || []).find((c) => c && c.id === PLAYER.id);
     if (!p) return;
-    const hits = coins.filter((c) => !c.taken && Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < COIN_RULES.pickupRadius && p.pos.y < COIN_RULES.maxPickupHeight);
+    const hits = coins.filter((c) => !c.taken && Math.hypot((p?.pos?.x ?? 0) - c.x, (p?.pos?.z ?? 0) - c.z) < COIN_RULES.pickupRadius && (p?.pos?.y ?? 0) < COIN_RULES.maxPickupHeight);
     if (hits.length === 0) return;
     setCoins((cs) => cs.map((c) => (hits.some((h) => h.id === c.id) ? { ...c, taken: true } : c)));
+    sfx.playCoin();
     setScore((s) => {
       const ns = s + hits.length * COIN_RULES.pointsEach;
       appendLog("Success", `Collected ${hits.length} coin${hits.length > 1 ? "s" : ""} — score ${ns}`);
       if (coins.filter((c) => !c.taken).length === hits.length) {
+        sfx.playPowerUp();
         setTimeout(() => appendLog("Success", `All coins collected! Final score ${ns} — Game menu > Reset Score to replay`), 50);
       }
       return ns;
@@ -4477,7 +4699,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               { id: "Edit", items: ["Undo", "Redo", "Duplicate Selected", "Delete Selected"] },
               { id: "Scene", items: ["Show Hierarchy (H)", "Focus Player", "Reset Sun Time"] },
               { id: "Object", items: ["Spawn Random Prop", "Toggle Visibility", "Reset Transform"] },
-              { id: "Game", items: ["Play / Stop", "Reset Score"] },
+              { id: "Game", items: ["Main Menu (AAA Title Screen)", "Play / Stop", "Reset Score"] },
               { id: "Build", items: ["Build + Export scene.json"] },
               { id: "Tools", items: ["Screenshot PNG", "Clear Console"] },
               { id: "Window", items: ["Project Browser", "Content Browser Tab", "Inspector Tab", "World Settings Tab", "Build Log Tab", "Console Tab"] },
@@ -5874,6 +6096,30 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       >
                         <span>Fog</span>
                       </button>
+
+                      {/* Right of Fog: Viewport 3D Canvas MP4 Video Recorder */}
+                      <button
+                        onClick={toggleViewportRecording}
+                        title={isViewportRecording ? "Click to Stop and Export MP4 Video" : "Record Viewport 3D Canvas to MP4 Video"}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold shadow-sm border transition cursor-pointer select-none ${
+                          isViewportRecording
+                            ? "bg-rose-600 text-white border-rose-500 shadow-rose-500/40"
+                            : "bg-white/90 backdrop-blur-md hover:bg-white text-slate-800 border-white/50"
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${isViewportRecording ? "bg-white animate-ping" : "bg-rose-500"}`} />
+                        {isViewportRecording ? (
+                          <>
+                            <span className="font-mono text-[10.5px]">REC {formatRecordTime(viewportRecordSeconds)}</span>
+                            <span className="text-[9px] bg-rose-700 px-1 py-0.5 rounded font-bold uppercase tracking-wider text-white">Stop</span>
+                          </>
+                        ) : (
+                          <>
+                            <Video className="w-3.5 h-3.5 text-rose-500" />
+                            <span>Record MP4</span>
+                          </>
+                        )}
+                      </button>
                     </div>
 
                     {/* Top-Right Transform & Grid Toolbar Pills */}
@@ -6311,14 +6557,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                             <div
                               key={c.id}
                               onClick={() => { setSelectedNodeId(c.id); setRightTab("Inspector"); }}
-                              title={`Select ${c.name} — pos (${c.pos.x}, ${c.pos.y}, ${c.pos.z})`}
+                              title={`Select ${c.name || "Object"} — pos (${c.pos?.x ?? 0}, ${c.pos?.y ?? 0}, ${c.pos?.z ?? 0})`}
                               className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer transition text-[11px]"
                             >
                               <span className="flex items-center gap-2 font-semibold text-slate-700">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                                {c.name}
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color || "#6366f1" }} />
+                                {c.name || "Object"}
                               </span>
-                              <span className="font-mono text-slate-400">({c.pos.x}, {c.pos.y}, {c.pos.z})</span>
+                              <span className="font-mono text-slate-400">({c.pos?.x ?? 0}, {c.pos?.y ?? 0}, {c.pos?.z ?? 0})</span>
                             </div>
                           ))
                       )}
@@ -6601,11 +6847,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <input
                           type="number"
                           step="0.5"
-                          value={selectedNode.pos[axis]}
+                          value={selectedNode?.pos?.[axis] ?? 0}
                           onChange={(e) =>
                             updateSelectedNode((n) => ({
                               ...n,
-                              pos: { ...n.pos, [axis]: parseFloat(e.target.value) || 0 }
+                              pos: { ...(n?.pos || { x: 0, y: 0, z: 0 }), [axis]: parseFloat(e.target.value) || 0 }
                             }))
                           }
                           className="w-full bg-transparent text-right font-mono text-[11px] focus:outline-none"
@@ -6638,11 +6884,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <input
                           type="number"
                           step="5"
-                          value={selectedNode.rot[axis]}
+                          value={selectedNode?.rot?.[axis] ?? 0}
                           onChange={(e) =>
                             updateSelectedNode((n) => ({
                               ...n,
-                              rot: { ...n.rot, [axis]: parseFloat(e.target.value) || 0 }
+                              rot: { ...(n?.rot || { x: 0, y: 0, z: 0 }), [axis]: parseFloat(e.target.value) || 0 }
                             }))
                           }
                           className="w-full bg-transparent text-right font-mono text-[11px] focus:outline-none"
@@ -6675,12 +6921,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <input
                           type="number"
                           step="0.1"
-                          value={selectedNode.scale[axis]}
+                          value={selectedNode?.scale?.[axis] ?? 1}
                           onChange={(e) =>
                             updateSelectedNode((n) => ({
                               ...n,
                               scale: {
-                                ...n.scale,
+                                ...(n?.scale || { x: 1, y: 1, z: 1 }),
                                 [axis]: Math.max(0.2, parseFloat(e.target.value) || 1)
                               }
                             }))
@@ -7160,7 +7406,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   {aiHistory.map((h, i) => (
                     <div key={i} className="space-y-1.5 group/msg">
                       <div className="flex justify-end">
-                        <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-xs">{h.q}</div>
+                        <div className="max-w-[85%] px-2.5 py-1.5 rounded-2xl rounded-br-md bg-indigo-600 text-white shadow-xs">
+                          {h.q === "You" ? (h.a && h.a.length < 140 ? h.a : "User Request") : h.q}
+                        </div>
                       </div>
 
                       {/* Thought block if present */}
@@ -7393,14 +7641,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     <div className="absolute bottom-7 right-0 w-60 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50 max-h-64 overflow-y-auto">
                       <button
                         type="button"
-                        onClick={() => { setMetaModel("muse-spark-1.3-contributor"); try { localStorage.setItem("spider-meta-model", "muse-spark-1.3-contributor"); } catch {} setModelMenuOpen(false); appendLog("Info", "Spider AI model → Spark 1.3 Contributor"); }}
+                        onClick={() => { setMetaModel("muse-wonder"); try { localStorage.setItem("spider-meta-model", "muse-wonder"); } catch {} setModelMenuOpen(false); appendLog("Info", "Spider AI model → Muse Wonder"); }}
                         className="w-full text-left px-3 py-2 hover:bg-slate-50 transition cursor-pointer"
                       >
                         <div className="text-[11px] font-semibold text-slate-800 flex items-center justify-between">
-                          <span>Auto (Spark 1.3 Contributor)</span>
-                          {(!metaModel || metaModel.includes("contributor")) && <Check className="w-3.5 h-3.5 text-slate-800" />}
+                          <span>Muse Wonder (Creative & Autonomous)</span>
+                          {metaModel === "muse-wonder" && <Check className="w-3.5 h-3.5 text-indigo-600" />}
                         </div>
-                        <div className="text-[10px] text-slate-400">Strictly locked to Spark 1.3 Contributor</div>
+                        <div className="text-[10px] text-slate-400">Complex tasks, full games & autonomous planning</div>
                       </button>
                       {modelChoices.length === 0 && (
                         <div className="px-3 py-2 text-[11px] text-slate-400">No models loaded yet — paste key in Settings → AI & Keys.</div>
@@ -7429,37 +7677,78 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 </div>
               )}
             </div>
-            <form onSubmit={handleAskAiSubmit} className="p-2 border-t-0 border-slate-100 flex items-center gap-1.5 bg-white">
-              {/* + opens the file manager for ANY file — parser allowlists models/images/audio */}
-              <button type="button" onClick={() => aiFileRef.current?.click()} title="Attach any file — models, images, audio accepted" className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-base leading-none">+</button>
-              <input ref={aiFileRef} type="file" accept="*/*" className="hidden" onChange={(e) => { handleAskFile(e.target.files?.[0]); e.target.value = ""; }} />
-              <input
-                autoFocus
-                type="text"
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder={aiThinking ? "Agent is working... chat anytime without stopping stream" : "Type a message or / for skills"}
-                className="flex-1 text-[11px] px-2.5 py-2 bg-slate-100 rounded-full border border-transparent focus:outline-none focus:border-indigo-300"
-              />
-              {aiThinking ? (
-                <div className="flex items-center gap-1 shrink-0">
-                  {aiPrompt.trim() && (
-                    <button type="submit" className="p-1.5 text-indigo-600 hover:text-indigo-700 cursor-pointer" title="Queue follow-up">
-                      <Send className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={stopAgent}
-                    className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
-                    title="Stop agent execution"
-                  >
-                    <Square className="w-3 h-3 fill-rose-600" />
-                  </button>
+            {/* Attached Image for Vision Analysis Preview */}
+            {aiAttachedImage && (
+              <div className="flex items-center gap-2 px-2.5 py-1.5 mx-2 mb-1 bg-indigo-50/90 border border-indigo-200/80 rounded-xl text-xs text-indigo-800 shadow-2xs">
+                <img src={aiAttachedImage.url} alt="attached" className="w-8 h-8 rounded-lg object-cover border border-indigo-300 shrink-0" />
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-bold text-[11px] truncate">{aiAttachedImage.name}</span>
+                  <span className="text-[9px] text-indigo-600 font-medium">Ready for Vision analysis & 3D sound synthesis</span>
                 </div>
-              ) : (
-                <button type="submit" className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer" title="Send">
-                  <Send className="w-3.5 h-3.5" />
+                <button
+                  type="button"
+                  onClick={() => { setAiAttachedImage(null); aiAttachedImageRef.current = null; }}
+                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer font-bold"
+                  title="Remove image"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-2 border-t-0 border-slate-100 flex items-end gap-1.5 bg-white">
+              {/* + opens the file manager for ANY file — parser allowlists models/images/audio */}
+              <button
+                type="button"
+                onClick={() => aiFileRef.current?.click()}
+                title="Attach any file — models, images, audio accepted (or paste image Ctrl+V)"
+                className="p-1.5 text-slate-500 hover:text-indigo-600 cursor-pointer font-bold text-base leading-none mb-1 shrink-0"
+              >
+                +
+              </button>
+              <input ref={aiFileRef} type="file" accept="*/*" className="hidden" onChange={(e) => { handleAskFile(e.target.files?.[0]); e.target.value = ""; }} />
+
+              <div className="flex-1 min-w-0 relative flex items-center">
+                <textarea
+                  ref={aiTextareaRef}
+                  autoFocus
+                  rows={1}
+                  value={aiPrompt}
+                  onPaste={handlePasteToChat}
+                  onChange={(e) => {
+                    setAiPrompt(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 34), 160)}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleAskAiSubmit(e);
+                    }
+                  }}
+                  placeholder={aiThinking ? "Agent working... Shift+Enter for newline" : "Type a message, paste image (Ctrl+V), or / for skills"}
+                  className="w-full text-[11px] px-3 py-2 bg-slate-100 rounded-2xl border border-transparent focus:outline-none focus:border-indigo-300 resize-none min-h-[34px] max-h-[160px] leading-relaxed scrollbar-thin"
+                  style={{ height: "auto" }}
+                />
+              </div>
+
+              {/* Primary submit button is ALWAYS in the form so Enter never defaults to Stop button */}
+              <button
+                type="submit"
+                className={`p-1.5 mb-1 transition shrink-0 ${aiPrompt.trim() || aiAttachedImage ? "text-indigo-600 hover:text-indigo-700 cursor-pointer" : "text-slate-300 cursor-not-allowed"}`}
+                title={aiThinking ? "Queue follow-up (Enter)" : "Send (Enter)"}
+                disabled={!aiPrompt.trim() && !aiAttachedImage}
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+              {aiThinking && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); stopAgent(); }}
+                  className="p-1.5 mb-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full border border-rose-200 transition cursor-pointer flex items-center justify-center shrink-0 active:scale-95 shadow-xs"
+                  title="Stop agent execution"
+                >
+                  <Square className="w-3 h-3 fill-rose-600" />
                 </button>
               )}
             </form>

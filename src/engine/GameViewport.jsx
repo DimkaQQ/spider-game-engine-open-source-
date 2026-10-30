@@ -19,13 +19,20 @@ import DynamicJsxRenderer from "./DynamicJsxRenderer.jsx";
 const WORLD = 0.12;
 const DEG = Math.PI / 180;
 
-// Shared API for honest screenshot capture (set from inside Canvas).
-export const viewportApi = { capture: null };
+// Shared API for honest screenshot capture & canvas stream recording (set from inside Canvas).
+export const viewportApi = { capture: null, canvas: null, getCanvas: null };
 // Set while a TransformControls drag is active so smoothing doesn't fight the user.
 let transforming = false;
 
 function findNode(groups, id) {
-  for (const g of groups) for (const c of g.children) if (c.id === id) return c;
+  if (!Array.isArray(groups)) return null;
+  for (const g of groups) {
+    if (g && Array.isArray(g.children)) {
+      for (const c of g.children) {
+        if (c && c.id === id) return c;
+      }
+    }
+  }
   return null;
 }
 
@@ -124,6 +131,8 @@ function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo, hasCh
 function CaptureApi() {
   const gl = useThree((s) => s.gl);
   useEffect(() => {
+    viewportApi.canvas = gl.domElement;
+    viewportApi.getCanvas = () => gl.domElement;
     viewportApi.capture = (download = false, maxWidth = 640) => {
       try {
         let url = gl.domElement.toDataURL("image/jpeg", 0.82);
@@ -151,6 +160,8 @@ function CaptureApi() {
     };
     return () => {
       viewportApi.capture = null;
+      viewportApi.canvas = null;
+      viewportApi.getCanvas = null;
     };
   }, [gl]);
   return null;
@@ -1087,7 +1098,7 @@ export default function GameViewport({
   projectFiles = []
 }) {
   const hasChess = useMemo(() => {
-    return sceneGroups.some((g) => (g.children || []).some((c) => String(c.id).startsWith("spawn-chess-")));
+    return (sceneGroups || []).some((g) => (g?.children || []).some((c) => c && String(c.id).startsWith("spawn-chess-")));
   }, [sceneGroups]);
   const hasCustomJsx = Boolean(activeJsxCode && activeJsxCode.trim());
   const isBoardGame = hasChess || snakesActive;
@@ -1117,8 +1128,11 @@ export default function GameViewport({
   const weapon = findNode(sceneGroups, "weapon");
 
   const spawned = [];
-  for (const g of sceneGroups)
-    for (const c of g.children) if (String(c.id).startsWith("spawn-")) spawned.push(c);
+  for (const g of (sceneGroups || [])) {
+    if (g && Array.isArray(g.children)) {
+      for (const c of g.children) if (c && String(c.id).startsWith("spawn-")) spawned.push(c);
+    }
+  }
 
   // Sun path: 6h rise -> 12h noon -> 18h set.
   const sunT = ((timeOfDay - 6) / 12) * Math.PI;
