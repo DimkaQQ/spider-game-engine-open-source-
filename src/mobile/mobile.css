@@ -559,3 +559,35 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 .sp-hl .hl-line::before { content: attr(data-n); position: absolute; left: -12px; top: 0; width: 44px; text-align: right; color: var(--text-3); user-select: none; -webkit-user-select: none; }
 .sp-app .sp-hl.is-wrap { background-image: linear-gradient(var(--line), var(--line)); background-size: 1px 100%; background-repeat: no-repeat; background-position: 38px 0; }
 .sp-app textarea.sp-textarea.has-nums { padding-left: 52px; }
+
+/* rendered licenses (Markdown) */
+.sp-licenses { white-space: normal; font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--text-2); }
+.sp-licenses .md-h1 { font-size: 20px; line-height: 1.2; color: var(--text); margin: 4px 0 12px; letter-spacing: -0.02em; }
+.sp-licenses .md-h2 { font-size: 15px; color: var(--text); margin: 22px 0 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.sp-licenses .md-h3, .sp-licenses .md-h4 { font-size: 13px; color: var(--text); margin: 14px 0 6px; }
+.sp-licenses .md-p { margin: 0 0 10px; }
+.sp-licenses .md-ul { margin: 0 0 10px; padding-left: 20px; list-style: disc; }
+.sp-licenses ol.md-ul { list-style: decimal; }
+.sp-licenses .md-ul li { margin: 3px 0; }
+.sp-licenses .md-code { margin: 8px 0 12px; padding: 12px; border-radius: var(--r-m); background: var(--surface-2); font: 11.5px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-2); }
+.sp-licenses code { font: 12px var(--mono); background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
+.sp-licenses a { color: var(--accent); word-break: break-all; }
+.sp-licenses hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+.sp-link-inline { color: var(--accent); text-decoration: none; font-weight: 700; }
+
+/* ---------- fullscreen viewport ---------- */
+.sp-app.is-full .sp-top,
+.sp-app.is-full .sp-tabbar,
+.sp-app.is-full .sp-dock { display: none; }
+.sp-app.is-full .sp-viewport { margin: 0; border-radius: 0; box-shadow: none; }
+.sp-app.is-full .sp-float-tr { top: calc(10px + env(safe-area-inset-top, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); }
+.sp-app.is-full .sp-float-tl { top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); }
+.sp-app.is-full .sp-cams { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.sp-app.is-full .sp-fps { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.sp-app.is-full .sp-hud { top: calc(12px + env(safe-area-inset-top, 0px)); }
+.sp-stop-fab { position: absolute; z-index: 13; top: calc(10px + env(safe-area-inset-top, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--bad); color: #fff; font-weight: 700; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+
+/* camera modes: icon + full name like the desktop editor; icon-only for inactive ones on very narrow screens */
+.sp-cams button { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 359px) { .sp-cams button:not(.is-on) span { display: none; } .sp-cams button:not(.is-on) { padding: 0 11px; } }
+@media (max-width: 380px) { .sp-fps { bottom: 58px; } .sp-app.is-full .sp-fps { bottom: calc(58px + env(safe-area-inset-bottom, 0px)); } }

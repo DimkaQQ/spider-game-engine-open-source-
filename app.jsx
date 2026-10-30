@@ -87,6 +87,31 @@ function MobileApp() {
   const onStudio = eff === "studio";
   const keepStudio = onStudio || s.busy;
   const hideChrome = onStudio && s.isPlaying;
+  const [full, setFull] = useState(false);
+
+  // Fullscreen: CSS "immersive" layout everywhere, plus the browser Fullscreen API where it exists
+  // (Android Chrome, desktop, iPad). iPhone Safari has no element fullscreen, the layout part still works.
+  const toggleFull = useCallback(() => {
+    setFull((on) => {
+      const next = !on;
+      try {
+        if (next) document.documentElement.requestFullscreen?.({ navigationUI: "hide" })?.catch(() => {});
+        else if (document.fullscreenElement) document.exitFullscreen?.()?.catch(() => {});
+      } catch {}
+      return next;
+    });
+  }, []);
+  useEffect(() => {
+    const sync = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
+  useEffect(() => {
+    if (tab !== "studio" && full) toggleFull();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
   const nav = TABS;
 
   // Opening the inspector from the viewport should not steal the tab.
@@ -111,7 +136,7 @@ function MobileApp() {
 
   const studio = keepStudio && (
     <div className={cx("sp-pane", !onStudio && "is-parked")} aria-hidden={!onStudio}>
-      <Studio s={s} notify={notify} onOpenInspector={openInspector} onOpenView={() => setView(true)} onGoAI={() => go("ai")} />
+      <Studio s={s} full={full} onToggleFull={toggleFull} notify={notify} onOpenInspector={openInspector} onOpenView={() => setView(true)} onGoAI={() => go("ai")} />
     </div>
   );
 
@@ -150,7 +175,7 @@ function MobileApp() {
   );
 
   return (
-    <div className={cx("sp-app", hideChrome && "is-playing")}>
+    <div className={cx("sp-app", hideChrome && "is-playing", full && onStudio && "is-full")}>
       <header className="sp-top">
         <button type="button" className="sp-project-btn" onClick={() => go("more", "projects")} aria-label="Switch project">
           <span className="sp-logo" aria-hidden="true">S</span>
