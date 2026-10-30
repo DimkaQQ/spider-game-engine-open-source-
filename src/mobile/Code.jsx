@@ -4,7 +4,7 @@
  * Author: M4SPIDER (support@m4spider.com)
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { highlight } from "./highlight.js";
+import { highlight, highlightLines } from "./highlight.js";
 import { AlignLeft, Check, ClipboardCopy, WrapText, FilePlus2, Pencil, Play, RotateCcw, Square, Trash2, Wand2, Copy as CopyIcon } from "lucide-react";
 import { STARTER_CODE } from "./store.js";
 import { Sheet, cx } from "./ui.jsx";
@@ -137,7 +137,15 @@ export default function Code({ s, notify }) {
   }, [draft, dirty, file, s]);
 
   const lines = draft.split("\n").length;
-  const html = useMemo(() => highlight(draft), [draft]);
+  const html = useMemo(
+    () =>
+      wrap
+        ? highlightLines(draft)
+            .map((l, i) => `<div class="hl-line" data-n="${i + 1}">${l || "&#8203;"}</div>`)
+            .join("")
+        : highlight(draft),
+    [draft, wrap]
+  );
   const syncScroll = (el) => {
     if (gutter.current) gutter.current.scrollTop = el.scrollTop;
     if (hl.current) hl.current.style.transform = `translate(${-el.scrollLeft}px, ${-el.scrollTop}px)`;
@@ -247,7 +255,7 @@ export default function Code({ s, notify }) {
         <pre ref={hl} className={cx("sp-hl", wrap && "is-wrap")} aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />
         <textarea
           ref={area}
-          className={cx("sp-textarea", wrap && "is-wrap")}
+          className={cx("sp-textarea", wrap && "is-wrap has-nums")}
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);

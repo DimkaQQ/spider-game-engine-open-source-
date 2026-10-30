@@ -21,8 +21,8 @@ const TOKEN = new RegExp(
   "g"
 );
 
-export function highlight(src) {
-  let out = "";
+function tokens(src) {
+  const list = [];
   let last = 0;
   let m;
   TOKEN.lastIndex = 0;
@@ -31,12 +31,31 @@ export function highlight(src) {
       TOKEN.lastIndex++;
       continue;
     }
-    out += esc(src.slice(last, m.index));
+    if (m.index > last) list.push(["", src.slice(last, m.index)]);
     const cls = m[1] ? "c" : m[2] ? "s" : m[3] ? "k" : m[4] ? "n" : m[5] ? "n" : m[6] ? "t" : "f";
-    out += `<i class="tk-${cls}">${esc(m[0])}</i>`;
+    list.push([cls, m[0]]);
     last = m.index + m[0].length;
   }
-  out += esc(src.slice(last));
+  if (last < src.length) list.push(["", src.slice(last)]);
+  return list;
+}
+
+/** One HTML string, lines separated by \n (used when lines do not wrap). */
+export function highlight(src) {
+  let out = "";
+  for (const [cls, text] of tokens(src)) out += cls ? `<i class="tk-${cls}">${esc(text)}</i>` : esc(text);
   // a trailing newline would be collapsed by <pre>; keep the last empty line
   return out.endsWith("\n") ? `${out} ` : out;
+}
+
+/** Array of HTML strings, one per source line. Multi-line tokens are closed and reopened per line. */
+export function highlightLines(src) {
+  const lines = [""];
+  for (const [cls, text] of tokens(src)) {
+    text.split("\n").forEach((part, i) => {
+      if (i > 0) lines.push("");
+      if (part) lines[lines.length - 1] += cls ? `<i class="tk-${cls}">${esc(part)}</i>` : esc(part);
+    });
+  }
+  return lines;
 }
