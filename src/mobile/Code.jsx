@@ -3,7 +3,8 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  * Author: M4SPIDER (support@m4spider.com)
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { highlight } from "./highlight.js";
 import { AlignLeft, Check, ClipboardCopy, WrapText, FilePlus2, Pencil, Play, RotateCcw, Square, Trash2, Wand2, Copy as CopyIcon } from "lucide-react";
 import { STARTER_CODE } from "./store.js";
 import { Sheet, cx } from "./ui.jsx";
@@ -105,6 +106,7 @@ export default function Code({ s, notify }) {
   const [dialog, setDialog] = useState(null); // {type:'new'|'rename', value}
   const gutter = useRef(null);
   const area = useRef(null);
+  const hl = useRef(null);
 
   const file = files.find((f) => f.name === active) || files[0];
 
@@ -135,6 +137,11 @@ export default function Code({ s, notify }) {
   }, [draft, dirty, file, s]);
 
   const lines = draft.split("\n").length;
+  const html = useMemo(() => highlight(draft), [draft]);
+  const syncScroll = (el) => {
+    if (gutter.current) gutter.current.scrollTop = el.scrollTop;
+    if (hl.current) hl.current.style.transform = `translate(${-el.scrollLeft}px, ${-el.scrollTop}px)`;
+  };
   const mounted = activeJsxName === file?.name;
 
   const insertAtCursor = (text) => {
@@ -236,6 +243,8 @@ export default function Code({ s, notify }) {
             <pre>{Array.from({ length: lines }, (_, i) => i + 1).join("\n")}</pre>
           </div>
         )}
+        <div className="sp-code-stack">
+        <pre ref={hl} className={cx("sp-hl", wrap && "is-wrap")} aria-hidden="true" dangerouslySetInnerHTML={{ __html: html }} />
         <textarea
           ref={area}
           className={cx("sp-textarea", wrap && "is-wrap")}
@@ -244,9 +253,7 @@ export default function Code({ s, notify }) {
             setDraft(e.target.value);
             setDirty(true);
           }}
-          onScroll={(e) => {
-            if (gutter.current) gutter.current.scrollTop = e.currentTarget.scrollTop;
-          }}
+          onScroll={(e) => syncScroll(e.currentTarget)}
           onKeyDown={(e) => {
             if (e.key === "Tab") {
               e.preventDefault();
@@ -260,6 +267,7 @@ export default function Code({ s, notify }) {
           wrap={wrap ? "soft" : "off"}
           aria-label={`Editing ${file.name}`}
         />
+        </div>
       </div>
 
       <div className="sp-keys" role="toolbar" aria-label="Code keys">
