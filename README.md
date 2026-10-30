@@ -325,7 +325,7 @@ The engine embeds an MCP server on port `9287`:
 
 Created and maintained by **M4SPIDER**.  
 Email: **support@m4spider.com**  
-Contributors & Lineage: **Vivek**, **Venom**, **Quick**, **Qucik**  
+Contributors & Lineage: **Vivek**,**dimka**
 Every source file contains the provenance watermark:
 `[M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]`
 
