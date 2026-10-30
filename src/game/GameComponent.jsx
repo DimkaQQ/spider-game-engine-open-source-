@@ -1,16 +1,159 @@
-import React,{useRef,useMemo} from 'react';
-import {useFrame} from '@react-three/fiber';
-import {OrbitControls,PerspectiveCamera,Html} from '@react-three/drei';
+import React, { Suspense, useRef, useState } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, PerspectiveCamera, useGLTF, Sky, Html } from '@react-three/drei';
 import * as THREE from 'three';
-export default function GameComponent(){
- const ocean=useRef(),clouds=useRef(),foam=useRef(),foam2=useRef(),glow=useRef(),audio=useRef();
- const oceanGeo=useMemo(()=>new THREE.PlaneGeometry(900,900,96,96),[]);
- const M=[{x:-6,z:-4,h:11,r:6,c:'#7c5a46'},{x:5,z:-6,h:8,r:5,c:'#8a6a52'},{x:0,z:3,h:6,r:4.5,c:'#6f5140'},{x:-10,z:5,h:6.5,r:4,c:'#86644d'},{x:10,z:4,h:5,r:3.5,c:'#795842'}];
- const trees=useMemo(()=>{const a=[];let i=0;while(a.length<185&&i<900){i++;const an=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*16.5,x=Math.cos(an)*r,z=Math.sin(an)*r*.88;if(M.some(m=>Math.hypot(x-m.x,z-m.z)<m.r*.75))continue;a.push({x,z,s:.75+Math.random()*.9,t:a.length%3,c:['#15803d','#16a34a','#2f9e44','#65a30d'][a.length%4]})}return a},[]);
- const rocks=useMemo(()=>Array.from({length:70},(_,i)=>{const a=Math.random()*Math.PI*2,r=19+Math.random()*7;return{x:Math.cos(a)*r,z:Math.sin(a)*r*.9,y:.4+Math.random()*.8,s:.5+Math.random()*1.6,rx:Math.random()*3,rz:Math.random()*3,c:i%2?'#78716c':'#8d6e63'}}),[]);
- const cloudData=useMemo(()=>Array.from({length:48},()=>({x:(Math.random()-.5)*380,y:28+Math.random()*38,z:-180+Math.random()*260,s:.8+Math.random()*1.8,p:Array.from({length:6},(_,j)=>[(j-2.5)*2.4,(Math.random()-.5)*1.2,(Math.random()-.5)*2,2+Math.random()*2.4])})),[]);
- const flowers=useMemo(()=>Array.from({length:100},(_,i)=>{const a=Math.random()*Math.PI*2,r=4+Math.random()*13;return{x:Math.cos(a)*r,z:Math.sin(a)*r*.85,c:['#ffffff','#fde047','#fb7185','#f0abfc'][i%4]}}),[]);
- const startSound=()=>{try{if(audio.current)return;const C=new (window.AudioContext||window.webkitAudioContext)();audio.current=C;const len=C.sampleRate*2,buf=C.createBuffer(1,len,C.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=Math.random()*2-1;const src=C.createBufferSource();src.buffer=buf;src.loop=true;const f=C.createBiquadFilter();f.type='lowpass';f.frequency.value=420;const g=C.createGain();g.gain.value=.07;src.connect(f);f.connect(g);g.connect(C.destination);src.start();const o=C.createOscillator(),og=C.createGain();o.type='sine';o.frequency.value=58;og.gain.value=.012;o.connect(og);og.connect(C.destination);o.start()}catch(e){}};
- useFrame((s,dt0)=>{const t=s.clock.elapsedTime,dt=Math.min(dt0,.033);if(ocean.current){const p=ocean.current.geometry.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,Math.sin(x*.055+t*1.25)*.45+Math.cos(y*.075+t*.85)*.38)}p.needsUpdate=true}if(clouds.current)clouds.current.children.forEach((g,i)=>{g.position.x+=dt*(1.2+(i%5)*.35);if(g.position.x>230)g.position.x=-230});if(foam.current){const k=1+Math.sin(t*1.4)*.035;foam.current.scale.set(k,k,k)}if(foam2.current){const k=1+Math.cos(t*1.1)*.05;foam2.current.scale.set(k,k,k)}if(glow.current){const k=1+Math.sin(t*2)*.08;glow.current.scale.set(k,k,k)}});
- return(<><color attach='background' args={['#ffb98a']}/><fog attach='fog' args={['#ffb98a',75,420]}/><PerspectiveCamera makeDefault position={[34,21,44]} fov={52}/><OrbitControls makeDefault target={[0,4,0]} enableDamping autoRotate autoRotateSpeed={.45} minDistance={14} maxDistance={170} maxPolarAngle={Math.PI/1.9}/><ambientLight intensity={1}/><directionalLight position={[-45,30,-35]} intensity={2.2} color='#ffb066'/><group position={[-120,20,-150]}><mesh><sphereGeometry args={[11,32,32]}/><meshBasicMaterial color='#fff7cc'/></mesh><group ref={glow}><mesh><sphereGeometry args={[20,24,24]}/><meshBasicMaterial color='#fdba74' transparent opacity={.28} depthWrite={false}/></mesh><mesh><sphereGeometry args={[34,24,24]}/><meshBasicMaterial color='#fb7185' transparent opacity={.12} depthWrite={false}/></mesh></group></group><mesh ref={ocean} rotation={[-Math.PI/2,0,0]} position={[0,0,0]} geometry={oceanGeo}><meshStandardMaterial color='#0e7fa8' emissive='#075985' emissiveIntensity={.35} roughness={.32} metalness={.08}/></mesh><mesh ref={foam} rotation={[-Math.PI/2,0,0]} position={[0,.28,0]}><ringGeometry args={[25,27.5,64]}/><meshBasicMaterial color='#ffffff' transparent opacity={.5} depthWrite={false}/></mesh><mesh ref={foam2} rotation={[-Math.PI/2,0,0]} position={[0,.3,0]}><ringGeometry args={[28,29,64]}/><meshBasicMaterial color='#e0f2fe' transparent opacity={.3} depthWrite={false}/></mesh><group><mesh position={[0,.4,0]}><cylinderGeometry args={[26,17,2.2,48]}/><meshStandardMaterial color='#8d6e63' roughness={1} flatShading/></mesh><mesh position={[0,1.4,0]}><cylinderGeometry args={[19,27,3,48]}/><meshStandardMaterial color='#eec27f' roughness={1}/></mesh><mesh position={[0,3,0]}><cylinderGeometry args={[17.5,19,1.2,48]}/><meshStandardMaterial color='#65a653' roughness={1}/></mesh>{M.map((m,i)=>(<group key={i} position={[m.x,3.4,m.z]}><mesh position={[0,m.h/2,0]}><coneGeometry args={[m.r,m.h,7]}/><meshStandardMaterial color={m.c} roughness={1} flatShading/></mesh><mesh position={[m.r*.28,m.h*.62,0]}><coneGeometry args={[m.r*.55,m.h*.65,6]}/><meshStandardMaterial color='#9a7a5f' roughness={1} flatShading/></mesh><mesh position={[0,m.h-.5,0]}><coneGeometry args={[m.r*.32,1.4,7]}/><meshStandardMaterial color='#d6c7b8' roughness={1} flatShading/></mesh></group>))}{rocks.map((r,i)=>(<mesh key={i} position={[r.x,r.y,r.z]} rotation={[r.rx,0,r.rz]}><dodecahedronGeometry args={[r.s,0]}/><meshStandardMaterial color={r.c} roughness={1} flatShading/></mesh>))}{trees.map((tr,i)=>(<group key={i} position={[tr.x,3.55,tr.z]} scale={tr.s}><mesh position={[0,.65,0]}><cylinderGeometry args={[.13,.2,1.3,6]}/><meshStandardMaterial color='#7c4a2d' roughness={1}/></mesh>{tr.t===0?(<><mesh position={[0,1.9,0]}><sphereGeometry args={[1.05,10,8]}/><meshStandardMaterial color={tr.c} roughness={1} flatShading/></mesh><mesh position={[.55,1.45,0]}><sphereGeometry args={[.7,9,7]}/><meshStandardMaterial color={tr.c} roughness={1} flatShading/></mesh></>):tr.t===1?(<mesh position={[0,2,0]}><coneGeometry args={[1,2.6,8]}/><meshStandardMaterial color={tr.c} roughness={1} flatShading/></mesh>):(<><mesh position={[0,1.55,0]} rotation={[0,0,.5]}><coneGeometry args={[.22,1.6,6]}/><meshStandardMaterial color='#22c55e' flatShading/></mesh><mesh position={[.45,1.5,.2]} rotation={[.4,0,-.6]}><coneGeometry args={[.22,1.5,6]}/><meshStandardMaterial color='#16a34a' flatShading/></mesh><mesh position={[-.45,1.5,-.15]} rotation={[-.3,0,.6]}><coneGeometry args={[.22,1.5,6]}/><meshStandardMaterial color='#4ade80' flatShading/></mesh></>)}</group>))}{flowers.map((f,i)=>(<mesh key={i} position={[f.x,3.72,f.z]}><sphereGeometry args={[.13,8,8]}/><meshStandardMaterial color={f.c} emissive={f.c} emissiveIntensity={.35}/></mesh>))}</group><group ref={clouds}>{cloudData.map((c,i)=>(<group key={i} position={[c.x,c.y,c.z]} scale={c.s}>{c.p.map((p,j)=>(<mesh key={j} position={[p[0],p[1],p[2]]} scale={[1,.55,1]}><sphereGeometry args={[p[3],14,12]}/><meshStandardMaterial color='#fff7ed' emissive='#fda4af' emissiveIntensity={.22} transparent opacity={.86} roughness={1}/></mesh>))}</group>))}</group><Html position={[0,18,-24]} center style={{pointerEvents:'none'}}><div style={{fontFamily:'sans-serif',textAlign:'center',color:'#7c2d12',background:'rgba(255,247,237,.72)',padding:'10px 18px',borderRadius:16,backdropFilter:'blur(6px)',boxShadow:'0 8px 30px rgba(124,45,18,.18)'}}><div style={{fontWeight:900,letterSpacing:2,fontSize:18}}>ENDLESS OCEAN</div><div style={{fontSize:12,opacity:.85}}>Warm Rocky Island • Dense Forest • Infinite Horizon</div><button onClick={startSound} style={{pointerEvents:'auto',marginTop:7,background:'#0e7fa8',color:'#fff',border:'none',padding:'6px 14px',borderRadius:999,cursor:'pointer',fontWeight:700}}>🌊 Ocean Sound</button></div></Html></>)
+
+function ModernCityModel() {
+  const { scene } = useGLTF('./assets/modern_city_block.glb');
+  return <primitive object={scene} position={[0, 0, 0]} scale={[0.12, 0.12, 0.12]} />;
+}
+
+export default function GameComponent() {
+  const controlsRef = useRef();
+  const [view, setView] = useState('street');
+
+  const playSfx = (freq = 440) => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } catch (e) {}
+  };
+
+  return (
+    <>
+      <color attach="background" args={['#b8d2ea']} />
+      <fog attach="fog" args={['#c5dcee', 60, 320]} />
+
+      <PerspectiveCamera makeDefault position={[-8.0, 3.2, -18.0]} fov={55} />
+      <OrbitControls
+        ref={controlsRef}
+        makeDefault
+        target={[0, 4, 0]}
+        enableDamping
+        dampingFactor={0.06}
+        maxPolarAngle={Math.PI / 2 - 0.02}
+        minDistance={2}
+        maxDistance={220}
+      />
+
+      <ambientLight intensity={1.1} color="#f0f9ff" />
+      <directionalLight
+        position={[60, 80, -45]}
+        intensity={3.2}
+        color="#fff5ed"
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+      />
+      <directionalLight position={[-40, 30, 30]} intensity={0.7} color="#93c5fd" />
+      <hemisphereLight skyColor="#bae6fd" groundColor="#334155" intensity={0.65} />
+
+      <Sky
+        sunPosition={[60, 80, -45]}
+        turbidity={5}
+        rayleigh={1.1}
+        mieCoefficient={0.005}
+        mieDirectionalG={0.8}
+      />
+
+      <Suspense fallback={
+        <Html center>
+          <div style={{
+            background: 'rgba(15, 23, 42, 0.9)',
+            backdropFilter: 'blur(10px)',
+            color: '#38bdf8',
+            padding: '16px 28px',
+            borderRadius: '16px',
+            fontWeight: 800,
+            fontSize: '15px',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            textAlign: 'center'
+          }}>
+            <div>🏙 Loading Modern City Block (4K PBR)...</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '6px' }}>22.5 MB Textures & Geometry • Blender 5.4 Master</div>
+          </div>
+        </Html>
+      }>
+        <ModernCityModel />
+      </Suspense>
+
+      <Html position={[0, 24, 0]} center style={{ pointerEvents: 'none' }}>
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.85)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(56, 189, 248, 0.35)',
+          borderRadius: '16px',
+          padding: '12px 24px',
+          color: '#ffffff',
+          fontFamily: 'sans-serif',
+          textAlign: 'center',
+          boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+          pointerEvents: 'auto',
+          minWidth: '300px'
+        }}>
+          <div style={{ fontSize: '15px', fontWeight: 900, letterSpacing: '1px', color: '#38bdf8' }}>
+            MODERN CITY BLOCK
+          </div>
+          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
+            Imported from Downloads/modern-city-block • Assembled & PBR Textured in Blender 5.4
+          </div>
+          <div style={{ marginTop: '10px', display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                playSfx(560);
+                setView('street');
+                if (controlsRef.current) {
+                  controlsRef.current.target.set(0, 3, 5);
+                  controlsRef.current.object.position.set(-8.0, 3.2, -18.0);
+                }
+              }}
+              style={{
+                background: view === 'street' ? '#0284c7' : '#334155',
+                border: 'none',
+                color: '#fff',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 700
+              }}
+            >
+              🚶 Street View
+            </button>
+            <button
+              onClick={() => {
+                playSfx(700);
+                setView('aerial');
+                if (controlsRef.current) {
+                  controlsRef.current.target.set(0, 0, 0);
+                  controlsRef.current.object.position.set(45, 65, -55);
+                }
+              }}
+              style={{
+                background: view === 'aerial' ? '#0284c7' : '#334155',
+                border: 'none',
+                color: '#fff',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 700
+              }}
+            >
+              🚁 Aerial Drone View
+            </button>
+          </div>
+        </div>
+      </Html>
+    </>
+  );
 }
