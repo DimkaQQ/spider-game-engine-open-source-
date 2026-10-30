@@ -730,7 +730,7 @@ function AgentQuestionCard({ questionData, onAnswer }) {
   );
 }
 
-export default function App() {
+function DesktopApp() {
   // Navigation & Tabs State
   const [activeLeftRail, setActiveLeftRail] = useState("Scene");
   const [viewportTab, setViewportTab] = useState("Title Menu"); // Title Menu, Viewport, Cinematic, Game View
@@ -9579,4 +9579,45 @@ SOFTWARE.`}
       )}
     </div>
   );
+}
+
+const MobileApp = React.lazy(() => import("./src/mobile/MobileApp.jsx"));
+
+function useIsMobileOrTablet() {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const ua = navigator.userAgent || "";
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua);
+    const isIPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+    const isCoarse = window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    const isSmall = window.matchMedia && window.matchMedia("(max-width: 959px)").matches;
+    return isMobileUA || isIPadOS || (isSmall && isCoarse);
+  });
+
+  useEffect(() => {
+    const check = () => {
+      const ua = navigator.userAgent || "";
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua);
+      const isIPadOS = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+      const isCoarse = window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+      const isSmall = window.matchMedia && window.matchMedia("(max-width: 959px)").matches;
+      setIsMobile(isMobileUA || isIPadOS || (isSmall && isCoarse));
+    };
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  return isMobile;
+}
+
+export default function App() {
+  const isMobile = useIsMobileOrTablet();
+  if (isMobile) {
+    return (
+      <React.Suspense fallback={<div style={{ height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0b0f19", color: "#94a3b8", fontFamily: "system-ui, sans-serif" }}>Loading Pocket Studio…</div>}>
+        <MobileApp />
+      </React.Suspense>
+    );
+  }
+  return <DesktopApp />;
 }
