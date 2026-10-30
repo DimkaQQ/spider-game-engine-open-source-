@@ -569,13 +569,100 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
   // Blender Real-Time MCP Bridge handlers (port 9876)
   let blenderSocket = null;
-  let blenderState = { connected: false, port: 9876, host: '127.0.0.1', lastCheck: 0, error: null };
+  let blenderProcess = null;
+  let blenderBuffer = '';
+  let blenderPending = [];
+  let blenderState = { connected: false, port: 9876, host: '127.0.0.1', lastCheck: 0, error: null, exePath: null };
+
+  function findBlenderExe() {
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+    const candidates = [
+      'C:\\Users\\vvvr8\\Downloads\\blender-5.4.0-alpha+main.745ab9a3e3c5-windows.amd64-release\\blender-5.4.0-alpha+main.745ab9a3e3c5-windows.amd64-release\\blender.exe'
+    ];
+    const userHome = os.homedir();
+    const dl = path.join(userHome, 'Downloads');
+    if (fs.existsSync(dl)) {
+      try {
+        for (const entry of fs.readdirSync(dl)) {
+          if (entry.toLowerCase().includes('blender')) {
+            const p1 = path.join(dl, entry, 'blender.exe');
+            if (fs.existsSync(p1)) candidates.push(p1);
+            const p2 = path.join(dl, entry, entry, 'blender.exe');
+            if (fs.existsSync(p2)) candidates.push(p2);
+          }
+        }
+      } catch {}
+    }
+    const progFiles = [process.env['ProgramFiles'], process.env['ProgramFiles(x86)'], process.env['LOCALAPPDATA']];
+    for (const pf of progFiles) {
+      if (!pf) continue;
+      const bf = path.join(pf, 'Blender Foundation');
+      if (fs.existsSync(bf)) {
+        try {
+          for (const d of fs.readdirSync(bf)) {
+            const exe = path.join(bf, d, 'blender.exe');
+            if (fs.existsSync(exe)) candidates.push(exe);
+          }
+        } catch {}
+      }
+    }
+    for (const c of candidates) {
+      if (c && fs.existsSync(c)) return c;
+    }
+    return null;
+  }
+
+  function launchBlenderBackground(exePath) {
+    if (blenderProcess) return;
+    try {
+      const { spawn } = require('child_process');
+      const path = require('path');
+      const scriptPath = path.join(__dirname, '..', 'scripts', 'spider_blender_server.py');
+      blenderProcess = spawn(exePath, ['-b', '--python', scriptPath], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      blenderProcess.unref();
+      blenderState.exePath = exePath;
+    } catch (e) {
+      console.error('[Blender] Failed to launch background blender:', e);
+    }
+  }
 
   ipcMain.handle('spider-blender-status', async () => {
     return { ok: true, ...blenderState };
   });
 
-  ipcMain.handle('spider-blender-connect', async (_e, { port = 9876, host = '127.0.0.1', enabled = true } = {}) => {
+  function setupBlenderSocket(socket, port, host, resolve) {
+    blenderBuffer = '';
+    socket.on('data', (data) => {
+      blenderBuffer += data.toString('utf8');
+      while (blenderBuffer.includes('\n')) {
+        const [line, ...rest] = blenderBuffer.split('\n');
+        blenderBuffer = rest.join('\n');
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          const parsed = JSON.parse(trimmed);
+          const cb = blenderPending.shift();
+          if (cb) cb.resolve(parsed);
+        } catch {}
+      }
+    });
+
+    socket.on('close', () => {
+      blenderState.connected = false;
+      blenderSocket = null;
+      while (blenderPending.length) {
+        const p = blenderPending.shift();
+        p.resolve({ ok: false, error: 'Blender socket closed' });
+      }
+    });
+  }
+
+  ipcMain.handle('spider-blender-connect', async (_e, { port = 9876, host = '127.0.0.1', enabled = true, autoStart = true } = {}) => {
     blenderState.port = port;
     blenderState.host = host;
     if (!enabled) {
@@ -589,14 +676,16 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     }
 
     const net = require('net');
-    return new Promise((resolve) => {
+
+    const tryConnect = () => new Promise((resolve) => {
       const socket = new net.Socket();
-      socket.setTimeout(2500);
+      socket.setTimeout(3000);
 
       socket.on('connect', () => {
         blenderState.connected = true;
         blenderState.error = null;
         blenderSocket = socket;
+        setupBlenderSocket(socket, port, host, resolve);
         resolve({ ok: true, connected: true, port, host, message: `Connected to Blender MCP on port ${port}` });
       });
 
@@ -604,39 +693,80 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         blenderState.connected = false;
         blenderState.error = err.message;
         try { socket.destroy(); } catch {}
-        resolve({
-          ok: false,
-          connected: false,
-          port,
-          error: err.code === 'ECONNREFUSED'
-            ? `Blender MCP not detected on 127.0.0.1:${port}. Open Blender and enable the MCP add-on listener.`
-            : err.message
-        });
+        resolve({ ok: false, code: err.code, error: err.message });
       });
 
       socket.on('timeout', () => {
         blenderState.connected = false;
         blenderState.error = 'Connection timed out';
         try { socket.destroy(); } catch {}
-        resolve({ ok: false, connected: false, port, error: `Connection to Blender on port ${port} timed out.` });
+        resolve({ ok: false, code: 'ETIMEDOUT', error: `Connection to Blender on port ${port} timed out.` });
       });
 
       socket.connect(port, host);
     });
+
+    let res = await tryConnect();
+    if (!res.ok && res.code === 'ECONNREFUSED' && autoStart) {
+      // Auto-launch Blender MCP server if detected
+      const exe = findBlenderExe();
+      if (exe) {
+        launchBlenderBackground(exe);
+        // Wait for server to bind
+        await new Promise((r) => setTimeout(r, 1800));
+        res = await tryConnect();
+      }
+    }
+
+    if (res.ok) {
+      blenderState.connected = true;
+      blenderState.error = null;
+      return { ok: true, connected: true, port, host, message: `Connected to Blender MCP on port ${port}` };
+    }
+
+    return {
+      ok: false,
+      connected: false,
+      port,
+      error: res.code === 'ECONNREFUSED'
+        ? `Blender MCP not detected on 127.0.0.1:${port}. Open Blender and start the MCP listener.`
+        : (res.error || 'Connection failed')
+    };
   });
 
-  ipcMain.handle('spider-blender-send', async (_e, { command, data } = {}) => {
+  ipcMain.handle('spider-blender-send', async (_e, payload = {}) => {
     if (!blenderSocket || !blenderState.connected) {
       return { ok: false, error: 'Blender MCP Bridge is not connected.' };
     }
     return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        const idx = blenderPending.findIndex(p => p.timer === timer);
+        if (idx !== -1) blenderPending.splice(idx, 1);
+        resolve({ ok: false, error: 'Blender MCP execution timed out (20s)' });
+      }, 20000);
+
+      blenderPending.push({
+        timer,
+        resolve: (val) => {
+          clearTimeout(timer);
+          resolve(val);
+        }
+      });
+
       try {
-        const payload = JSON.stringify({ command, data }) + '\n';
-        blenderSocket.write(payload, 'utf8', (err) => {
-          if (err) resolve({ ok: false, error: err.message });
-          else resolve({ ok: true, sent: true });
+        const cmd = payload.command || payload.tool || 'run_script';
+        const data = payload.data || payload.args || payload;
+        const msg = JSON.stringify({ command: cmd, data }) + '\n';
+        blenderSocket.write(msg, 'utf8', (err) => {
+          if (err) {
+            clearTimeout(timer);
+            const idx = blenderPending.findIndex(p => p.timer === timer);
+            if (idx !== -1) blenderPending.splice(idx, 1);
+            resolve({ ok: false, error: err.message });
+          }
         });
       } catch (err) {
+        clearTimeout(timer);
         resolve({ ok: false, error: String(err) });
       }
     });

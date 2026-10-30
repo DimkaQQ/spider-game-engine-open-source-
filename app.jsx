@@ -3288,11 +3288,16 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       case "blender_mcp":
       case "blender": {
         if (!blenderMcpEnabled) {
-          return "BLENDER MCP IS CURRENTLY OFF: Toggle Blender MCP ON in settings or type /blender to connect.";
+          const conn = await connectToBlender({ enabled: true });
+          if (!conn || !conn.ok) {
+            return `BLENDER MCP IS CURRENTLY OFF / UNREACHABLE: ${conn?.error || 'Make sure Blender is installed or running.'}`;
+          }
         }
         if (window.spiderShell?.blenderSend) {
           const res = await window.spiderShell.blenderSend(args);
-          return res.ok ? "Blender command executed successfully over MCP socket." : `Blender error: ${res.error}`;
+          if (!res) return "Blender MCP sent command with no response.";
+          if (!res.ok) return `Blender error: ${res.error || "Unknown error"}`;
+          return res.output || res.message || JSON.stringify(res);
         }
         return "Blender MCP simulated response: mesh received.";
       }
