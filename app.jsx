@@ -1472,6 +1472,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Muse Voice Transcriber state (Microphone with live audio wave animation)
   const [isTranscribing, setIsTranscribing] = useState(false);
   const speechRecognitionRef = useRef(null);
+  const initialPromptRef = useRef("");
 
   const toggleTranscriber = () => {
     if (isTranscribing) {
@@ -1509,7 +1510,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
           transcript += event.results[i][0].transcript;
         }
         if (transcript) {
-          setAiPrompt(transcript);
+          const combined = initialPromptRef.current
+            ? `${initialPromptRef.current.trim()} ${transcript.trim()}`
+            : transcript;
+          setAiPrompt(combined);
           if (aiTextareaRef.current) {
             aiTextareaRef.current.style.height = "auto";
             aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 28), 110)}px`;
@@ -1518,19 +1522,15 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       };
 
       rec.onerror = (e) => {
-        appendLog("Warning", `Muse Transcriber error: ${e.error || e}`);
-        setIsTranscribing(false);
+        appendLog("Info", `Muse Transcriber: ${e.error || e}`);
       };
 
-      rec.onend = () => {
-        setIsTranscribing(false);
-      };
+      rec.onend = () => {};
 
       speechRecognitionRef.current = rec;
       rec.start();
     } catch (err) {
-      setIsTranscribing(false);
-      appendLog("Warning", `Failed to start microphone transcriber: ${err.message || err}`);
+      appendLog("Warning", `Microphone input: ${err.message || err}`);
     }
   };
 
@@ -8064,33 +8064,35 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       handleAskAiSubmit(e);
                     }
                   }}
-                  placeholder={aiThinking ? "Working..." : isTranscribing ? "Listening to your voice..." : "Type message, paste image... (/blender)"}
-                  className="w-full text-xs font-medium text-slate-900 placeholder:text-slate-400 px-2.5 py-1.5 bg-slate-50 hover:bg-white focus:bg-white rounded-xl border border-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100 resize-none min-h-[28px] max-h-[110px] leading-snug no-scrollbar transition"
+                  placeholder={aiThinking ? "Working..." : isTranscribing ? "Listening... speak now" : "Search or ask AI... (/blender)"}
+                  className={`w-full text-xs font-medium text-slate-900 placeholder:text-slate-400 pl-2.5 ${isTranscribing ? "pr-14 bg-rose-50/50 border-rose-300 ring-1 ring-rose-200" : "pr-8 bg-slate-50 hover:bg-white focus:bg-white border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-100"} py-1.5 rounded-xl border focus:outline-none resize-none min-h-[28px] max-h-[110px] leading-snug no-scrollbar transition`}
                   style={{ height: "auto" }}
                 />
-              </div>
 
-              {/* Muse Transcriber Mic Button with wave indicator */}
-              <button
-                type="button"
-                onClick={toggleTranscriber}
-                title={isTranscribing ? "Stop Muse voice transcriber" : "Muse Voice Transcriber (speak to prompt)"}
-                className={`p-1 mb-0.5 rounded-lg transition cursor-pointer flex items-center justify-center shrink-0 ${
-                  isTranscribing
-                    ? "bg-rose-500 text-white shadow-xs animate-pulse ring-2 ring-rose-200"
-                    : "text-slate-400 hover:text-indigo-600 hover:bg-slate-100"
-                }`}
-              >
-                {isTranscribing ? (
-                  <div className="flex items-center gap-0.5 px-0.5">
-                    <MicOff className="w-3.5 h-3.5" />
-                    <span className="muse-wave-bar h-2.5"></span>
-                    <span className="muse-wave-bar h-3.5"></span>
-                  </div>
-                ) : (
-                  <Mic className="w-3.5 h-3.5" />
-                )}
-              </button>
+                {/* Mic AS INPUT IN SEARCH BAR (Right inner adornment with live sound wave animation) */}
+                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 select-none pointer-events-auto">
+                  {isTranscribing && (
+                    <div className="flex items-center gap-0.5 h-3 px-0.5 animate-fadeIn">
+                      <span className="muse-wave-bar h-2"></span>
+                      <span className="muse-wave-bar h-3.5"></span>
+                      <span className="muse-wave-bar h-1.5"></span>
+                      <span className="muse-wave-bar h-3"></span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={toggleTranscriber}
+                    title={isTranscribing ? "Stop voice transcriber" : "Muse Voice Input — speak into search bar"}
+                    className={`p-1 rounded-full transition cursor-pointer flex items-center justify-center shrink-0 ${
+                      isTranscribing
+                        ? "bg-rose-500 text-white shadow-xs animate-pulse ring-2 ring-rose-200 scale-105"
+                        : "text-slate-400 hover:text-indigo-600 hover:bg-slate-200/60"
+                    }`}
+                  >
+                    {isTranscribing ? <MicOff className="w-3 h-3 text-white" /> : <Mic className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
 
               {/* Primary submit button */}
               <button
