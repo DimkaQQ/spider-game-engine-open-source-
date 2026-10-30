@@ -8914,31 +8914,29 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <Plus size={19} strokeWidth={2.2} />
               </button>
 
-              {/* 3. Continue Button */}
+              {/* 3. Continue Button (Icon only) */}
               <button
                 type="button"
                 onClick={handleContinuePrompt}
-                title="Tell Spider AI to continue with the next steps"
-                className="h-9 px-2.5 shrink-0 rounded-2xl flex items-center gap-1 transition-all cursor-pointer bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 text-[11px] font-bold shadow-2xs active:scale-95 select-none"
+                title="Continue (tell Spider AI to proceed with next steps)"
+                className="w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 shadow-2xs active:scale-95 select-none"
               >
-                <Play size={12} fill="currentColor" />
-                <span>Continue</span>
+                <Play size={15} fill="currentColor" />
               </button>
 
-              {/* 4. Que (Queue) Button */}
+              {/* 4. Queue Button (Icon only) */}
               <button
                 type="button"
                 onClick={handleQueuePrompt}
                 disabled={!aiPrompt.trim() && !aiAttachedImage}
                 title="Queue prompt for Spider AI execution"
-                className={`h-9 px-2.5 shrink-0 rounded-2xl flex items-center gap-1 transition-all cursor-pointer text-[11px] font-bold shadow-2xs border select-none ${
+                className={`w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-2xs border select-none ${
                   aiPrompt.trim() || aiAttachedImage
                     ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 active:scale-95"
                     : "bg-slate-50 text-slate-400 border-slate-200/60 cursor-not-allowed opacity-50"
                 }`}
               >
-                <ListPlus size={13} />
-                <span>Que</span>
+                <ListPlus size={16} />
               </button>
 
               {/* 5. Send / Submit Button */}
