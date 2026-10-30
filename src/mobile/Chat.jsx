@@ -6,7 +6,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { startVoice, voiceLang, voiceSupported } from "./voice.js";
 import {
-  ArrowUp, Mic, Check, RotateCcw, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
+  ArrowUp, Mic, Check, RotateCcw, MoreHorizontal, Pencil, Copy, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
 } from "lucide-react";
 import { Sheet, cx } from "./ui.jsx";
 
@@ -26,12 +26,18 @@ function Step({ s }) {
   );
 }
 
-function Message({ m, last, onUndo, onRetry, busy }) {
+function Message({ m, last, onUndo, onRetry, busy, onMenu }) {
+  const more = (
+    <button type="button" className="sp-msg-more" onClick={() => onMenu(m)} aria-label="Message options">
+      <MoreHorizontal size={16} />
+    </button>
+  );
   if (m.role === "user") {
     return (
       <div className="sp-msg is-user">
         <p>{m.text}</p>
         {m.queued && <small>queued: sent mid-run</small>}
+        {more}
       </div>
     );
   }
@@ -55,6 +61,7 @@ function Message({ m, last, onUndo, onRetry, busy }) {
           <Undo2 size={14} /> Undo scene changes
         </button>
       )}
+      {more}
     </div>
   );
 }
@@ -101,10 +108,26 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
     el.style.height = `${Math.min(el.scrollHeight, 132)}px`;
   };
 
+  const [menu, setMenu] = useState(null); // message whose options are open
+  const [editing, setEditing] = useState(null); // user message being edited
+
+  const startEdit = (m) => {
+    setEditing(m);
+    setText(m.text);
+    setMenu(null);
+    requestAnimationFrame(() => {
+      grow(input.current);
+      input.current?.focus();
+    });
+  };
+
   const submit = () => {
     const t = text.trim();
     if (!t) return;
-    s.send(t);
+    if (editing) {
+      s.editAndSend(editing.id, t);
+      setEditing(null);
+    } else s.send(t);
     setText("");
     requestAnimationFrame(() => grow(input.current));
   };
@@ -172,7 +195,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
         )}
 
         {session.messages.map((m, i) => (
-          <Message key={m.id} m={m} last={i === session.messages.length - 1} busy={busy} onRetry={s.send} onUndo={() => { s.undoAgent(); notify("Scene restored", "ok"); }} />
+          <Message key={m.id} m={m} onMenu={setMenu} last={i === session.messages.length - 1} busy={busy} onRetry={s.send} onUndo={() => { s.undoAgent(); notify("Scene restored", "ok"); }} />
         ))}
 
         {busy && stream && (
@@ -236,6 +259,14 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
       </div>
 
       <div className="sp-composer">
+        {editing && (
+          <div className="sp-editing">
+            <Pencil size={14} /> <span>Editing message. Sending replaces it and the replies after it.</span>
+            <button type="button" className="sp-icon-btn" onClick={() => { setEditing(null); setText(""); }} aria-label="Cancel edit">
+              <X size={16} />
+            </button>
+          </div>
+        )}
         {!!queued.length && <div className="sp-queued">{queued.length} message{queued.length > 1 ? "s" : ""} queued</div>}
         <div className="sp-composer-row">
           <textarea
@@ -266,6 +297,46 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
           )}
         </div>
       </div>
+
+      <Sheet open={!!menu} onClose={() => setMenu(null)} title="Message" subtitle={menu ? (menu.role === "user" ? "You" : "Assistant") : ""}>
+        {menu && (
+          <div className="sp-menu">
+            {menu.role === "user" && (
+              <button type="button" disabled={busy} onClick={() => startEdit(menu)}>
+                <Pencil size={18} /> Edit
+              </button>
+            )}
+            {menu.role === "user" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setText(menu.text);
+                  setMenu(null);
+                  requestAnimationFrame(() => {
+                    grow(input.current);
+                    input.current?.focus();
+                  });
+                }}
+              >
+                <RotateCcw size={18} /> Reuse
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(menu.text);
+                setMenu(null);
+                notify("Copied", "ok");
+              }}
+            >
+              <Copy size={18} /> Copy
+            </button>
+            <button type="button" className="is-danger" onClick={() => { s.deleteMessage(menu.id); setMenu(null); notify("Deleted", "ok"); }}>
+              <Trash2 size={18} /> Delete
+            </button>
+          </div>
+        )}
+      </Sheet>
 
       <Sheet open={sheet === "model"} onClose={() => setSheet(null)} title="Model" subtitle={s.modelsError || `${s.provider.name}`}>
         <div className="sp-stack-sm">

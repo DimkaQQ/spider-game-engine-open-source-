@@ -741,6 +741,33 @@ export function useStudio() {
   const sessionRefId = useRef(sessionId);
   sessionRefId.current = sessionId;
 
+  const writeSessions = useCallback((updater) => {
+    const next = updater(sessionsRef.current);
+    sessionsRef.current = next; // visible to send() right away, before React re-renders
+    setSessions(next);
+  }, []);
+
+  const deleteMessage = useCallback(
+    (id) =>
+      writeSessions((list) => list.map((x) => (x.id === sessionRefId.current ? { ...x, messages: x.messages.filter((m) => m.id !== id) } : x))),
+    [writeSessions]
+  );
+
+  /** Replace a sent message: drop it and everything after it, then send the edited text. */
+  const editAndSend = useCallback(
+    (id, text) => {
+      writeSessions((list) =>
+        list.map((x) => {
+          if (x.id !== sessionRefId.current) return x;
+          const i = x.messages.findIndex((m) => m.id === id);
+          return i < 0 ? x : { ...x, messages: x.messages.slice(0, i) };
+        })
+      );
+      sendRef.current?.(text);
+    },
+    [writeSessions]
+  );
+
   const startSession = useCallback(() => {
     const s = newSession();
     setSessions((l) => [s, ...l]);
@@ -1275,7 +1302,7 @@ export function useStudio() {
     providers: PROVIDERS, provider, providerId, setProvider, hasKey, providerKey, isConfigured, setProviderKey,
     models, model, setModel, modelsError, refreshModels, loadingModels, baseUrl, setBaseUrl,
     friendlyModel: (id) => friendlyModel(providerId, id),
-    sessions, session, sessionId, setSessionId, startSession, deleteSession,
+    sessions, session, sessionId, setSessionId, startSession, deleteSession, deleteMessage, editAndSend,
     busy, stream, permission, question, queued, send, stop, undoAgent,
     pushMessage,
   };
