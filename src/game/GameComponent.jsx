@@ -1,82 +1,69 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
-import { PauseOverlay } from './ArenaEnv';
+import { PauseOverlay } from './ArenaEnv.jsx';
 
-export default function ZombieDefense() {
-  const [kills, setKills] = useState(0);
-  const [hp, setHp] = useState(100);
+const sfx = (freq = 440, type = 'sine', dur = 0.1) => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    g.gain.setValueAtTime(0.1, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur);
+  } catch {}
+};
+
+export default function GameComponent() {
+  const [score, setScore] = useState(0);
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(false);
-  const heroRef = useRef();
-  const enemyRef = useRef();
+  const ballRef = useRef();
 
-  useFrame((_, delta) => {
-    if (hp <= 0 || paused) return;
-    const t = window.__spiderVirtualTouch || { x: 0, z: 0 };
-    if (heroRef.current) {
-      heroRef.current.position.x += t.x * delta * 8;
-      heroRef.current.position.z += t.z * delta * 8;
-      heroRef.current.position.x = Math.max(-10, Math.min(10, heroRef.current.position.x));
-      heroRef.current.position.z = Math.max(-10, Math.min(10, heroRef.current.position.z));
-    }
-    if (enemyRef.current && heroRef.current) {
-      const dx = heroRef.current.position.x - enemyRef.current.position.x;
-      const dz = heroRef.current.position.z - enemyRef.current.position.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > 0.8) {
-        enemyRef.current.position.x += (dx / dist) * delta * 3.5;
-        enemyRef.current.position.z += (dz / dist) * delta * 3.5;
-      } else {
-        setHp((h) => Math.max(0, h - 1));
-      }
+  useFrame((state, delta) => {
+    if (paused) return;
+    if (ballRef.current) {
+      ballRef.current.rotation.y += delta * 1.5;
+      ballRef.current.position.y = 1 + Math.sin(state.clock.elapsedTime * 3) * 0.4;
     }
   });
 
-  const onSmiteZombie = () => {
+  const onCollect = () => {
     if (paused) return;
-    if (enemyRef.current) {
-      enemyRef.current.position.x = (Math.random() - 0.5) * 16;
-      enemyRef.current.position.z = (Math.random() - 0.5) * 16;
-      setKills((k) => k + 1);
-    }
+    setScore((s) => s + 1);
+    if (!muted) sfx(660, 'triangle', 0.15);
   };
 
   return (
     <group>
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[5, 10, 5]} intensity={1.2} />
-      {/* Ground arena */}
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 10, 5]} intensity={1.5} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 0]}>
-        <planeGeometry args={[24, 24]} />
-        <meshStandardMaterial color="#1c1917" roughness={0.9} />
+        <planeGeometry args={[20, 20]} />
+        <meshStandardMaterial color="#065f46" roughness={0.8} />
       </mesh>
-      {/* Hero */}
-      <mesh ref={heroRef} position={[0, 0.6, 0]}>
-        <cylinderGeometry args={[0.4, 0.5, 1.2, 16]} />
-        <meshStandardMaterial color="#0284c7" roughness={0.3} />
+      <mesh ref={ballRef} position={[0, 1, 0]} onClick={onCollect}>
+        <sphereGeometry args={[0.8, 32, 32]} />
+        <meshStandardMaterial color="#38bdf8" roughness={0.2} metalness={0.5} />
       </mesh>
-      {/* Zombie target - tap to attack */}
-      <mesh ref={enemyRef} position={[5, 0.6, 5]} onPointerDown={onSmiteZombie}>
-        <boxGeometry args={[0.9, 1.2, 0.9]} />
-        <meshStandardMaterial color="#dc2626" roughness={0.6} />
-      </mesh>
-      <Html fullscreen calculatePosition={(_, __, s) => [s.width / 2, 20]}>
+      <Html fullscreen calculatePosition={(_, __, s) => [s.width / 2, 30]}>
         <div style={{
-          background: 'rgba(12,10,9,0.9)',
+          background: 'rgba(0,0,0,0.7)',
           color: '#fff',
-          padding: '8px 20px',
-          borderRadius: 20,
+          padding: '8px 18px',
+          borderRadius: 16,
           fontFamily: 'sans-serif',
-          fontWeight: 700,
+          fontWeight: 'bold',
           textAlign: 'center'
         }}>
-          <div>HP: {hp}% | Kills: {kills}</div>
-          <small style={{ color: '#f87171' }}>Tap the red zombie to attack!</small>
+          💎 Orbs Collected: {score} (Click the blue orb!)
         </div>
       </Html>
-
-      {/* In-game Pause/Play, Icon-Only Sound Toggle, and Exit (Esc) overlay */}
       <PauseOverlay
         paused={paused}
         onTogglePause={() => setPaused(!paused)}

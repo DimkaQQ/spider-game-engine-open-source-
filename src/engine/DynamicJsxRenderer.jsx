@@ -57,6 +57,26 @@ const EMPTY_PROJECT_FILES = Object.freeze([]);
 const COMPILATION_CACHE = new Map();
 const MAX_CACHE_SIZE = 64;
 
+function filterCollidingScope(keys, values, transformedCode) {
+  const declared = new Set();
+  const declRegex = /(?:^|[;\s{}])(?:const|let|var|function|class)\s+([a-zA-Z0-9_$]+)/g;
+  let match;
+  while ((match = declRegex.exec(transformedCode)) !== null) {
+    declared.add(match[1]);
+  }
+  const essentials = new Set(["require", "module", "exports", "React"]);
+  const safeKeys = [];
+  const safeValues = [];
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (essentials.has(k) || !declared.has(k)) {
+      safeKeys.push(k);
+      safeValues.push(values[i]);
+    }
+  }
+  return { safeKeys, safeValues };
+}
+
 function computeCacheKey(codeStr, projectFiles) {
   let key = codeStr;
   if (Array.isArray(projectFiles) && projectFiles.length > 0) {
@@ -246,8 +266,9 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
               SoundEffects,
               sfx
             ];
-            const subFn = new Function(...subKeys, subTransformed);
-            subFn(...subValues);
+            const { safeKeys: safeSubKeys, safeValues: safeSubValues } = filterCollidingScope(subKeys, subValues, subTransformed);
+            const subFn = new Function(...safeSubKeys, subTransformed);
+            subFn(...safeSubValues);
 
 
 /* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
@@ -371,8 +392,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       PiecesModule.PieceModel
     ];
 
-    const fn = new Function(...scopeKeys, transformed);
-    fn(...scopeValues);
+    const { safeKeys, safeValues } = filterCollidingScope(scopeKeys, scopeValues, transformed);
+    const fn = new Function(...safeKeys, transformed);
+    fn(...safeValues);
 
     const ComponentTarget = exports.default || Object.values(exports).find((v) => typeof v === "function") || null;
     if (ComponentTarget && typeof window !== "undefined" && !window.__lastDynamicJsxError?.startsWith("Runtime error")) {
