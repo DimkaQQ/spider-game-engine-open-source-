@@ -176,6 +176,11 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
               "Stars",
               "Grid",
               "Html",
+              "useFBX",
+              "useGLTF",
+              "useAnimations",
+              "OrbitControls",
+              "Clone",
               "Chess",
               "sfx",
               "SoundEffects",
@@ -204,6 +209,11 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
               Drei.Stars,
               Drei.Grid,
               Drei.Html,
+              Drei.useFBX,
+              Drei.useGLTF,
+              Drei.useAnimations,
+              Drei.OrbitControls,
+              Drei.Clone,
               Chess,
               sfx,
               SoundEffects,
@@ -257,6 +267,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       "Stars",
       "Grid",
       "Html",
+      "useFBX",
+      "useGLTF",
+      "useAnimations",
+      "OrbitControls",
+      "Clone",
       "Chess",
       "sfx",
       "SoundEffects",
@@ -286,6 +301,11 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       Drei.Stars,
       Drei.Grid,
       Drei.Html,
+      Drei.useFBX,
+      Drei.useGLTF,
+      Drei.useAnimations,
+      Drei.OrbitControls,
+      Drei.Clone,
       Chess,
       sfx,
       SoundEffects,
@@ -370,10 +390,14 @@ export default function DynamicJsxRenderer({
             pointerEvents: 'auto'
           }}
         >
-          <ComponentToRender />
+          <React.Suspense fallback={null}>
+            <ComponentToRender />
+          </React.Suspense>
         </Drei.Html>
       ) : (
-        <ComponentToRender />
+        <React.Suspense fallback={null}>
+          <ComponentToRender />
+        </React.Suspense>
       )}
     </JsxErrorBoundary>
   );

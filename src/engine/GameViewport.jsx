@@ -1493,7 +1493,9 @@ export default function GameViewport({
 
         {/* Dynamic 3D Game / Component Staging — Powered by Muse / Spider AI */}
         {hasCustomJsx && !isDomApp ? (
-          <DynamicJsxRenderer code={activeJsxCode} name={activeJsxName} projectFiles={projectFiles} />
+          <Suspense fallback={null}>
+            <DynamicJsxRenderer code={activeJsxCode} name={activeJsxName} projectFiles={projectFiles} />
+          </Suspense>
         ) : null}
 
         {/* Real gizmo on the selected actor */}

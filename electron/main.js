@@ -736,7 +736,34 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
 
   ipcMain.handle('spider-blender-send', async (_e, payload = {}) => {
     if (!blenderSocket || !blenderState.connected) {
-      return { ok: false, error: 'Blender MCP Bridge is not connected.' };
+      // Auto-connect if socket is not active
+      const net = require('net');
+      const connResult = await new Promise((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(4000);
+        socket.on('connect', () => {
+          blenderState.connected = true;
+          blenderState.error = null;
+          blenderSocket = socket;
+          setupBlenderSocket(socket, blenderState.port || 9876, blenderState.host || '127.0.0.1', resolve);
+          resolve(true);
+        });
+        socket.on('error', () => {
+          blenderState.connected = false;
+          try { socket.destroy(); } catch {}
+          resolve(false);
+        });
+        socket.on('timeout', () => {
+          blenderState.connected = false;
+          try { socket.destroy(); } catch {}
+          resolve(false);
+        });
+        socket.connect(blenderState.port || 9876, blenderState.host || '127.0.0.1');
+      });
+
+      if (!connResult) {
+        return { ok: false, error: 'Blender MCP Bridge is not connected.' };
+      }
     }
     return new Promise((resolve) => {
       const timer = setTimeout(() => {

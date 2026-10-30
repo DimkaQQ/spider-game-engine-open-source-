@@ -17,6 +17,27 @@
     <meta name="disclaimer" content="NOTE: Games created or run using this engine are strictly at your own risk." />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: ws: wss: http: https: file:;" />
     <style>
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #334155 transparent;
+      }
+      *::-webkit-scrollbar, ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      *::-webkit-scrollbar-track, ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      *::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 9999px;
+      }
+      *::-webkit-scrollbar-button, ::-webkit-scrollbar-button {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        background: transparent !important;
+      }
       html, body {
         background-color: #ffffff;
         color: #0f172a;

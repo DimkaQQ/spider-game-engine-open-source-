@@ -2801,7 +2801,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
             collision: it.collision || "BlockAll"
           };
           ids.push(n.id);
-          setSceneGroups((prev) => (prev || []).map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...(g?.children || []), n] } : g)));
+          setSceneGroups((prev) => {
+            const list = (prev && prev.length > 0) ? prev : [{ id: "group_world", name: "World", expanded: true, children: [] }];
+            return list.map((g, idx) => (idx === 0 ? { ...g, expanded: true, children: [...(g?.children || []), n] } : g));
+          });
         }
         appendLog("Success", `Agent bulk-spawned ${ids.length} props`);
         return { spawned: ids.length, ids };
@@ -3260,20 +3263,32 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
         const copyCmd = `
           $src = "${normPath.replace(/"/g, '`"')}"
-          $dest = "${destDir.replace(/"/g, '`"')}"
+          $destPublic = "public/assets/${targetSub}"
+          $destDist = "dist/assets/${targetSub}"
           if (!(Test-Path -LiteralPath $src)) {
             Write-Error "Source path does not exist: $src"
             exit 1
           }
-          if (!(Test-Path -LiteralPath $dest)) {
-            New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          if (!(Test-Path -LiteralPath $destPublic)) {
+            New-Item -ItemType Directory -Force -Path $destPublic | Out-Null
+          }
+          if (Test-Path -LiteralPath "dist") {
+            if (!(Test-Path -LiteralPath $destDist)) {
+              New-Item -ItemType Directory -Force -Path $destDist | Out-Null
+            }
           }
           if (Test-Path -LiteralPath $src -PathType Container) {
-            Copy-Item -Path "$src\\*" -Destination $dest -Recurse -Force
+            Copy-Item -Path "$src\\*" -Destination $destPublic -Recurse -Force
+            if (Test-Path -LiteralPath "dist") {
+              Copy-Item -Path "$src\\*" -Destination $destDist -Recurse -Force
+            }
           } else {
-            Copy-Item -LiteralPath $src -Destination $dest -Force
+            Copy-Item -LiteralPath $src -Destination $destPublic -Force
+            if (Test-Path -LiteralPath "dist") {
+              Copy-Item -LiteralPath $src -Destination $destDist -Force
+            }
           }
-          Get-ChildItem -Path $dest -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -Property Name, Length, Extension | ConvertTo-Json -Compress
+          Get-ChildItem -Path $destPublic -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object -Property Name, Length, Extension | ConvertTo-Json -Compress
         `;
 
         if (window.spiderShell?.runCommand) {
@@ -4901,11 +4916,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       ...(asset.textureUrl ? { textureUrl: asset.textureUrl } : {})
     };
 
-    setSceneGroups((prev) =>
-      (prev || []).map((g, idx) =>
+    setSceneGroups((prev) => {
+      const list = (prev && prev.length > 0) ? prev : [{ id: "group_world", name: "World", expanded: true, children: [] }];
+      return list.map((g, idx) =>
         idx === 0 ? { ...g, expanded: true, children: [...(g?.children || []), newNode] } : g
-      )
-    );
+      );
+    });
     setSelectedNodeId(newId);
     appendLog("Info", `Spawned Actor '${newNode.name}' at (${randomX}, 0.0, ${randomZ})`);
     if (newNode.modelUrl) appendLog("Success", `Model loaded: ${asset.mesh} — real geometry in viewport (drag with move gizmo)`);
@@ -8300,7 +8316,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 </div>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto no-scrollbar px-2.5 py-2">
+            <div className="flex-1 overflow-y-auto px-2.5 py-2">
               {showRecents ? (
                 <div className="space-y-1">
                   <button
