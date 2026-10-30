@@ -418,7 +418,8 @@ function About({ onBack }) {
         <dl className="sp-kv">
           <dt>Author</dt><dd>M4SPIDER</dd>
           <dt>License</dt><dd>MIT</dd>
-          <dt>Lineage</dt><dd>M4SPIDER · DimkaQQ</dd>
+          <dt>Lineage</dt><dd>M4SPIDER · Dinmukhammed</dd>
+          <dt>GitHub</dt><dd><a className="sp-link-inline" href="https://github.com/DimkaQQ" target="_blank" rel="noopener noreferrer">github.com/DimkaQQ</a></dd>
         </dl>
         <Row icon={FileText} title="Third-party licenses" hint="Open-source notices" onClick={() => setLic(true)} />
       </div>

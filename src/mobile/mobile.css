@@ -544,3 +544,4 @@ html.sp-mobile, html.sp-mobile body, html.sp-mobile #root { background: var(--bg
 .sp-licenses code { font: 12px var(--mono); background: var(--surface-2); padding: 1px 6px; border-radius: 6px; }
 .sp-licenses a { color: var(--accent); word-break: break-all; }
 .sp-licenses hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+.sp-link-inline { color: var(--accent); text-decoration: none; font-weight: 700; }
