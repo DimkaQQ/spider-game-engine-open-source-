@@ -641,6 +641,17 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
     });
   });
 
+  // Grant microphone and media permissions for muse-voice-transcribe-1.0
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture') {
+      return callback(true);
+    }
+    callback(true);
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    return true;
+  });
+
   startMcpBridge()
   const splash = createSplash()
   createWindow(splash)

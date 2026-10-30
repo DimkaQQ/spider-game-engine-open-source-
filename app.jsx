@@ -107,6 +107,17 @@ export function purifyUiText(text) {
 }
 
 
+// Antigravity-style slash commands popup registry
+const SLASH_COMMANDS = [
+  { id: "blender", name: "blender", desc: "Connect to Blender Real-Time MCP Bridge or toggle connection", icon: "🎨" },
+  { id: "plan", name: "plan", desc: "Plan carefully before executing a task", icon: "📋" },
+  { id: "play", name: "play", desc: "Toggle live game play testing mode", icon: "🎮" },
+  { id: "browser", name: "browser", desc: "Invoke web browser agent for assets and inspection", icon: "🌐" },
+  { id: "clear", name: "clear", desc: "Clear conversation history to start fresh", icon: "🧹" },
+  { id: "stop", name: "stop", desc: "Stop active agent execution", icon: "⏹️" },
+  { id: "help", name: "help", desc: "View available engine tools, skills, and commands", icon: "💡" }
+];
+
 // --- CONSOLE LOGS (start empty — real boot lines are logged on mount) ---
 const INITIAL_LOGS = [];
 
@@ -1494,68 +1505,185 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     }
   };
 
-  // Muse Voice Transcriber state (Microphone with live audio wave animation)
+  // Muse Voice Transcriber state (Microphone with live audio wave animation & muse-voice-transcribe-1.0)
   const [isTranscribing, setIsTranscribing] = useState(false);
   const speechRecognitionRef = useRef(null);
   const initialPromptRef = useRef("");
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
-  const toggleTranscriber = () => {
+  // Antigravity-style slash command index
+  const [slashIndex, setSlashIndex] = useState(0);
+
+  const transcribeWithMuseVoice = async (audioBlob) => {
+    if (!audioBlob || audioBlob.size < 600) return;
+    appendLog("Info", "Transcribing speech with muse-voice-transcribe-1.0...");
+
+    try {
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          const res = reader.result;
+          if (res) resolve(String(res).split(",")[1]);
+          else reject(new Error("Failed to read audio"));
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(audioBlob);
+      const base64Audio = await base64Promise;
+
+      const apiKey = metaKeyRef.current;
+      if (!apiKey) {
+        appendLog("Warning", "muse-voice-transcribe-1.0: Paste your API key in Settings > AI & Keys to enable cloud transcription.");
+        return;
+      }
+
+      // Transcribe audio using muse-voice-transcribe-1.0
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  mimeType: audioBlob.type || "audio/webm",
+                  data: base64Audio
+                }
+              },
+              {
+                text: "You are the muse-voice-transcribe-1.0 speech recognition engine. Transcribe the spoken speech in this audio clip into text accurately. Output ONLY the exact transcribed text, nothing else. Do not wrap in quotes or code blocks, and do not use markdown asterisks."
+              }
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.0
+          }
+        })
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+        if (text) {
+          const clean = purifyUiText(text);
+          setAiPrompt((prev) => {
+            const trimmed = (prev || "").trim();
+            return trimmed ? `${trimmed} ${clean}` : clean;
+          });
+          appendLog("Success", `🎙️ muse-voice-transcribe-1.0: "${clean}"`);
+          if (aiTextareaRef.current) {
+            aiTextareaRef.current.style.height = "auto";
+            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
+          }
+        }
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        appendLog("Warning", `muse-voice-transcribe-1.0: ${errJson.error?.message || res.statusText}`);
+      }
+    } catch (err) {
+      appendLog("Warning", `muse-voice-transcribe error: ${err.message || err}`);
+    }
+  };
+
+  const toggleTranscriber = async () => {
+    // If already transcribing, stop and transcribe!
     if (isTranscribing) {
+      setIsTranscribing(false);
+      appendLog("Info", "Processing audio with muse-voice-transcribe-1.0...");
+
+      // Stop speech recognition
       if (speechRecognitionRef.current) {
         try { speechRecognitionRef.current.stop(); } catch {}
       }
-      setIsTranscribing(false);
-      appendLog("Info", "Muse Transcriber paused.");
+
+      // Stop MediaRecorder and trigger transcription
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try { mediaRecorderRef.current.stop(); } catch {}
+      }
+
+      // Stop mic tracks
+      if (mediaStreamRef.current) {
+        try {
+          mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+          mediaStreamRef.current = null;
+        } catch {}
+      }
       return;
     }
 
+    initialPromptRef.current = aiPrompt || "";
     setIsTranscribing(true);
-    appendLog("Success", "🎙️ Muse Transcriber active — listening for voice...");
+    appendLog("Success", "🎙️ muse-voice-transcribe-1.0 active — recording audio...");
 
-    const SpeechRecognition = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
-    if (!SpeechRecognition) {
-      appendLog("Info", "Voice waveform active. Speak into microphone or type message.");
-      return;
+    // 1. Start Native MediaRecorder for muse-voice-transcribe-1.0 (Works in Electron natively)
+    audioChunksRef.current = [];
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+        mediaStreamRef.current = stream;
+
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "";
+
+        const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+
+        recorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+
+        recorder.onstop = () => {
+          const blob = new Blob(audioChunksRef.current, { type: mimeType || "audio/webm" });
+          transcribeWithMuseVoice(blob);
+        };
+
+        recorder.start(250);
+      }
+    } catch (err) {
+      appendLog("Warning", `Microphone recording error: ${err.message || err}`);
     }
 
-    try {
-      const rec = new SpeechRecognition();
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.lang = "en-US";
+    // 2. Parallel Web Speech fallback for real-time live preview if available
+    const SpeechRecognition = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
+    if (SpeechRecognition) {
+      try {
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.interimResults = true;
+        rec.lang = "en-US";
 
-      rec.onstart = () => {
-        setIsTranscribing(true);
-        appendLog("Success", "🎙️ Muse Transcriber listening... speak now!");
-      };
-
-      rec.onresult = (event) => {
-        let transcript = "";
-        for (let i = 0; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
-        }
-        if (transcript) {
-          const combined = initialPromptRef.current
-            ? `${initialPromptRef.current.trim()} ${transcript.trim()}`
-            : transcript;
-          setAiPrompt(combined);
-          if (aiTextareaRef.current) {
-            aiTextareaRef.current.style.height = "auto";
-            aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 28), 110)}px`;
+        rec.onresult = (event) => {
+          let transcript = "";
+          for (let i = 0; i < event.results.length; ++i) {
+            transcript += event.results[i][0].transcript;
           }
-        }
-      };
+          if (transcript) {
+            const combined = initialPromptRef.current
+              ? `${initialPromptRef.current.trim()} ${transcript.trim()}`
+              : transcript;
+            setAiPrompt(combined);
+            if (aiTextareaRef.current) {
+              aiTextareaRef.current.style.height = "auto";
+              aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
+            }
+          }
+        };
 
-      rec.onerror = (e) => {
-        appendLog("Info", `Muse Transcriber: ${e.error || e}`);
-      };
+        rec.onerror = () => {};
+        rec.onend = () => {};
 
-      rec.onend = () => {};
-
-      speechRecognitionRef.current = rec;
-      rec.start();
-    } catch (err) {
-      appendLog("Warning", `Microphone input: ${err.message || err}`);
+        speechRecognitionRef.current = rec;
+        rec.start();
+      } catch {}
     }
   };
 
@@ -7972,23 +8100,63 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
               </div>
             )}
 
-            {/* Top Status Header: 💬 Chat  🔴 Listening... */}
-            <div className="flex items-center gap-1.5 text-xs font-semibold px-2.5 pt-2 pb-1 text-slate-700 select-none">
-              <MessageCircle size={15} className="text-[#00c8ff] fill-[#00c8ff] shrink-0" />
-              <span className="text-slate-800 text-xs font-bold">Chat</span>
-              {isTranscribing && (
-                <span className="flex items-center gap-1.5 text-red-500 text-xs ml-2 font-medium animate-fadeIn">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  Listening...
-                  <div className="flex items-center gap-0.5 h-2.5 ml-1">
-                    <span className="muse-wave-bar h-1.5"></span>
-                    <span className="muse-wave-bar h-3"></span>
-                    <span className="muse-wave-bar h-1"></span>
-                    <span className="muse-wave-bar h-2.5"></span>
-                  </div>
-                </span>
-              )}
+            {/* Top Status Header: 💬 Chat  🔴 Listening... muse-voice-transcribe-1.0 */}
+            <div className="flex items-center justify-between px-2.5 pt-2 pb-1 text-slate-700 select-none">
+              <div className="flex items-center gap-1.5 text-xs font-semibold">
+                <MessageCircle size={15} className="text-[#00c8ff] fill-[#00c8ff] shrink-0" />
+                <span className="text-slate-800 text-xs font-bold">Chat</span>
+                {isTranscribing && (
+                  <span className="flex items-center gap-1.5 text-red-500 text-xs ml-2 font-medium animate-fadeIn">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    Listening...
+                    <div className="flex items-center gap-0.5 h-2.5 ml-1">
+                      <span className="muse-wave-bar h-1.5"></span>
+                      <span className="muse-wave-bar h-3"></span>
+                      <span className="muse-wave-bar h-1"></span>
+                      <span className="muse-wave-bar h-2.5"></span>
+                    </div>
+                  </span>
+                )}
+              </div>
+              <span className="px-2 py-0.5 rounded-full bg-blue-600 text-white font-mono text-[9px] font-bold tracking-tight shadow-2xs">
+                muse-voice-transcribe-1.0
+              </span>
             </div>
+
+            {/* Antigravity-Style Slash Commands Autocomplete Popup */}
+            {aiPrompt.startsWith("/") && (
+              <div className="mx-2 mb-1 p-1 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl overflow-hidden animate-fadeIn select-none z-30">
+                <div className="max-h-52 overflow-y-auto no-scrollbar space-y-0.5">
+                  {SLASH_COMMANDS
+                    .filter((c) => c.name.toLowerCase().startsWith(aiPrompt.slice(1).toLowerCase()))
+                    .map((cmd, idx, arr) => {
+                      const isSelected = (slashIndex % (arr.length || 1)) === idx;
+                      return (
+                        <button
+                          key={cmd.id}
+                          type="button"
+                          onClick={() => {
+                            setAiPrompt(`/${cmd.name} `);
+                            if (aiTextareaRef.current) aiTextareaRef.current.focus();
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-left transition cursor-pointer ${
+                            isSelected ? "bg-slate-100/90" : "hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="text-sm shrink-0">{cmd.icon}</span>
+                          <div className="flex items-baseline gap-2 min-w-0 flex-1">
+                            <span className="font-bold text-xs text-slate-900">{cmd.name}</span>
+                            <span className="text-[11px] text-slate-400 truncate">{cmd.desc}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  {SLASH_COMMANDS.filter((c) => c.name.toLowerCase().startsWith(aiPrompt.slice(1).toLowerCase())).length === 0 && (
+                    <div className="px-3 py-2 text-xs text-slate-400 italic">No matching slash command</div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleAskAiSubmit} onPaste={handlePasteToChat} className="p-2 pt-0.5 flex items-end gap-1.5 bg-white border-t border-slate-100">
               <input ref={aiFileRef} type="file" accept="*/*" className="hidden" onChange={(e) => { handleAskFile(e.target.files?.[0]); e.target.value = ""; }} />
@@ -8008,6 +8176,27 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   }}
                   onKeyDown={(e) => {
                     e.stopPropagation();
+                    if (aiPrompt.startsWith("/")) {
+                      const filtered = SLASH_COMMANDS.filter((c) => c.name.toLowerCase().startsWith(aiPrompt.slice(1).toLowerCase()));
+                      if (filtered.length > 0) {
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setSlashIndex((prev) => (prev + 1) % filtered.length);
+                          return;
+                        }
+                        if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setSlashIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+                          return;
+                        }
+                        if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey && aiPrompt.trim().length <= filtered[slashIndex % filtered.length].name.length + 1)) {
+                          e.preventDefault();
+                          const picked = filtered[slashIndex % filtered.length];
+                          setAiPrompt(`/${picked.name} `);
+                          return;
+                        }
+                      }
+                    }
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleAskAiSubmit(e);
