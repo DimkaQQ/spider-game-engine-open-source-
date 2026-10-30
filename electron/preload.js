@@ -54,5 +54,13 @@ contextBridge.exposeInMainWorld('spiderShell', {
   // Blender Real-Time MCP Bridge
   blenderConnect: (opts) => ipcRenderer.invoke('spider-blender-connect', opts),
   blenderStatus: () => ipcRenderer.invoke('spider-blender-status'),
-  blenderSend: (payload) => ipcRenderer.invoke('spider-blender-send', payload)
+  blenderSend: (payload) => ipcRenderer.invoke('spider-blender-send', payload),
+  // Native Real-Time Speech Recognition Engine
+  startSpeechRecognition: () => ipcRenderer.invoke('spider-speech-start'),
+  stopSpeechRecognition: () => ipcRenderer.invoke('spider-speech-stop'),
+  onSpeechStream: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('spider-speech-stream', handler);
+    return () => ipcRenderer.removeListener('spider-speech-stream', handler);
+  }
 })
