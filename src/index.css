@@ -221,3 +221,90 @@ button, [role="button"], .tab, .chip {
   background: rgba(59, 130, 246, 0.55);
   pointer-events: auto;
 }
+
+/* ------------------------------------------------------------------
+ * Desktop editor styles (from the original editor). They sat after the old pocket block
+ * and were dropped by mistake when that block was removed; restored here.
+ * ------------------------------------------------------------------ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Round checkboxes: curved instead of square boxes */
+.round-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  margin: 0;
+}
+.round-check:checked {
+  background: #4f46e5;
+  border-color: #4f46e5;
+}
+.round-check:checked::after {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 4px;
+  height: 7px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Splash loading bar */
+@keyframes spider-load {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.spider-load-bar {
+  animation: spider-load 1.2s ease-in-out infinite;
+}
+
+@keyframes ai-shimmer-sweep {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.ai-shimmer-bubble {
+  background: transparent;
+  border: none;
+  padding-left: 2px;
+}
+.ai-shimmer-text {
+  background: linear-gradient(90deg, #000000 0%, #000000 35%, #94a3b8 50%, #000000 65%, #000000 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: ai-shimmer-sweep 2s ease-in-out infinite;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.term-shimmer-text {
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 35%, #ffffff 50%, #94a3b8 65%, #64748b 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: ai-shimmer-sweep 2s ease-in-out infinite;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
+[data-engine-provenance="vivek-venom-quick-qucik"] { display: none; }
