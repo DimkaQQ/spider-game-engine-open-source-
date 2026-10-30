@@ -61,7 +61,7 @@
       "uninstallerIcon": "build/icon.ico"
     },
     "directories": {
-      "output": "C:/Users/vvvr8/AppData/Local/Temp/opencode/spider-release"
+      "output": "C:/Users/vvvr8/AppData/Local/Temp/spider/spider-release"
     },
     "files": [
       "dist/**/*",

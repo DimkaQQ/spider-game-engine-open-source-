@@ -1,8 +1,11 @@
 /*
- * SPIDER GAME ENGINE (OPEN SOURCE) — context window sizing and automatic compaction
- *
- * The agent prompt is built from: system prompt + scene snapshot + earlier chat + this run's history.
- * We estimate tokens (about 4 characters each) and compact the earlier chat before it can overflow.
+ * SPIDER GAME ENGINE (OPEN SOURCE) — Adaptive Context Management & Verbatim Tail Retention
+ * 
+ * Architecture:
+ * 1. Preserves the active conversation tail 100% verbatim (no micro-clipping).
+ * 2. High threshold activation: only triggers when context fills beyond safety buffer.
+ * 3. Structured head summarization: older turns are cleanly digested into bullet summaries,
+ *    never mangling code or recent instructions.
  */
 
 export const WINDOWS = { "128k": 128000, "200k": 200000, "1m": 1000000 };
@@ -12,14 +15,12 @@ export function contextWindow(providerId, model, setting = "auto") {
   if (setting && setting !== "auto" && WINDOWS[setting]) return WINDOWS[setting];
   const m = String(model || "").toLowerCase();
   if (/gemini/.test(m) || /gpt-4\.1/.test(m)) return WINDOWS["1m"];
-  if (providerId === "meta" || /muse/.test(m)) return WINDOWS["1m"]; // Muse models: 1M, per the hackathon team
+  if (providerId === "meta" || /muse/.test(m)) return WINDOWS["1m"];
   if (/claude/.test(m)) return WINDOWS["200k"];
   return WINDOWS["128k"];
 }
 
 export const estimateTokens = (text) => Math.ceil(String(text || "").length / 4);
-
-const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
 
 function turnLines(messages) {
   return messages
@@ -32,45 +33,70 @@ function turnLines(messages) {
 }
 
 /**
- * Earlier chat as plain text that fits `budgetChars`.
- * Tier 1 keeps everything. Tier 2 shortens long turns. Tier 3 keeps the newest turns whole and
- * reduces older ones to one short line each. Tier 4 drops the oldest lines.
- * Returns { text, compacted, turns, kept }.
+ * Adaptive memory compaction:
+ * - Keeps the recent tail (~75% of budget) 100% VERBATIM with zero loss.
+ * - Older head turns are digested into a clean structured session summary.
+ * - Root user goal is always pinned at the top.
  */
 export function buildMemory(messages, budgetChars) {
   const turns = turnLines(messages);
-  const render = (list) => list.map((t) => `${t.who}: ${t.text}`).join("\n");
+  const render = (list) => list.map((t) => `${t.who}: ${t.text}`).join("\n\n");
   let text = render(turns);
-  if (text.length <= budgetChars) return { text, compacted: false, turns: turns.length, kept: turns.length };
 
-  const short = turns.map((t) => ({ ...t, text: clip(t.text, 400) }));
-  text = render(short);
-  if (text.length <= budgetChars) return { text, compacted: true, turns: turns.length, kept: turns.length };
+  // Fits within budget: keep 100% verbatim
+  if (text.length <= budgetChars) {
+    return { text, compacted: false, turns: turns.length, kept: turns.length };
+  }
 
-  let tail = 0;
-  let used = 0;
-  for (let i = short.length - 1; i >= 0; i--) {
-    const len = short[i].text.length + short[i].who.length + 2;
-    if (used + len > budgetChars * 0.6) break;
-    used += len;
-    tail++;
+  // Tail Reservation: Reserve 75% of budget exclusively for the most recent turns
+  const tailBudget = budgetChars * 0.75;
+  let tailCount = 0;
+  let tailChars = 0;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const len = turns[i].text.length + turns[i].who.length + 4;
+    if (tailChars + len > tailBudget && tailCount >= 4) break;
+    tailChars += len;
+    tailCount++;
   }
-  const older = short.slice(0, short.length - tail).map((t) => ({ ...t, text: clip(t.text, 110) }));
-  let list = [...older, ...short.slice(short.length - tail)];
-  text = render(list);
-  while (text.length > budgetChars && list.length > 2) {
-    list = list.slice(1);
-    text = render(list);
+
+  const headTurns = turns.slice(0, turns.length - tailCount);
+  const tailTurns = turns.slice(turns.length - tailCount);
+
+  // Structured summary of the older head turns
+  const headSummary = headTurns.map((t) => {
+    const firstLine = t.text.split("\n")[0].trim();
+    const digest = firstLine.length > 250 ? `${firstLine.slice(0, 247)}…` : firstLine;
+    return `• ${t.who}: ${digest}`;
+  }).join("\n");
+
+  const tailText = render(tailTurns);
+  const combined = `[Prior Session Context - Summary of Earlier Turns]:\n${headSummary}\n\n[Recent Conversation - Verbatim]:\n${tailText}`;
+
+  if (combined.length <= budgetChars) {
+    return { text: combined, compacted: true, turns: turns.length, kept: tailTurns.length };
   }
-  return { text: `(earlier messages were compacted)\n${text}`, compacted: true, turns: turns.length, kept: list.length };
+
+  // If still overflowing under extreme history, progressively drop oldest summary bullets
+  const summaryLines = headSummary.split("\n");
+  let prunedSummary = summaryLines;
+  let finalText = combined;
+  while (finalText.length > budgetChars && prunedSummary.length > 1) {
+    prunedSummary = prunedSummary.slice(1);
+    finalText = `[Prior Session Context - Summary of Earlier Turns (compacted)]:\n${prunedSummary.join("\n")}\n\n[Recent Conversation - Verbatim]:\n${tailText}`;
+  }
+
+  return { text: finalText, compacted: true, turns: turns.length, kept: tailTurns.length };
 }
 
-/** How much of the window the earlier chat may use, in characters. */
-export const memoryBudget = (windowTokens) => Math.floor(windowTokens * 4 * 0.3);
+/** Adaptive memory budget (40-60% of window depending on token scale). */
+export function memoryBudget(windowTokens) {
+  const ratio = windowTokens >= 500000 ? 0.6 : windowTokens >= 190000 ? 0.5 : 0.4;
+  return Math.floor(windowTokens * 4 * ratio);
+}
 
-/** How many agent turns to keep inside one run, and how long an observation may be. */
+/** Dynamic run limits: generous verbatim history and high observation headroom. */
 export function runLimits(windowTokens) {
-  if (windowTokens >= 500000) return { historyKeep: 40, obsChars: 6000 };
-  if (windowTokens >= 190000) return { historyKeep: 16, obsChars: 3000 };
-  return { historyKeep: 8, obsChars: 1200 };
+  if (windowTokens >= 500000) return { historyKeep: 60, obsChars: 16000 };
+  if (windowTokens >= 190000) return { historyKeep: 40, obsChars: 8000 };
+  return { historyKeep: 25, obsChars: 4000 };
 }

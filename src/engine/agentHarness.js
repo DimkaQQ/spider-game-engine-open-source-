@@ -601,8 +601,8 @@ export async function runAgent(task, {
   onEvent,
   maxSteps = MAX_STEPS,
   getQueuedMessages,
-  historyKeep = 8,
-  obsChars = 1200
+  historyKeep = 25,
+  obsChars = 4000
 }) {
   const history = [];
   let consecutiveParseErrors = 0;
@@ -683,30 +683,21 @@ export async function runAgent(task, {
       return summary.charAt(0).toUpperCase() + summary.slice(1);
     }
 
-    // Compact observation based on dynamic context window limits so context doesn't explode
-    const maxObs = obsChars || 1200;
+    // Observation headroom: only truncate if truly massive (e.g. > obsChars)
+    const maxObs = obsChars || 4000;
     const compactObservation = observation.length > maxObs
       ? observation.slice(0, maxObs) + `... [truncated ${observation.length - maxObs} chars]`
       : observation;
 
-    // Compact action args if it contains huge code/content so history doesn't explode token limits
+    // Preserve action payloads and code verbatim unless it's a massive multi-thousand line dump
     let historyAction = parsed.action;
     if (historyAction && historyAction.args) {
-      if (typeof historyAction.args.code === "string" && historyAction.args.code.length > 500) {
+      if (typeof historyAction.args.code === "string" && historyAction.args.code.length > 10000) {
         historyAction = {
           ...historyAction,
           args: {
             ...historyAction.args,
-            code: historyAction.args.code.slice(0, 300) + `... [${historyAction.args.code.length} chars of code]`
-          }
-        };
-      }
-      if (Array.isArray(historyAction.args.files)) {
-        historyAction = {
-          ...historyAction,
-          args: {
-            ...historyAction.args,
-            files: historyAction.args.files.map((f) => ({ name: f.name, content: `[${(f.content || "").length} chars]` }))
+            code: historyAction.args.code.slice(0, 4000) + `... [${historyAction.args.code.length} chars of code]`
           }
         };
       }
@@ -717,8 +708,8 @@ export async function runAgent(task, {
       { role: "user", text: `OBSERVATION: ${compactObservation}`, image_url: obsImage }
     );
 
-    // Keep history lean based on model token capacity so token count stays small and fast
-    const keepTurns = historyKeep || 8;
+    // Keep history based on model token capacity (Spider adaptive default: 25-60 turns)
+    const keepTurns = historyKeep || 25;
     if (history.length > keepTurns + 2) {
       history.splice(0, history.length - keepTurns);
     }
