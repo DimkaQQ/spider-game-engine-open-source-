@@ -25,14 +25,44 @@ const CAMERAS = [
   { id: "Game View", label: "Game View", icon: Gamepad2 },
 ];
 
-/** Virtual stick: writes analog jx/jz into the engine key map (changes throttled to ~16 steps). */
+/** Virtual stick: writes analog jx/jz into engine keys & dispatches synthetic WASD/Arrow events for 3D games */
 function Joystick({ onChange }) {
   const base = useRef(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const last = useRef("");
+  const activeKeys = useRef(new Set());
   const R = 44;
 
+  const dispatchKeys = (jx, jz) => {
+    const nextKeys = new Set();
+    if (jx > 0.25) { nextKeys.add("KeyD"); nextKeys.add("ArrowRight"); }
+    if (jx < -0.25) { nextKeys.add("KeyA"); nextKeys.add("ArrowLeft"); }
+    if (jz > 0.25) { nextKeys.add("KeyW"); nextKeys.add("ArrowUp"); }
+    if (jz < -0.25) { nextKeys.add("KeyS"); nextKeys.add("ArrowDown"); }
+
+    activeKeys.current.forEach((k) => {
+      if (!nextKeys.has(k)) {
+        window.dispatchEvent(new KeyboardEvent("keyup", { code: k, key: k, bubbles: true }));
+      }
+    });
+    nextKeys.forEach((k) => {
+      if (!activeKeys.current.has(k)) {
+        window.dispatchEvent(new KeyboardEvent("keydown", { code: k, key: k, bubbles: true }));
+      }
+    });
+    activeKeys.current = nextKeys;
+
+    if (typeof window !== "undefined") {
+      window.__spiderVirtualTouch = {
+        x: jx,
+        z: -jz,
+        jump: false
+      };
+    }
+  };
+
   const apply = (e) => {
+    if (!base.current) return;
     const r = base.current.getBoundingClientRect();
     let dx = e.clientX - (r.left + r.width / 2);
     let dy = e.clientY - (r.top + r.height / 2);
@@ -42,18 +72,20 @@ function Joystick({ onChange }) {
       dy = (dy / d) * R;
     }
     setKnob({ x: dx, y: dy });
-    const jx = Math.abs(dx) < 8 ? 0 : Number((dx / R).toFixed(1));
-    const jz = Math.abs(dy) < 8 ? 0 : Number((-dy / R).toFixed(1));
+    const jx = Math.abs(dx) < 8 ? 0 : Number((dx / R).toFixed(2));
+    const jz = Math.abs(dy) < 8 ? 0 : Number((-dy / R).toFixed(2));
     const sig = `${jx}|${jz}`;
     if (sig !== last.current) {
       last.current = sig;
       onChange({ jx, jz });
+      dispatchKeys(jx, jz);
     }
   };
   const end = () => {
     setKnob({ x: 0, y: 0 });
     last.current = "";
     onChange({ jx: 0, jz: 0 });
+    dispatchKeys(0, 0);
   };
   return (
     <div
@@ -216,21 +248,29 @@ export default function Studio({ s, onOpenInspector, onOpenView, notify, onGoAI,
                 )}
               </div>
             )}
-            {!customGame && (
-              <>
-                <Joystick onChange={(v) => setKeys((k) => ({ ...k, ...v }))} />
-                <button
-                  type="button"
-                  className="sp-jump"
-                  onPointerDown={(e) => {
-                    e.preventDefault();
-                    jump();
-                  }}
-                >
-                  Jump
-                </button>
-              </>
-            )}
+            {/* Universal Mobile Game Controls: Active in both custom games & arena levels */}
+            <Joystick onChange={(v) => setKeys((k) => ({ ...k, ...v }))} />
+            <button
+              type="button"
+              className="sp-jump"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                jump();
+                window.dispatchEvent(new KeyboardEvent("keydown", { code: "Space", key: " ", bubbles: true }));
+                if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                  window.__spiderVirtualTouch.jump = true;
+                }
+              }}
+              onPointerUp={() => {
+                window.dispatchEvent(new KeyboardEvent("keyup", { code: "Space", key: " ", bubbles: true }));
+                if (typeof window !== "undefined" && window.__spiderVirtualTouch) {
+                  window.__spiderVirtualTouch.jump = false;
+                }
+              }}
+              aria-label="Action / Attack"
+            >
+              Action
+            </button>
           </>
         )}
 

@@ -229,10 +229,16 @@ export function GameHud({
   const staPercent = Math.max(0, Math.min(100, (stamina / maxStamina) * 100));
   const info = statsText ?? (total > 0 ? `Score ${score}/${total}` : `♥ ${Math.round(hp)}  Wave ${wave}  Kills ${kills}${combo > 0 ? `  Combo x${combo}` : ''}`);
 
+  const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024));
+
   const posStyle = position === 'bottom-center'
-    ? { bottom: 20, left: '50%', transform: 'translateX(-50%)' }
+    ? (isMobile
+        ? { top: 'calc(12px + env(safe-area-inset-top, 0px))', left: '50%', transform: 'translateX(-50%)' }
+        : { bottom: 20, left: '50%', transform: 'translateX(-50%)' })
     : position === 'bottom-left'
-    ? { bottom: 20, left: 20 }
+    ? (isMobile
+        ? { top: 'calc(12px + env(safe-area-inset-top, 0px))', left: 16 }
+        : { bottom: 20, left: 20 })
     : { top: 14, left: 14 };
 
   return (
@@ -242,7 +248,7 @@ export function GameHud({
           position: 'absolute',
           ...posStyle,
           background: 'rgba(15, 23, 42, 0.88)',
-          padding: '10px 18px',
+          padding: '8px 16px',
           borderRadius: 14,
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -250,7 +256,9 @@ export function GameHud({
           fontFamily: 'system-ui, -apple-system, sans-serif',
           boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
           zIndex: 40,
-          minWidth: 260,
+          maxWidth: 'min(92vw, 380px)',
+          width: 'max-content',
+          boxSizing: 'border-box',
           textAlign: 'center'
         }}
       >
