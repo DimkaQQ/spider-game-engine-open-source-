@@ -151,12 +151,10 @@ html, body, #root {
   animation: muse-wave 0.8s ease-in-out infinite;
 }
 
-/* Viewport Normal Cursor Blocking / Pointer Lock */
-[data-cursor-locked="true"],
-[data-cursor-locked="true"] canvas,
-[data-cursor-locked="true"] .viewport-stage-container,
-.cursor-blocked,
-.cursor-blocked canvas {
+/* Viewport Normal Cursor Blocking / Pointer Lock — ONLY when Play Mode is ON */
+[data-cursor-locked="true"][data-is-playing="true"],
+[data-cursor-locked="true"][data-is-playing="true"] canvas,
+[data-cursor-locked="true"][data-is-playing="true"] .viewport-stage-container {
   cursor: none !important;
 }
 

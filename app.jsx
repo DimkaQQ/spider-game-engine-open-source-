@@ -18,6 +18,7 @@ import { MATERIAL_PRESETS, matColor, TUTORIALS } from "./src/game/index.js";
 import {
   Play,
   Square,
+  ListPlus,
   Box,
   Crosshair,
   Flag,
@@ -1208,6 +1209,31 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     // Direct execution by Spider AI agent with image vision payload
     setAiPrompt("");
     await runAgentGoal(raw, attachedImg?.url);
+  };
+
+  const handleQueuePrompt = (e) => {
+    e?.preventDefault?.();
+    const val = (aiTextareaRef.current?.value ?? aiPrompt).trim();
+    const currentImg = aiAttachedImageRef.current;
+    if (!val && !currentImg) return;
+    setAiPrompt("");
+    if (aiTextareaRef.current) {
+      aiTextareaRef.current.style.height = "auto";
+      aiTextareaRef.current.value = "";
+    }
+    setAiAttachedImage(null);
+    aiAttachedImageRef.current = null;
+    const promptText = val || (currentImg ? `Visually analyze attached image "${currentImg.name}"` : "");
+    appendLog("Info", `Queued message: "${promptText}"`);
+    pushMsg(promptText, "Queued: message received and added to agent execution queue.", true);
+    messageQueueRef.current.push(promptText);
+    setQueuedMessages([...messageQueueRef.current]);
+    setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
+  const handleContinuePrompt = (e) => {
+    e?.preventDefault?.();
+    handleAskAiSubmit(e, "Continue with the next step or task.");
   };
 
   const handleAskAiSubmit = (e, overrideText) => {
@@ -4019,8 +4045,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   // Blocks normal cursor on viewport; releases when user presses Alt + Windows + G (or Alt + G / Esc)
   const [isViewportCursorLocked, setIsViewportCursorLocked] = useState(false);
   const [cursorLockToast, setCursorLockToast] = useState(null);
+  const isPlayingRef = useRef(isPlaying);
 
   const requestViewportCursorLock = useCallback(() => {
+    if (!isPlayingRef.current) return; // ONLY block cursor when play mode is on!
     try {
       const target = viewportApi.getCanvas?.() || viewportApi.canvas || viewportRef.current?.querySelector("canvas") || viewportRef.current;
       if (target?.requestPointerLock) {
@@ -4029,7 +4057,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     } catch (e) {}
     setIsViewportCursorLocked(true);
     setCursorLockToast({
-      title: "🔒 Cursor Blocked on Viewport",
+      title: "🔒 Cursor Blocked on Viewport (Play Mode)",
       sub: "Press Alt + Win + G to release"
     });
   }, []);
@@ -4041,19 +4069,30 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       }
     } catch (e) {}
     setIsViewportCursorLocked(false);
-    setCursorLockToast({
-      title: "🔓 Cursor Released",
-      sub: "Click Viewport or Alt + Win + G to block"
-    });
+    if (isPlayingRef.current) {
+      setCursorLockToast({
+        title: "🔓 Cursor Released",
+        sub: "Click Viewport or Alt + Win + G to re-block"
+      });
+    }
   }, []);
 
   const toggleViewportCursorLock = useCallback(() => {
+    if (!isPlayingRef.current) return; // In normal edit mode, never block normal cursor
     if (isViewportCursorLocked || document.pointerLockElement) {
       releaseViewportCursorLock();
     } else {
       requestViewportCursorLock();
     }
   }, [isViewportCursorLocked, releaseViewportCursorLock, requestViewportCursorLock]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+    if (!isPlaying) {
+      // Auto-release cursor when play mode is switched OFF (normal viewport mode)
+      releaseViewportCursorLock();
+    }
+  }, [isPlaying, releaseViewportCursorLock]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -4065,7 +4104,9 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       if ((isAlt && isWin && isG) || (isAlt && isG) || (isWin && isG)) {
         e.preventDefault();
         e.stopPropagation();
-        toggleViewportCursorLock();
+        if (isPlayingRef.current) {
+          toggleViewportCursorLock();
+        }
       } else if (e.key === "Escape" && (isViewportCursorLocked || document.pointerLockElement)) {
         releaseViewportCursorLock();
       }
@@ -4073,10 +4114,15 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
     const handlePointerLockChange = () => {
       const locked = Boolean(document.pointerLockElement);
+      if (!isPlayingRef.current && locked) {
+        try { document.exitPointerLock?.(); } catch {}
+        setIsViewportCursorLocked(false);
+        return;
+      }
       setIsViewportCursorLocked(locked);
-      if (locked) {
+      if (locked && isPlayingRef.current) {
         setCursorLockToast({
-          title: "🔒 Cursor Blocked on Viewport",
+          title: "🔒 Cursor Blocked on Viewport (Play Mode)",
           sub: "Press Alt + Win + G to release"
         });
       }
@@ -6230,7 +6276,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
             ) : null}
 
             {/* CENTER 3D VIEWPORT PANEL */}
-            <section ref={viewportRef} data-cursor-locked={isViewportCursorLocked ? "true" : "false"} className={isArtifactFullscreen ? "fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden" : "flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative"}>
+            <section ref={viewportRef} data-cursor-locked={(isPlaying && isViewportCursorLocked) ? "true" : "false"} data-is-playing={isPlaying ? "true" : "false"} className={isArtifactFullscreen ? "fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden" : "flex-1 bg-white/95 rounded-xl border border-slate-200/80 flex flex-col shadow-2xs overflow-hidden relative"}>
               {/* Viewport Cursor Lock / Release Floating Toast */}
               {cursorLockToast && (
                 <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 animate-in fade-in slide-in-from-top-2">
@@ -6510,9 +6556,16 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       ? "invisible pointer-events-none"
                       : "visible pointer-events-auto"
                   }`}
-                  onClick={(e) => {
-                    if (!isViewportCursorLocked && !document.pointerLockElement) {
-                      if (e.target.tagName === 'CANVAS' || e.target === e.currentTarget || e.target.closest?.('canvas')) {
+                  onPointerDown={(e) => {
+                    if (isPlaying && !isViewportCursorLocked && !document.pointerLockElement) {
+                      if (e.target.tagName === 'CANVAS' || e.target === e.currentTarget || e.target.closest?.('canvas') || e.target.closest?.('.viewport-stage-container')) {
+                        requestViewportCursorLock();
+                      }
+                    }
+                  }}
+                  onMouseDown={(e) => {
+                    if (isPlaying && !isViewportCursorLocked && !document.pointerLockElement) {
+                      if (e.target.tagName === 'CANVAS' || e.target === e.currentTarget || e.target.closest?.('canvas') || e.target.closest?.('.viewport-stage-container')) {
                         requestViewportCursorLock();
                       }
                     }
@@ -8748,6 +8801,22 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   }}
                   onKeyDown={(e) => {
                     e.stopPropagation();
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (aiPrompt.startsWith("/")) {
+                        const filtered = SLASH_COMMANDS.filter((c) => c.name.toLowerCase().startsWith(aiPrompt.slice(1).toLowerCase()));
+                        if (filtered.length > 0 && aiPrompt.trim().length <= filtered[slashIndex % filtered.length].name.length + 1) {
+                          const picked = filtered[slashIndex % filtered.length];
+                          setAiPrompt(`/${picked.name} `);
+                          return;
+                        }
+                      }
+                      const val = (aiTextareaRef.current?.value ?? aiPrompt).trim();
+                      if (val || aiAttachedImageRef.current || aiAttachedImage) {
+                        handleAskAiSubmit(e, val);
+                      }
+                      return;
+                    }
                     if (aiPrompt.startsWith("/")) {
                       const filtered = SLASH_COMMANDS.filter((c) => c.name.toLowerCase().startsWith(aiPrompt.slice(1).toLowerCase()));
                       if (filtered.length > 0) {
@@ -8761,7 +8830,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                           setSlashIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
                           return;
                         }
-                        if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey && aiPrompt.trim().length <= filtered[slashIndex % filtered.length].name.length + 1)) {
+                        if (e.key === "Tab") {
                           e.preventDefault();
                           const picked = filtered[slashIndex % filtered.length];
                           setAiPrompt(`/${picked.name} `);
@@ -8769,12 +8838,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         }
                       }
                     }
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleAskAiSubmit(e);
-                    }
                   }}
-                  placeholder={aiThinking ? "Working..." : isTranscribing ? "Listening to your voice..." : "Message Spider AI... (/blender)"}
+                  placeholder={aiThinking ? "Working... (Enter to queue next message)" : isTranscribing ? "Listening to your voice..." : "Message Spider AI... (/blender)"}
                   className="w-full text-xs font-medium text-slate-800 outline-none bg-transparent resize-none leading-snug placeholder:text-slate-400 py-0.5 no-scrollbar min-h-[22px] max-h-[110px]"
                   style={{ height: "auto" }}
                 />
@@ -8824,7 +8889,34 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 <Plus size={19} strokeWidth={2.2} />
               </button>
 
-              {/* 3. Send / Submit Button */}
+              {/* 3. Continue Button */}
+              <button
+                type="button"
+                onClick={handleContinuePrompt}
+                title="Tell Spider AI to continue with the next steps"
+                className="h-9 px-2.5 shrink-0 rounded-2xl flex items-center gap-1 transition-all cursor-pointer bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80 text-[11px] font-bold shadow-2xs active:scale-95 select-none"
+              >
+                <Play size={12} fill="currentColor" />
+                <span>Continue</span>
+              </button>
+
+              {/* 4. Que (Queue) Button */}
+              <button
+                type="button"
+                onClick={handleQueuePrompt}
+                disabled={!aiPrompt.trim() && !aiAttachedImage}
+                title="Queue prompt for Spider AI execution"
+                className={`h-9 px-2.5 shrink-0 rounded-2xl flex items-center gap-1 transition-all cursor-pointer text-[11px] font-bold shadow-2xs border select-none ${
+                  aiPrompt.trim() || aiAttachedImage
+                    ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 active:scale-95"
+                    : "bg-slate-50 text-slate-400 border-slate-200/60 cursor-not-allowed opacity-50"
+                }`}
+              >
+                <ListPlus size={13} />
+                <span>Que</span>
+              </button>
+
+              {/* 5. Send / Submit Button */}
               {aiThinking ? (
                 <button
                   type="button"
@@ -8840,7 +8932,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                   disabled={!aiPrompt.trim() && !aiAttachedImage}
                   className={`w-9 h-9 shrink-0 rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-sm ${
                     aiPrompt.trim() || aiAttachedImage
-                      ? "bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
+                      ? "bg-[#2563eb] hover:bg-[#1d4ed8] text-white active:scale-95"
                       : "bg-[#2563eb]/50 text-white/70 cursor-not-allowed"
                   }`}
                   title="Send (Enter)"
