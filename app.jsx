@@ -7534,28 +7534,6 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                 >
                   {permissionMode === "secure" ? "🛡️ Secure" : "⚡ Auto"}
                 </button>
-                {/* Blender Real-Time MCP Bridge Toggle */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = !blenderMcpEnabled;
-                    connectToBlender({ enabled: next, port: blenderMcpPort });
-                    appendLog("Info", `Blender MCP Bridge ${next ? "Enabled (Connecting to port " + blenderMcpPort + "...)" : "Disabled"}`);
-                  }}
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold border cursor-pointer select-none transition flex items-center gap-1 ${
-                    blenderMcpStatus === "connected"
-                      ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
-                      : blenderMcpEnabled
-                      ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
-                      : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
-                  }`}
-                  title={`Blender Real-Time MCP Bridge: ${blenderMcpStatus === "connected" ? "Connected (Port " + blenderMcpPort + ")" : blenderMcpEnabled ? "Connecting/Listening..." : "OFF (Click to toggle ON or type /blender)"}`}
-                >
-                  <span>🎨 Blender:</span>
-                  <span className={blenderMcpStatus === "connected" ? "text-emerald-600 font-extrabold" : blenderMcpEnabled ? "text-amber-600 font-bold" : "text-slate-400 font-bold"}>
-                    {blenderMcpStatus === "connected" ? "ON 🟢" : blenderMcpEnabled ? "Wait 🟡" : "OFF ⚪"}
-                  </span>
-                </button>
                 {!isMobile && (
                   <button
                     onClick={() => setPanelWide((w) => !w)}
