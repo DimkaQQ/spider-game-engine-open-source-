@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PLAYER, PRIMITIVE_SHAPES } from "../game/index.js";
 import licenses from "../../THIRD_PARTY_LICENSES.md?raw";
+import Markdown from "./Markdown.jsx";
 import { TEMPLATES } from "./store.js";
 import { Empty, Segmented, Sheet, TemplateIcon, Toggle, cx } from "./ui.jsx";
 
@@ -417,12 +418,13 @@ function About({ onBack }) {
         <dl className="sp-kv">
           <dt>Author</dt><dd>M4SPIDER</dd>
           <dt>License</dt><dd>MIT</dd>
-          <dt>Lineage</dt><dd>vivek · venom · quick · qucik</dd>
+          <dt>Lineage</dt><dd>M4SPIDER · DarQQ</dd>
+          <dt>GitHub</dt><dd><a className="sp-link-inline" href="https://github.com/DimkaQQ" target="_blank" rel="noopener noreferrer">github.com/DimkaQQ</a></dd>
         </dl>
         <Row icon={FileText} title="Third-party licenses" hint="Open-source notices" onClick={() => setLic(true)} />
       </div>
       <Sheet open={lic} onClose={() => setLic(false)} title="Licenses" tall>
-        <pre className="sp-licenses">{licenses}</pre>
+        <div className="sp-licenses"><Markdown source={licenses} /></div>
       </Sheet>
     </>
   );
