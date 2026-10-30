@@ -1534,6 +1534,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const mediaStreamRef = useRef(null);
   const audioChunksRef = useRef([]);
   const aiPromptRef = useRef(aiPrompt);
+  const realtimeWsRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const scriptProcessorRef = useRef(null);
+  const streamedAnyTextRef = useRef(false);
 
   useEffect(() => {
     aiPromptRef.current = aiPrompt;
@@ -1738,9 +1742,37 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   };
 
   const toggleTranscriber = async () => {
-    // If already transcribing, stop and transcribe!
+    // If already transcribing, stop streaming and finalize!
     if (isTranscribing) {
       setIsTranscribing(false);
+
+      if (realtimeWsRef.current) {
+        try {
+          if (realtimeWsRef.current.readyState === WebSocket.OPEN) {
+            realtimeWsRef.current.send(JSON.stringify({ type: "endStream" }));
+          }
+          setTimeout(() => {
+            try { realtimeWsRef.current?.close(); } catch {}
+            realtimeWsRef.current = null;
+          }, 350);
+        } catch {
+          realtimeWsRef.current = null;
+        }
+      }
+
+      if (scriptProcessorRef.current) {
+        try {
+          scriptProcessorRef.current.disconnect();
+          scriptProcessorRef.current = null;
+        } catch {}
+      }
+
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
+        } catch {}
+      }
 
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         try { mediaRecorderRef.current.stop(); } catch {}
@@ -1755,8 +1787,15 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       return;
     }
 
+    const apiKey = metaKeyRef.current;
+    if (!apiKey) {
+      appendLog("Warning", "Meta Muse Transcriber: Please add your Meta API key in Settings > AI & Keys.");
+      return;
+    }
+
     initialPromptRef.current = (aiPrompt || "").trim();
     audioChunksRef.current = [];
+    streamedAnyTextRef.current = false;
 
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1773,6 +1812,77 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       });
       mediaStreamRef.current = stream;
 
+      // 1. Establish Meta Real-Time WebSocket stream (wss://api.meta.ai/v1/asr/realtime)
+      const sessionId = `stream-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const ws = new WebSocket(`wss://api.meta.ai/v1/asr/realtime?sessionId=${sessionId}`);
+      realtimeWsRef.current = ws;
+
+      ws.onopen = () => {
+        try {
+          ws.send(JSON.stringify({
+            authorization: { accessToken: `Bearer ${String(apiKey).trim()}` },
+            audioEncoding: "PCM_16KHZ",
+            model: "muse-voice-transcribe-1.0",
+            mode: "PUSH_TO_TALK"
+          }));
+        } catch (e) {
+          console.warn("Real-time handshake send error:", e);
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "transcript") {
+            const rawText = data.transcript || data.text || "";
+            const clean = purifyUiText(rawText).trim();
+            if (clean) {
+              streamedAnyTextRef.current = true;
+              const base = (initialPromptRef.current || "").trim();
+              const liveText = base ? `${base} ${clean}` : clean;
+              setAiPrompt(liveText);
+              if (data.final) {
+                initialPromptRef.current = liveText;
+              }
+              if (aiTextareaRef.current) {
+                aiTextareaRef.current.style.height = "auto";
+                aiTextareaRef.current.style.height = `${Math.min(Math.max(aiTextareaRef.current.scrollHeight, 24), 110)}px`;
+              }
+            }
+          }
+        } catch {}
+      };
+
+      ws.onerror = (err) => {
+        console.warn("Meta Real-Time WebSocket error:", err);
+      };
+
+      // 2. Set up Web Audio PCM stream (16kHz mono)
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx({ sampleRate: 16000 });
+        audioContextRef.current = audioCtx;
+        const source = audioCtx.createMediaStreamSource(stream);
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        scriptProcessorRef.current = processor;
+
+        processor.onaudioprocess = (e) => {
+          if (realtimeWsRef.current && realtimeWsRef.current.readyState === WebSocket.OPEN) {
+            const inputData = e.inputBuffer.getChannelData(0);
+            const pcmData = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+              const s = Math.max(-1, Math.min(1, inputData[i]));
+              pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            realtimeWsRef.current.send(pcmData.buffer);
+          }
+        };
+
+        source.connect(processor);
+        processor.connect(audioCtx.destination);
+      }
+
+      // 3. Fallback MediaRecorder (only used if WebSocket didn't stream any text)
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm")
@@ -1789,6 +1899,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       };
 
       recorder.onstop = () => {
+        // If live stream already transcribed text directly to the input box, skip fallback!
+        if (streamedAnyTextRef.current) return;
         if (audioChunksRef.current.length === 0) return;
         const blob = new Blob(audioChunksRef.current, { type: mimeType || "audio/webm" });
         transcribeWithMuseVoice(blob);
@@ -1796,7 +1908,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
 
       recorder.start(200);
       setIsTranscribing(true);
-      appendLog("Info", "🎙️ Meta Muse Transcriber: Listening... Click again when done speaking.");
+      appendLog("Info", "🎙️ Meta Muse Real-Time: Listening... Speak now!");
     } catch (err) {
       console.warn("Microphone start error:", err);
       appendLog("Warning", `Could not access microphone: ${err.message || err}`);
