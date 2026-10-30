@@ -18,7 +18,7 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 
 ## 🌟 Key Features
 
-- **Meta Muse Real-Time Voice Transcribe (3.1% WER)**: Ultra-low latency (~0.16s) live speech-to-text recognition streaming over WebSockets (`wss://api.meta.ai/v1/asr/realtime`) with native turn endpointing and zero ambient noise hallucinations.
+- **Meta Muse Real-Time Voice Transcribe (3.1% WER)**: Ultra-low latency (~0.16s) live speech-to-text recognition streaming over WebSockets (`wss://api.meta.ai/v1/asr/realtime`) with native turn endpointing.
 - **Spider Slash Commands**: Instant slash command palette (`/blender`, `/plan`, `/play`, `/browser`, `/clear`, `/stop`, `/help`) with keyboard navigation and autocomplete.
 - **Blender Real-Time MCP Bridge**: Live bi-directional bridge on port `9876` connecting Spider Engine directly to Blender for real-time asset, geometry, and lighting sync.
 - **Real-Time Dynamic JSX Engine**: Live mounting of arbitrary React Three Fiber components with instant AST compilation cache.
@@ -268,7 +268,6 @@ Spider Game Engine grants AI agents complete developer execution capabilities wi
 ### 1. 🎙️ Meta Muse Real-Time Speech Perception (3.1% WER)
 - **Direct Neural Streaming**: Streams microphone audio packets in real-time to Meta’s `muse-voice-transcribe-1.0` model via WebSockets (`wss://api.meta.ai/v1/asr/realtime`).
 - **Low Latency & High Precision**: ~0.16-second latency with 3.1% Word Error Rate.
-- **Zero Hallucination Guarantee**: Eliminates archaic acoustic misinterpretations and ambient room noise hallucinations.
 
 ### 2. 🖥️ Real CLI Command Execution (`runCommand`)
 - **Native Shell Power**: In desktop mode (Electron / Tauri), the AI agent can execute arbitrary shell commands directly on the host computer (`powershell.exe` on Windows, `/bin/bash` / `zsh` on Linux/Unix).
