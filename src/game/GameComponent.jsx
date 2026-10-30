@@ -4,17 +4,17 @@ import { OrbitControls, PerspectiveCamera, Html } from '@react-three/drei';
 import * as THREE from 'three';
 
 // ============================================================================
-// SPIDER HORIZON ECO-CITY (100% BESPOKE, OPEN SOURCE PROCEDURAL ARCHITECTURE)
-// Completely clean-room procedural synthesis — Zero proprietary third-party assets
+// BESPOKE MODERN CITY BLOCK (100% CLEAN-ROOM PROCEDURAL ARCHITECTURE)
+// Inspired by the European high-rise residential quarter & commercial streetscape
+// Zero third-party proprietary meshes or copyrighted textures
 // ============================================================================
 
 export default function GameComponent() {
   const controlsRef = useRef();
-  const waterRef = useRef();
-  const [timeOfDay, setTimeOfDay] = useState('sunset'); // 'day' | 'sunset' | 'night'
-  const [viewMode, setViewMode] = useState('promenade'); // 'promenade' | 'drone' | 'fountain'
+  const [cameraMode, setCameraMode] = useState('street'); // 'street' | 'sidewalk' | 'aerial'
+  const [lightsOn, setLightsOn] = useState(true);
 
-  // Procedural audio synthesizer for urban ambiance & interactive UI
+  // Sound generator for urban ambience and UI interaction
   const playSfx = (freq = 440, type = 'sine', dur = 0.12) => {
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -22,7 +22,7 @@ export default function GameComponent() {
       const gain = ctx.createGain();
       osc.type = type;
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.setValueAtTime(0.07, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -31,283 +31,277 @@ export default function GameComponent() {
     } catch (e) {}
   };
 
-  // Lighting & Atmospheric Colors by Time of Day
-  const env = useMemo(() => {
-    if (timeOfDay === 'day') {
-      return {
-        bg: '#93c5fd',
-        fog: '#bae6fd',
-        sunColor: '#fffbeb',
-        sunIntensity: 2.8,
-        sunPos: [50, 70, -40],
-        skyFill: '#dbeafe',
-        ambient: 0.95,
-        windowEmissive: 0.3,
-        waterColor: '#0284c7',
-        waterEmissive: '#0369a1'
-      };
-    } else if (timeOfDay === 'sunset') {
-      return {
-        bg: '#fdba74',
-        fog: '#fed7aa',
-        sunColor: '#ffedd5',
-        sunIntensity: 3.2,
-        sunPos: [35, 25, -55],
-        skyFill: '#fed7aa',
-        ambient: 0.85,
-        windowEmissive: 1.8,
-        waterColor: '#0369a1',
-        waterEmissive: '#ea580c'
-      };
-    } else {
-      // Night Cyberpunk City
-      return {
-        bg: '#090d16',
-        fog: '#0f172a',
-        sunColor: '#38bdf8',
-        sunIntensity: 0.6,
-        sunPos: [-20, 40, -30],
-        skyFill: '#1e1b4b',
-        ambient: 0.45,
-        windowEmissive: 3.5,
-        waterColor: '#0f172a',
-        waterEmissive: '#06b6d4'
-      };
-    }
-  }, [timeOfDay]);
-
-  // Procedural Materials
+  // Bespoke Procedural Materials
   const mats = useMemo(() => {
+    // Generate procedural paver texture on HTML canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    const size = 32;
+    for (let x = 0; x <= 256; x += size) {
+      for (let y = 0; y <= 256; y += size) {
+        ctx.strokeRect(x, y, size, size);
+      }
+    }
+    const paverTex = new THREE.CanvasTexture(canvas);
+    paverTex.wrapS = THREE.RepeatWrapping;
+    paverTex.wrapT = THREE.RepeatWrapping;
+    paverTex.repeat.set(12, 12);
+
     return {
-      terracotta: new THREE.MeshStandardMaterial({ color: '#9a3412', roughness: 0.85, metalness: 0.05 }),
-      limestone: new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.6, metalness: 0.08 }),
-      darkSlate: new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.35, metalness: 0.4 }),
-      copperTrim: new THREE.MeshStandardMaterial({ color: '#d97706', roughness: 0.3, metalness: 0.75 }),
+      asphalt: new THREE.MeshStandardMaterial({ color: '#272a30', roughness: 0.9, metalness: 0.1 }),
+      roadLine: new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.4 }),
+      sidewalk: new THREE.MeshStandardMaterial({ map: paverTex, roughness: 0.8 }),
+      curbStone: new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.5 }),
+      lawnGrass: new THREE.MeshStandardMaterial({ color: '#4d7c0f', roughness: 0.95 }),
+      brickTerracotta: new THREE.MeshStandardMaterial({ color: '#8c3e2b', roughness: 0.85 }),
+      concreteWhite: new THREE.MeshStandardMaterial({ color: '#f1f5f9', roughness: 0.55 }),
+      metalCharcoal: new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.35, metalness: 0.5 }),
+      metalBlueSiding: new THREE.MeshStandardMaterial({ color: '#334155', roughness: 0.4, metalness: 0.4 }),
+      glassStorefront: new THREE.MeshStandardMaterial({
+        color: '#fef08a',
+        emissive: '#f59e0b',
+        emissiveIntensity: lightsOn ? 2.2 : 0.4,
+        roughness: 0.15,
+        metalness: 0.8
+      }),
+      glassDay: new THREE.MeshStandardMaterial({
+        color: '#1e293b',
+        roughness: 0.08,
+        metalness: 0.95
+      }),
       windowWarm: new THREE.MeshStandardMaterial({
         color: '#fef08a',
         emissive: '#f59e0b',
-        emissiveIntensity: env.windowEmissive,
-        roughness: 0.15
+        emissiveIntensity: lightsOn ? 1.8 : 0.2,
+        roughness: 0.2
       }),
-      windowCyan: new THREE.MeshStandardMaterial({
-        color: '#cffafe',
-        emissive: '#06b6d4',
-        emissiveIntensity: env.windowEmissive * 0.9,
-        roughness: 0.15
-      }),
-      glassDay: new THREE.MeshStandardMaterial({ color: '#0f172a', roughness: 0.08, metalness: 0.92 }),
-      promenadePaving: new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.82 }),
-      pathwayStone: new THREE.MeshStandardMaterial({ color: '#cbd5e1', roughness: 0.65 }),
-      greenery: new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.95 }),
-      water: new THREE.MeshStandardMaterial({
-        color: env.waterColor,
-        emissive: env.waterEmissive,
-        emissiveIntensity: 0.35,
-        roughness: 0.1,
-        metalness: 0.85,
-        transparent: true,
-        opacity: 0.88
-      }),
-      neonGold: new THREE.MeshStandardMaterial({
-        color: '#fde047',
-        emissive: '#eab308',
-        emissiveIntensity: timeOfDay === 'night' ? 4.0 : 1.5
-      })
+      blackIronFence: new THREE.MeshStandardMaterial({ color: '#090d16', roughness: 0.25, metalness: 0.85 })
     };
-  }, [env, timeOfDay]);
+  }, [lightsOn]);
 
-  // Animate gentle water ripples in the reflection pool
-  useFrame((state) => {
-    const t = state.clock.getElapsedTime();
-    if (waterRef.current) {
-      waterRef.current.position.y = 0.05 + Math.sin(t * 1.5) * 0.02;
-    }
-  });
-
-  // Procedural Stepped Residential Tower
-  const EcoTower = ({ x, z, floors, width, depth, rotY = 0, hasBalconyGreens = true, style = 'terracotta' }) => {
-    const floorH = 1.6;
+  // Procedural Windowed Facade Block
+  const ResidentialBlock = ({ x, z, floors, width, depth, floorH = 1.65, rotY = 0, style = 'mixed' }) => {
     const floorList = useMemo(() => Array.from({ length: floors }, (_, i) => i), [floors]);
 
     return (
       <group position={[x, 0, z]} rotation={[0, rotY, 0]}>
-        {/* Ground Retail Podium */}
-        <mesh position={[0, floorH, 0]} scale={[width, floorH * 2, depth]}>
+        {/* Commercial Retail Ground Base */}
+        <group position={[0, floorH, 0]}>
+          <mesh scale={[width, floorH * 2, depth]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <primitive object={mats.metalCharcoal} attach="material" />
+          </mesh>
+          {/* Large Retail Display Windows */}
+          <mesh position={[0, -floorH * 0.1, depth / 2 + 0.06]} scale={[width * 0.94, floorH * 1.3, 0.08]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <primitive object={mats.glassStorefront} attach="material" />
+          </mesh>
+          {/* Glass Entrance Double Doors */}
+          <mesh position={[0, -floorH * 0.2, depth / 2 + 0.1]} scale={[2.2, floorH * 1.1, 0.08]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <primitive object={mats.glassStorefront} attach="material" />
+          </mesh>
+        </group>
+
+        {/* Horizontal Architectural Transition Siding Band */}
+        <mesh position={[0, floorH * 2 + 0.35, depth / 2 + 0.08]} scale={[width * 1.01, 0.7, 0.1]}>
           <boxGeometry args={[1, 1, 1]} />
-          <primitive object={mats.darkSlate} attach="material" />
-        </mesh>
-        {/* Cafe / Retail Frontage Glow */}
-        <mesh position={[0, floorH * 0.9, depth / 2 + 0.06]} scale={[width * 0.92, floorH * 1.2, 0.1]}>
-          <boxGeometry args={[1, 1, 1]} />
-          <primitive object={mats.windowWarm} attach="material" />
+          <primitive object={mats.metalBlueSiding} attach="material" />
         </mesh>
 
-        {/* Vertical Floor Stacking */}
+        {/* Stacked Residential Floors */}
         {floorList.map((f) => {
-          const fy = floorH * 2 + f * floorH + floorH / 2;
+          const fy = floorH * 2 + 0.7 + f * floorH + floorH / 2;
           const isEven = f % 2 === 0;
-          const isStepped = f > floors - 4;
-          const stepScale = isStepped ? 1.0 - (f - (floors - 4)) * 0.12 : 1.0;
 
           return (
-            <group key={f} position={[0, fy, 0]} scale={[stepScale, 1, stepScale]}>
-              {/* White Limestone Architectural Slab */}
+            <group key={f} position={[0, fy, 0]}>
+              {/* White Concrete Balcony Slab */}
               <mesh position={[0, -floorH * 0.38, 0]} scale={[width * 1.03, floorH * 0.14, depth * 1.03]}>
                 <boxGeometry args={[1, 1, 1]} />
-                <primitive object={mats.limestone} attach="material" />
+                <primitive object={mats.concreteWhite} attach="material" />
               </mesh>
 
-              {/* Main Facade Wall Band (Terracotta / Limestone) */}
+              {/* Exterior Wall (Terracotta Brick or White Panel) */}
               <mesh scale={[width, floorH * 0.38, depth]}>
                 <boxGeometry args={[1, 1, 1]} />
-                <primitive object={isEven ? mats.terracotta : mats.limestone} attach="material" />
+                <primitive object={isEven ? mats.brickTerracotta : mats.concreteWhite} attach="material" />
               </mesh>
 
-              {/* Copper Trim Architectural Accent */}
-              {f % 4 === 0 && (
-                <mesh position={[0, -floorH * 0.28, depth / 2 + 0.08]} scale={[width * 0.75, 0.08, 0.08]}>
-                  <boxGeometry args={[1, 1, 1]} />
-                  <primitive object={mats.copperTrim} attach="material" />
-                </mesh>
-              )}
-
-              {/* Window Glass Ribbon */}
+              {/* Window Glass Ribbons */}
               <mesh position={[0, floorH * 0.16, 0]} scale={[width * 1.008, floorH * 0.18, depth * 1.008]}>
                 <boxGeometry args={[1, 1, 1]} />
-                <primitive
-                  object={
-                    (f + Math.floor(x * 3)) % 5 === 0
-                      ? mats.windowWarm
-                      : (f + Math.floor(z * 2)) % 7 === 0
-                      ? mats.windowCyan
-                      : mats.glassDay
-                  }
-                  attach="material"
-                />
+                <primitive object={(f + Math.floor(x)) % 3 === 0 ? mats.windowWarm : mats.glassDay} attach="material" />
               </mesh>
-
-              {/* Vertical Sky-Garden Micro Foliage on Balconies */}
-              {hasBalconyGreens && f % 2 === 1 && (
-                <mesh position={[width * 0.52, -floorH * 0.2, depth * 0.25]} scale={[0.25, 0.4, depth * 0.35]}>
-                  <boxGeometry args={[1, 1, 1]} />
-                  <primitive object={mats.greenery} attach="material" />
-                </mesh>
-              )}
             </group>
           );
         })}
 
-        {/* Solar Canopy Roof Pavilion */}
-        <mesh position={[0, floorH * 2 + floors * floorH + 0.8, 0]} scale={[width * 0.85, 0.4, depth * 0.85]}>
+        {/* Roof Mechanical Penthouse & Parapet */}
+        <mesh position={[0, floorH * 2 + 0.7 + floors * floorH + 0.5, 0]} scale={[width * 0.92, 1.0, depth * 0.92]}>
           <boxGeometry args={[1, 1, 1]} />
-          <primitive object={mats.copperTrim} attach="material" />
+          <primitive object={mats.metalCharcoal} attach="material" />
         </mesh>
+      </group>
+    );
+  };
+
+  // Metal Perimeter Fence
+  const PerimeterFence = ({ x, z, length, rotY = 0 }) => {
+    const postCount = Math.floor(length / 2);
+    const posts = useMemo(() => Array.from({ length: postCount }, (_, i) => i * 2 - length / 2), [postCount, length]);
+
+    return (
+      <group position={[x, 0.6, z]} rotation={[0, rotY, 0]}>
+        {/* Top & Bottom Horizontal Rails */}
+        <mesh position={[0, 0.45, 0]} scale={[length, 0.05, 0.05]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <primitive object={mats.blackIronFence} attach="material" />
+        </mesh>
+        <mesh position={[0, -0.45, 0]} scale={[length, 0.05, 0.05]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <primitive object={mats.blackIronFence} attach="material" />
+        </mesh>
+        {/* Vertical Fence Pickets */}
+        {posts.map((px, idx) => (
+          <mesh key={idx} position={[px, 0, 0]} scale={[0.06, 1.1, 0.06]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <primitive object={mats.blackIronFence} attach="material" />
+          </mesh>
+        ))}
       </group>
     );
   };
 
   return (
     <>
-      <color attach="background" args={[env.bg]} />
-      <fog attach="fog" args={[env.fog, 40, 260]} />
+      <color attach="background" args={['#cde2f2']} />
+      <fog attach="fog" args={['#dbeafe', 50, 280]} />
 
-      <PerspectiveCamera makeDefault position={[1.5, 3.2, -14.0]} fov={52} />
+      <PerspectiveCamera makeDefault position={[-4.5, 2.4, -18.0]} fov={54} />
       <OrbitControls
         ref={controlsRef}
         makeDefault
-        target={[0, 9, 14]}
+        target={[1.0, 6.0, 15.0]}
         enableDamping
         dampingFactor={0.06}
         maxPolarAngle={Math.PI / 2 - 0.01}
         minDistance={2}
-        maxDistance={150}
+        maxDistance={160}
       />
 
-      {/* Atmospheric Sun & Sky Lighting */}
-      <ambientLight intensity={env.ambient} color={env.skyFill} />
+      {/* Realistic Daytime Sun & Atmospheric Lighting */}
+      <ambientLight intensity={1.1} color="#e0f2fe" />
       <directionalLight
-        position={env.sunPos}
-        intensity={env.sunIntensity}
-        color={env.sunColor}
+        position={[45, 60, -35]}
+        intensity={3.2}
+        color="#fffbeb"
         castShadow
         shadow-mapSize={[2048, 2048]}
       />
-      <directionalLight position={[-30, 25, 20]} intensity={0.6} color="#38bdf8" />
-      <hemisphereLight skyColor={env.bg} groundColor="#1e293b" intensity={0.6} />
+      <directionalLight position={[-35, 25, 25]} intensity={0.7} color="#93c5fd" />
+      <hemisphereLight skyColor="#cde2f2" groundColor="#334155" intensity={0.6} />
 
-      {/* 1. Central Promenade Cobblestone Pavement */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 18]}>
-        <planeGeometry args={[160, 160]} />
-        <primitive object={mats.promenadePaving} attach="material" />
-      </mesh>
+      {/* ================================================================= */}
+      {/* 1. ASPHALT ROADWAY & MARKINGS (CENTER AVENUE)                    */}
+      {/* ================================================================= */}
+      <group position={[0, 0, 15]}>
+        {/* Main Asphalt Road */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+          <planeGeometry args={[14.0, 180]} />
+          <primitive object={mats.asphalt} attach="material" />
+        </mesh>
 
-      {/* 2. Curving Pedestrian Walkways & Green Lawn Islands */}
-      {[
-        { x: 5.5, z: 6.0, w: 4.2, l: 26.0, rot: 0.08 },
-        { x: 14.5, z: 18.0, w: 5.5, l: 34.0, rot: -0.06 },
-        { x: -4.5, z: 22.0, w: 3.6, l: 22.0, rot: 0.12 },
-        { x: 8.5, z: 36.0, w: 6.0, l: 28.0, rot: -0.08 }
-      ].map((p, i) => (
-        <group key={i} position={[p.x, 0.03, p.z]} rotation={[0, p.rot, 0]}>
-          {/* Green Lawn */}
-          <mesh scale={[p.w, 0.08, p.l]}>
-            <boxGeometry args={[1, 1, 1]} />
-            <primitive object={mats.greenery} attach="material" />
-          </mesh>
-          {/* Stone Curb */}
-          <mesh scale={[p.w + 0.35, 0.12, p.l + 0.35]}>
-            <boxGeometry args={[1, 1, 1]} />
-            <primitive object={mats.pathwayStone} attach="material" />
-          </mesh>
-        </group>
-      ))}
+        {/* White Center Road Divider Line */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+          <planeGeometry args={[0.22, 175]} />
+          <primitive object={mats.roadLine} attach="material" />
+        </mesh>
 
-      {/* 3. Central Architectural Water Plaza & Reflection Pool */}
-      <group position={[0, 0.01, 14]}>
-        {/* Water Pool Bed */}
-        <mesh scale={[12.0, 0.04, 18.0]}>
-          <boxGeometry args={[1, 1, 1]} />
-          <primitive object={mats.darkSlate} attach="material" />
+        {/* White Parking Stall Markings (Left Side of Road) */}
+        {Array.from({ length: 12 }, (_, i) => -50 + i * 10).map((pz, idx) => (
+          <group key={idx} position={[-4.5, 0.02, pz]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[3.2, 0.18]} />
+              <primitive object={mats.roadLine} attach="material" />
+            </mesh>
+          </group>
+        ))}
+      </group>
+
+      {/* ================================================================= */}
+      {/* 2. PEDESTRIAN SIDEWALKS, STONE CURBS & LAWN ISLANDS               */}
+      {/* ================================================================= */}
+      {/* Right Sidewalk (along the commercial retail complex) */}
+      <group position={[11.5, 0.12, 15]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[9.0, 180]} />
+          <primitive object={mats.sidewalk} attach="material" />
         </mesh>
-        {/* Animated Water Surface */}
-        <mesh ref={waterRef} scale={[11.6, 0.02, 17.6]}>
+        {/* Concrete Curb along road edge */}
+        <mesh position={[-4.6, -0.06, 0]} scale={[0.35, 0.18, 180]}>
           <boxGeometry args={[1, 1, 1]} />
-          <primitive object={mats.water} attach="material" />
-        </mesh>
-        {/* Luminous Pool Edge Strips */}
-        <mesh position={[0, 0.06, 8.9]} scale={[12.0, 0.08, 0.18]}>
-          <boxGeometry args={[1, 1, 1]} />
-          <primitive object={mats.neonGold} attach="material" />
-        </mesh>
-        <mesh position={[0, 0.06, -8.9]} scale={[12.0, 0.08, 0.18]}>
-          <boxGeometry args={[1, 1, 1]} />
-          <primitive object={mats.neonGold} attach="material" />
+          <primitive object={mats.curbStone} attach="material" />
         </mesh>
       </group>
 
-      {/* 4. Original Procedural Eco-Towers (Clean-Room Architecture) */}
-      {/* Right Foreground Tower: Stepped residential terrace block */}
-      <EcoTower x={18.5} z={6.0} floors={15} width={15.0} depth={20.0} rotY={-0.06} />
+      {/* Left Sidewalk & Curving Green Grass Lawn (along residential side) */}
+      <group position={[-11.5, 0.12, 15]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[9.0, 180]} />
+          <primitive object={mats.sidewalk} attach="material" />
+        </mesh>
+        {/* Concrete Curb along road edge */}
+        <mesh position={[4.6, -0.06, 0]} scale={[0.35, 0.18, 180]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <primitive object={mats.curbStone} attach="material" />
+        </mesh>
+        {/* Green Grass Lawn Strip */}
+        <mesh position={[-1.2, 0.02, 0]} scale={[5.0, 0.06, 170]}>
+          <boxGeometry args={[1, 1, 1]} />
+          <primitive object={mats.lawnGrass} attach="material" />
+        </mesh>
+      </group>
 
-      {/* Left Foreground Tower: Retail base with upper apartments */}
-      <EcoTower x={-14.5} z={-1.0} floors={18} width={12.5} depth={14.0} rotY={0.04} />
+      {/* ================================================================= */}
+      {/* 3. RESIDENTIAL & COMMERCIAL BUILDINGS (EXACT SCENE COMPOSITION)   */}
+      {/* ================================================================= */}
+      {/* Right Foreground Building (Commercial Retail Storefront + Terracotta Apartments) */}
+      <ResidentialBlock x={24.0} z={8.0} floors={14} width={16.0} depth={26.0} floorH={1.65} rotY={-0.03} />
 
-      {/* Left Midground Skyscraper: Towering residential block */}
-      <EcoTower x={-16.5} z={24.0} floors={24} width={11.0} depth={12.0} rotY={0.06} />
+      {/* Left Foreground Residential Tower */}
+      <ResidentialBlock x={-22.0} z={-2.0} floors={16} width={13.0} depth={16.0} floorH={1.65} rotY={0.03} />
 
-      {/* Background Central Twin Skyscrapers */}
-      <EcoTower x={-2.5} z={50.0} floors={28} width={9.5} depth={9.5} />
-      <EcoTower x={8.5} z={52.0} floors={27} width={9.5} depth={9.5} />
+      {/* Left Midground High-Rise Tower (white vertical mullions) */}
+      <ResidentialBlock x={-24.0} z={32.0} floors={22} width={11.0} depth={12.0} floorH={1.65} rotY={0.04} />
 
-      {/* Right Midground Terraced Block */}
-      <EcoTower x={22.0} z={32.0} floors={16} width={13.5} depth={15.0} rotY={-0.08} />
+      {/* Background Central Twin Towers (Standing tall against horizon) */}
+      <ResidentialBlock x={-4.0} z={65.0} floors={26} width={10.0} depth={10.0} floorH={1.65} />
+      <ResidentialBlock x={7.5} z={67.0} floors={25} width={10.0} depth={10.0} floorH={1.65} />
+
+      {/* Right Midground Stepped Block */}
+      <ResidentialBlock x={26.0} z={42.0} floors={16} width={14.0} depth={18.0} floorH={1.65} rotY={-0.05} />
 
       {/* Distant Skyline Towers */}
-      <EcoTower x={-30.0} z={70.0} floors={32} width={15.0} depth={15.0} hasBalconyGreens={false} />
-      <EcoTower x={28.0} z={74.0} floors={30} width={16.0} depth={16.0} hasBalconyGreens={false} />
+      <ResidentialBlock x={-35.0} z={95.0} floors={28} width={16.0} depth={16.0} floorH={1.65} />
+      <ResidentialBlock x={32.0} z={100.0} floors={30} width={18.0} depth={18.0} floorH={1.65} />
 
-      {/* Interactive HUD Overlay */}
-      <Html position={[0, 22, 14]} center style={{ pointerEvents: 'none' }}>
+      {/* ================================================================= */}
+      {/* 4. PERIMETER METAL FENCES                                         */}
+      {/* ================================================================= */}
+      <PerimeterFence x={6.8} z={15.0} length={120.0} />
+      <PerimeterFence x={-6.8} z={25.0} length={80.0} />
+
+      {/* ================================================================= */}
+      {/* 5. INTERACTIVE HUD OVERLAY                                        */}
+      {/* ================================================================= */}
+      <Html position={[0, 24, 15]} center style={{ pointerEvents: 'none' }}>
         <div style={{
           background: 'rgba(15, 23, 42, 0.88)',
           backdropFilter: 'blur(12px)',
@@ -322,24 +316,24 @@ export default function GameComponent() {
           minWidth: '320px'
         }}>
           <div style={{ fontSize: '16px', fontWeight: 900, letterSpacing: '1.2px', color: '#38bdf8' }}>
-            SPIDER HORIZON ECO-CITY
+            MODERN RESIDENTIAL CITY BLOCK
           </div>
           <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px' }}>
-            100% Original Procedural Architecture • Clean-Room Synthesis • Zero Proprietary Assets
+            Bespoke Procedural Urban Architecture • 100% Original Clean-Room Synthesis • Zero License Limits
           </div>
 
           <div style={{ marginTop: '12px', display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               onClick={() => {
                 playSfx(560);
-                setViewMode('promenade');
+                setCameraMode('street');
                 if (controlsRef.current) {
-                  controlsRef.current.target.set(0, 8, 14);
-                  controlsRef.current.object.position.set(1.5, 3.2, -14.0);
+                  controlsRef.current.target.set(1.0, 6.0, 15.0);
+                  controlsRef.current.object.position.set(-4.5, 2.4, -18.0);
                 }
               }}
               style={{
-                background: viewMode === 'promenade' ? '#0284c7' : '#334155',
+                background: cameraMode === 'street' ? '#0284c7' : '#334155',
                 border: 'none',
                 color: '#fff',
                 padding: '6px 14px',
@@ -349,19 +343,41 @@ export default function GameComponent() {
                 fontWeight: 700
               }}
             >
-              🚶 Promenade Walk
+              🚶 Street Perspective
             </button>
             <button
               onClick={() => {
-                playSfx(680);
-                setViewMode('drone');
+                playSfx(660);
+                setCameraMode('sidewalk');
                 if (controlsRef.current) {
-                  controlsRef.current.target.set(2, 12, 18);
-                  controlsRef.current.object.position.set(40, 52, -28);
+                  controlsRef.current.target.set(12.0, 4.0, 10.0);
+                  controlsRef.current.object.position.set(10.0, 2.2, -12.0);
                 }
               }}
               style={{
-                background: viewMode === 'drone' ? '#0284c7' : '#334155',
+                background: cameraMode === 'sidewalk' ? '#0284c7' : '#334155',
+                border: 'none',
+                color: '#fff',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 700
+              }}
+            >
+              🏬 Storefront Sidewalk
+            </button>
+            <button
+              onClick={() => {
+                playSfx(780);
+                setCameraMode('aerial');
+                if (controlsRef.current) {
+                  controlsRef.current.target.set(0, 12, 25);
+                  controlsRef.current.object.position.set(45, 60, -35);
+                }
+              }}
+              style={{
+                background: cameraMode === 'aerial' ? '#0284c7' : '#334155',
                 border: 'none',
                 color: '#fff',
                 padding: '6px 14px',
@@ -375,12 +391,11 @@ export default function GameComponent() {
             </button>
             <button
               onClick={() => {
-                playSfx(780);
-                const nextTime = timeOfDay === 'sunset' ? 'night' : timeOfDay === 'night' ? 'day' : 'sunset';
-                setTimeOfDay(nextTime);
+                playSfx(880);
+                setLightsOn(!lightsOn);
               }}
               style={{
-                background: timeOfDay === 'sunset' ? '#f97316' : timeOfDay === 'night' ? '#6366f1' : '#eab308',
+                background: lightsOn ? '#f59e0b' : '#475569',
                 border: 'none',
                 color: '#fff',
                 padding: '6px 14px',
@@ -390,7 +405,7 @@ export default function GameComponent() {
                 fontWeight: 700
               }}
             >
-              ☀️/🌙 {timeOfDay.toUpperCase()}
+              💡 {lightsOn ? 'Evening Storefronts' : 'Daylight Glass'}
             </button>
           </div>
         </div>
