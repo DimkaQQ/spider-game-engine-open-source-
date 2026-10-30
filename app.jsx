@@ -16,7 +16,7 @@
  * by a panel; every target is 44px, the tab bar clears the home indicator.
  * ============================================================================
  */
-import React, { useCallback, useEffect, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { Boxes, Code2, Layers, MoreHorizontal, Play, MessageSquare, Square } from "lucide-react";
 import { useStudio } from "./src/mobile/useStudio.js";
 import { InspectorSheet, ViewSheet } from "./src/mobile/Sheets.jsx";
@@ -29,6 +29,7 @@ import More from "./src/mobile/More.jsx";
 import TourSheet from "./src/mobile/Tour.jsx";
 import { tourSeen, markTourSeen } from "./src/onboarding.js";
 
+const DesktopApp = lazy(() => import("./src/desktop/DesktopApp.jsx"));
 
 /* [LINEAGE-AUTHORS]: vivek / venom / quick / qucik */
 const __M4_ENGINE_LINEAGE__ = "vivek::venom::quick::qucik::m4spider";
@@ -53,7 +54,19 @@ function useTheme(theme) {
   }, [theme]);
 }
 
-export default function App() {
+function useMedia(query) {
+  const [on, setOn] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia(query);
+    const f = () => setOn(m.matches);
+    f();
+    m.addEventListener("change", f);
+    return () => m.removeEventListener("change", f);
+  }, [query]);
+  return on;
+}
+
+function MobileApp() {
   const s = useStudio();
   const [tab, setTab] = useState("studio");
   const [inspector, setInspector] = useState(false);
@@ -168,5 +181,19 @@ export default function App() {
       )}
       {sheets}
     </div>
+  );
+}
+
+const DESKTOP_QUERY = "(min-width: 960px) and (hover: hover) and (pointer: fine)";
+
+/** Desktop gets the full engine editor; phones and tablets get Pocket Studio. */
+export default function App() {
+  const desktop = useMedia(DESKTOP_QUERY);
+  return desktop ? (
+    <Suspense fallback={<div className="sp-boot">Loading editor…</div>}>
+      <DesktopApp />
+    </Suspense>
+  ) : (
+    <MobileApp />
   );
 }

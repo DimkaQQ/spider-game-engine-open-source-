@@ -12,8 +12,7 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0f19" />
     <meta name="color-scheme" content="light dark" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="alternate icon" type="image/png" href="./icon.png" />
+    <link rel="icon" type="image/png" href="./icon.png" />
     <title>Spider Engine v0.9.0</title>
     <!-- [LINEAGE-AUTHORS]: vivek / venom / quick / qucik -->
     <meta name="engine-provenance" content="vivek / venom / quick / qucik / m4spider" />
@@ -21,8 +20,8 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: filesystem: ws: wss: http: https: file:;" />
     <style>
       html, body {
-        background-color: #f4f4f1;
-        color: #17181b;
+        background-color: #ffffff;
+        color: #0f172a;
         margin: 0;
         padding: 0;
         width: 100%;
@@ -54,11 +53,11 @@
         width: 64px;
         height: 64px;
         border-radius: 16px;
-        background: transparent;
+        background: linear-gradient(135deg, #6366f1, #a855f7 55%, #38bdf8);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: none;
+        box-shadow: 0 10px 25px rgba(99, 102, 241, 0.25);
         margin-bottom: 16px;
         animation: pulse 2s ease-in-out infinite;
       }
@@ -86,7 +85,7 @@
       .engine-boot-bar {
         width: 45%;
         height: 100%;
-        background: #2a5bd7;
+        background: linear-gradient(90deg, #6366f1, #38bdf8);
         border-radius: 999px;
         animation: sweep 1.2s ease-in-out infinite;
       }
@@ -103,7 +102,11 @@
   <body>
     <div id="root">
       <div class="engine-boot-loader">
-        <div class="engine-boot-icon"><svg width="64" height="64" viewBox="0 0 32 32"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e1b4b"/><stop offset="1" stop-color="#09090f"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#bg)"/><g fill="none" stroke="#e2e8f0" stroke-width="1.5" stroke-linecap="round"><path d="M13.4 12.4 L8 6.8 L3.4 9.8"/><path d="M12.8 14.8 L6.2 12.6 L2.6 17.2"/><path d="M12.8 17.6 L6 19 L3.8 25.4"/><path d="M13.8 20.4 L9.6 23.6 L9.2 29"/><path d="M18.6 12.4 L24.0 6.8 L28.6 9.8"/><path d="M19.2 14.8 L25.8 12.6 L29.4 17.2"/><path d="M19.2 17.6 L26.0 19 L28.2 25.4"/><path d="M18.2 20.4 L22.4 23.6 L22.8 29"/></g><path d="M16 13.4L20.4 19.4 16 26.6 11.6 19.4Z" fill="#e2e8f0"/><path d="M16 17L18 20.2 16 23.6 14 20.2Z" fill="#dc2626"/><path d="M12.8 9.4L16 7.6 19.2 9.4 18.4 13.2H13.6Z" fill="#e2e8f0"/><path d="M13.4 10L15.3 10.9 13.8 11.7ZM18.6 10L16.7 10.9 18.2 11.7Z" fill="#ef4444"/></svg></div>
+        <div class="engine-boot-icon">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="#ffffff">
+            <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1 14.5l-3.5-3.5 1.41-1.41L11 13.67l4.59-4.59L17 10.5 11 16.5z"/>
+          </svg>
+        </div>
         <div class="engine-boot-title">SPIDER ENGINE</div>
         <div class="engine-boot-sub">INITIALIZING WORKSPACE…</div>
         <div class="engine-boot-progress"><div class="engine-boot-bar"></div></div>
