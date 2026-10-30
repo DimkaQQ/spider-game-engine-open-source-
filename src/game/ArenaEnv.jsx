@@ -214,54 +214,28 @@ export function GameHud({ title = 'ARCADE ARENA', score = 0, total = 8, won = fa
   const isWon = won || (total > 0 && score >= total);
 
   return (
-    <Html position={[0, 5.5, -8]} center style={{ pointerEvents: 'none' }}>
+    <Html fullscreen style={{ pointerEvents: 'none' }}>
       <div
         style={{
-          background: 'rgba(15, 23, 42, 0.92)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-          padding: '10px 22px',
-          borderRadius: '14px',
+          position: 'absolute',
+          top: 12,
+          left: 12,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '6px 14px',
+          borderRadius: '10px',
           color: '#ffffff',
           fontFamily: 'system-ui, -apple-system, sans-serif',
           display: 'flex',
-          flexDirection: 'column',
+          gap: '12px',
           alignItems: 'center',
-          gap: '8px',
-          whiteSpace: 'nowrap'
+          fontSize: '12px'
         }}
       >
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ fontWeight: 800, fontSize: '15px', letterSpacing: '0.5px', color: '#60a5fa' }}>
-            {title}
-          </div>
-          <div style={{ fontWeight: 700, fontSize: '14px', color: '#fbbf24' }}>
-            Score: {score} / {total}
-          </div>
-          {onRestart && (
-            <button
-              onClick={onRestart}
-              style={{
-                pointerEvents: 'auto',
-                background: '#3b82f6',
-                color: '#fff',
-                border: 'none',
-                padding: '4px 12px',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontWeight: 700,
-                fontSize: '12px'
-              }}
-            >
-              Restart
-            </button>
-          )}
-        </div>
-        {isWon && (
-          <div style={{ color: '#4ade80', fontWeight: 800, fontSize: '14px' }}>
-            🎉 VICTORY! ALL COINS COLLECTED! 🎉
-          </div>
-        )}
+        <span style={{ fontWeight: 800, color: '#60a5fa' }}>{title}</span>
+        <span style={{ fontWeight: 700, color: '#fbbf24' }}>Score: {score}/{total}</span>
+        {isWon && <span style={{ color: '#4ade80', fontWeight: 800 }}>VICTORY! Press R to Play Again</span>}
       </div>
     </Html>
   );

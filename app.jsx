@@ -1246,6 +1246,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     if (!raw && !currentImg) return;
     setAiPrompt("");
     if (aiTextareaRef.current) {
+      aiTextareaRef.current.value = "";
       aiTextareaRef.current.style.height = "auto";
     }
     setAiAttachedImage(null);
@@ -3550,7 +3551,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
       const callModel = async (task, history) => {
         const sys = systemPrompt(snapshot(), { isMobile: false }) + "\n" +
           "\n\nCRITICAL LOCAL DISK ACCESS & ASSET IMPORT MANDATE: You run natively inside Spider Engine on Desktop (Windows Electron) with FULL access to the user's local disk, Downloads folder, and file system! NEVER tell the user 'I cannot access your files' or 'please upload/drag-and-drop'! When the user provides a path (e.g. C:\\Users\\...\\Downloads\\modern-city-block) or asks to import an FBX/GLB/3D asset, IMMEDIATELY call importAsset({ path: '...' }) to copy the files into public/assets/ and mount it in GameComponent.jsx using useFBX or useGLTF!\n" +
-          "\nCRITICAL CONTROLS MANDATE: CREATE GAMES FOR KEYBOARD, NOT FOR SCREEN! Always implement responsive physical keyboard controls (WASD, Arrow Keys, Spacebar for jump/action/brake, Shift for sprint, and 'R' key to restart). NEVER create on-screen touch buttons, virtual joysticks, or touch d-pads on the screen. The engine is designed for desktop keyboard gameplay.\n" +
+          "\nCRITICAL CONTROLS MANDATE: CREATE GAMES FOR KEYBOARD, NOT FOR SCREEN! Always implement responsive physical keyboard controls (WASD, Arrow Keys, Spacebar for jump/action/brake, Shift for sprint, and 'R' key to restart). NEVER create on-screen touch buttons, virtual joysticks, or touch d-pads on the screen. The engine is designed for desktop keyboard gameplay. CRITICAL RESTART RULE: NEVER write `location.reload()` on 'R' or restart! That reloads the whole engine. 'R' key must ONLY reset local component React state (health, score, wave, player position) in-place without page reload!\n" +
+          "\nCRITICAL UI/HUD MANDATE — NEVER CREATE FLOATING 3D <Html> CARDS OR HUGE HUD BOXES: NEVER create massive floating HTML cards, health bars, controls lists, or rectangular HUD boxes floating in 3D space (<Html position={[x,y,z]} ...>). They float awkwardly in mid-air, obstruct the player's 3D view, look amateurish, and ruin game immersion. AVOID <Html> entirely whenever possible. The 3D viewport MUST remain 100% clean, cinematic, and unobstructed. If game stats (score, HP) are needed, use subtle 3D elements (like <Text> from '@react-three/drei' or tiny 3D mesh bars above characters), OR ultra-minimal translucent corner text (<Html fullscreen> with position: absolute, top: 12, left: 12), NEVER a giant floating card in the middle of the screen!\n" +
           GAME_BUILDER_PRIMER;
         let messages;
         if (history.length === 0) {
@@ -8830,7 +8832,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       e.preventDefault();
                       if (aiPrompt.startsWith("/")) {
                         const filtered = SLASH_COMMANDS.filter((c) => c.name.toLowerCase().startsWith(aiPrompt.slice(1).toLowerCase()));
-                        if (filtered.length > 0 && aiPrompt.trim().length <= filtered[slashIndex % filtered.length].name.length + 1) {
+                        if (filtered.length > 0 && aiPrompt.trim().length < filtered[slashIndex % filtered.length].name.length + 1) {
                           const picked = filtered[slashIndex % filtered.length];
                           setAiPrompt(`/${picked.name} `);
                           return;
