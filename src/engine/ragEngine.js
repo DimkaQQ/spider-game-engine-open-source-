@@ -260,8 +260,9 @@ const STOP_WORDS = new Set([
 function tokenize(text) {
   if (!text || typeof text !== "string") return [];
   return text
+    .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, "$1 $2") // spawnBoss -> spawn Boss
     .toLowerCase()
-    .replace(/[^a-z0-9_#$]/g, " ")
+    .replace(/[^\p{L}\p{N}#$]/gu, " ") // underscores split too: Lighthouse_12 -> lighthouse 12 // letters of any language, so a Russian prompt retrieves too
     .split(/\s+/)
     .filter((w) => w.length > 1 && !STOP_WORDS.has(w));
 }
@@ -298,6 +299,55 @@ class RagVectorStore {
         }
       });
     });
+  }
+
+  /**
+   * Replaces everything that belongs to the open project in one pass: its code files and a
+   * description of the scene graph. Called when a project opens and, debounced, when it changes,
+   * so retrieval never serves files from a project that is no longer open.
+   */
+  setProject({ files = [], nodes = [] } = {}) {
+    this.projectChunks = [];
+    for (const f of files) this._chunkFile(f.name, f.content);
+    const lines = (nodes || [])
+      .filter(Boolean)
+      .map((n) => {
+        const p = n.pos || {};
+        const at = `(${[p.x, p.y, p.z].map((v) => Math.round((Number(v) || 0) * 10) / 10).join(", ")})`;
+        const extra = [n.physics ? "physics" : "", n.visible === false ? "hidden" : "", n.modelUrl ? "imported model" : "", n.textureUrl ? "imported image" : ""].filter(Boolean).join(", ");
+        return `${n.name || n.id} [${n.mesh || n.type || "actor"}] at ${at}${extra ? ` - ${extra}` : ""}`;
+      });
+    const size = 30;
+    for (let i = 0; i < lines.length; i += size) {
+      this.projectChunks.push({
+        id: `scene-${i}`,
+        category: "scene",
+        title: `Scene objects ${i + 1}-${Math.min(lines.length, i + size)} of ${lines.length}`,
+        keywords: [],
+        content: lines.slice(i, i + size).join("\n"),
+        sourceFile: "(scene)"
+      });
+    }
+    this.rebuildIndex();
+  }
+
+  _chunkFile(fileName, content) {
+    if (!content || typeof content !== "string") return;
+    const lines = content.split("\n");
+    const chunkSize = 40;
+    for (let i = 0; i < lines.length; i += chunkSize - 5) {
+      const slice = lines.slice(i, i + chunkSize).join("\n");
+      if (slice.trim().length > 30) {
+        this.projectChunks.push({
+          id: `file-${fileName}-${i}`,
+          category: "project",
+          title: `Project File: ${fileName} (L${i + 1}-L${Math.min(lines.length, i + chunkSize)})`,
+          keywords: tokenize(fileName),
+          content: slice,
+          sourceFile: fileName
+        });
+      }
+    }
   }
 
   /**
@@ -398,13 +448,13 @@ export const ragStore = new RagVectorStore();
  */
 export function retrieveRagContext(query, options = {}) {
   const maxResults = options.maxResults || 2;
-  const minScore = options.minScore || 0.14;
+  const minScore = options.minScore ?? 0.07; // cosine over long chunks is small; 0.14 almost never matched
   const matches = ragStore.search(query, maxResults, minScore);
 
   if (!matches.length) return "";
 
   const formatted = matches
-    .map((m, i) => `### [RAG Snippet ${i + 1}]: ${m.title} (${m.category.toUpperCase()})\n\`\`\`javascript\n${m.content}\n\`\`\``)
+    .map((m, i) => `### [RAG Snippet ${i + 1}]: ${m.title} (${m.category.toUpperCase()})\n${m.category === "scene" ? m.content : `\`\`\`javascript\n${m.content}\n\`\`\``}`)
     .join("\n\n");
 
   return (

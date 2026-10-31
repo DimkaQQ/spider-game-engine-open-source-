@@ -32,7 +32,8 @@ function turnLines(messages) {
           result.push({ who: "User", text: m.text });
         } else {
           const tools = m.steps?.length ? ` [tools: ${[...new Set(m.steps.map((s) => s.tool))].join(", ")}]` : "";
-          result.push({ who: m.ok === false ? "Assistant (failed)" : "Assistant", text: `${m.text}${tools}` });
+          const files = [...new Set((m.steps || []).map((s) => s.file).filter(Boolean))];
+          result.push({ who: m.ok === false ? "Assistant (failed)" : "Assistant", text: `${m.text}${tools}`, files });
         }
       }
     } else if (m.q || m.a) {
@@ -41,6 +42,35 @@ function turnLines(messages) {
     }
   }
   return result;
+}
+
+const firstLine = (t, n) => {
+  const line = String(t || "").split("\n").find((l) => l.trim()) || "";
+  const clean = line.trim();
+  return clean.length > n ? `${clean.slice(0, n - 1)}…` : clean;
+};
+
+/** Condense older turns into a short, structured brief the model can still act on. */
+export function summarizeHead(turns) {
+  const asks = [];
+  const outcomes = [];
+  const problems = [];
+  const files = new Set();
+  for (const t of turns) {
+    if (t.who === "User") asks.push(firstLine(t.text, 220));
+    else {
+      (t.files || []).forEach((f) => files.add(f));
+      const line = firstLine(t.text, 180);
+      if (t.who.includes("failed")) problems.push(line);
+      else outcomes.push(line);
+    }
+  }
+  const out = [];
+  if (asks.length) out.push("User asked, in order:", ...asks.map((a, i) => `${i + 1}. ${a}`));
+  if (outcomes.length) out.push("What came of it:", ...outcomes.slice(-12).map((o) => `- ${o}`));
+  if (problems.length) out.push("Attempts that failed:", ...problems.slice(-5).map((p) => `- ${p}`));
+  if (files.size) out.push(`Files written so far: ${[...files].join(", ")}`);
+  return out.join("\n");
 }
 
 /**
@@ -73,12 +103,8 @@ export function buildMemory(messages, budgetChars) {
   const headTurns = turns.slice(0, turns.length - tailCount);
   const tailTurns = turns.slice(turns.length - tailCount);
 
-  // Structured summary of the older head turns
-  const headSummary = headTurns.map((t) => {
-    const firstLine = t.text.split("\n")[0].trim();
-    const digest = firstLine.length > 250 ? `${firstLine.slice(0, 247)}…` : firstLine;
-    return `• ${t.who}: ${digest}`;
-  }).join("\n");
+  // Structured summary of the older head turns: what was asked, what came of it, which files exist
+  const headSummary = summarizeHead(headTurns);
 
   const tailText = render(tailTurns);
   const combined = `[Prior Session Context - Summary of Earlier Turns]:\n${headSummary}\n\n[Recent Conversation - Verbatim]:\n${tailText}`;
@@ -88,12 +114,14 @@ export function buildMemory(messages, budgetChars) {
   }
 
   // If still overflowing under extreme history, progressively drop oldest summary bullets
+  // the first request (the original goal) stays pinned; the rest is dropped oldest first
   const summaryLines = headSummary.split("\n");
-  let prunedSummary = summaryLines;
+  const pinned = summaryLines.slice(0, 2);
+  let rest = summaryLines.slice(2);
   let finalText = combined;
-  while (finalText.length > budgetChars && prunedSummary.length > 1) {
-    prunedSummary = prunedSummary.slice(1);
-    finalText = `[Prior Session Context - Summary of Earlier Turns (compacted)]:\n${prunedSummary.join("\n")}\n\n[Recent Conversation - Verbatim]:\n${tailText}`;
+  while (finalText.length > budgetChars && rest.length > 0) {
+    rest = rest.slice(1);
+    finalText = `[Prior Session Context - Summary of Earlier Turns (compacted)]:\n${[...pinned, ...rest].join("\n")}\n\n[Recent Conversation - Verbatim]:\n${tailText}`;
   }
 
   return { text: finalText, compacted: true, turns: turns.length, kept: tailTurns.length };

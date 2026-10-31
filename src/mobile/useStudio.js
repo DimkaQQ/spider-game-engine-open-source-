@@ -1324,7 +1324,7 @@ export function useStudio() {
           },
           onEvent: (ev) => {
             if (ev.type === "action") {
-              steps.push({ tool: ev.tool, state: "run" });
+              steps.push({ tool: ev.tool, state: "run", file: ev.args?.name || ev.args?.file || undefined });
               if (inflight.current) inflight.current.steps = steps.map((x) => ({ ...x }));
               persistInflight();
               setStream((s) => ({ ...(s || {}), steps: [...steps] }));
@@ -1418,6 +1418,14 @@ export function useStudio() {
     log("Info", "Agent changes reverted");
     return true;
   }, [log, patchProject]);
+
+  // keep the retrieval index in step with the open project: its files and its scene objects
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { ragStore.setProject({ files: project.files, nodes: flat }); } catch {}
+    }, 400);
+    return () => clearTimeout(t);
+  }, [project.id, project.files, flat]);
 
   return {
     // settings
