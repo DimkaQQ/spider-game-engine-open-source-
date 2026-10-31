@@ -13,6 +13,7 @@ import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFr
 import { COINS, COIN_RULES, PLAYER, physicsFallSpeed, PRIMITIVE_SHAPES, GAME_WORLD } from "../game/index.js";
 import {
   STARTER_CODE,
+  STARTER_IDS,
   clone,
   download,
   loadCurrentId,
@@ -1025,6 +1026,12 @@ export function useStudio() {
             return `COMPILATION ERROR in "${name}": ${r.error}${trunc}\n${ctx}\nThe code is saved as "${name}" (not mounted). Fix ONLY the broken part with editFile (args: name: "${name}", old: the exact broken snippet, text: the corrected snippet). Do NOT rewrite the whole file.`;
           }
           draftRef.current = null;
+          // a new game replaces the placeholder starter level (hidden, not deleted: Scene shows it again, Undo brings it back)
+          const hasStarter = flatten(projectRef.current.groups).some((n) => STARTER_IDS.has(n.id) && n.visible !== false);
+          if (hasStarter) {
+            editGroups((g) => g.map((grp) => ({ ...grp, children: (grp.children || []).map((n) => (STARTER_IDS.has(n.id) && n.visible !== false ? { ...n, visible: false } : n)) })), { silent: true });
+            log("Info", "Starter level hidden: the new game replaces it (Scene tab shows it again)");
+          }
           return `Component "${name}" compiled, mounted and verified error-free in the 3D viewport. Ready to play.`;
         }
         case "clear_jsx":

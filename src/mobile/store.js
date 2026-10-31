@@ -91,6 +91,9 @@ const prop = (id, name, mesh, color, pos, scale = { x: 1, y: 1, z: 1 }) => ({
   anim: "None", physics: false, mass: 100, collision: "BlockAll",
 });
 
+/** Ids of the starter level objects. A new game replaces them: they are only a placeholder to look at. */
+export const STARTER_IDS = new Set(["player", "spawn-ground", "spawn-tree-1", "spawn-tree-2", "spawn-rock-1", "spawn-crate-1"]);
+
 /** Plain starter level: flat ground, a few shapes, the hero, coins. No forest, rocks or water. */
 export function starterWorld() {
   const full = clone(GAME_WORLD);
