@@ -82,3 +82,9 @@ test("built-in engine patterns are retrieved for matching goals and not for smal
   assert.match(retrieveRagContext("enemies that chase the player and shoot"), /Enemy Homing/);
   assert.equal(retrieveRagContext("hello how are you"), "");
 });
+
+test("a very long history is summarised in two levels: first goal and newest asks in full, the middle in brief", () => {
+  const m = buildMemory(chat(240), 12000);
+  assert.match(m.text, /User asked, in order:\n1\. Request 1:/);
+  assert.match(m.text, /2-\d+\. In brief: Request 2:/);
+});

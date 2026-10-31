@@ -424,7 +424,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
       const { spawn } = require('child_process');
       const targetCwd = cwd || process.cwd();
       const isWin = process.platform === 'win32';
-      const shellExecutable = isWin ? 'powershell.exe' : '/bin/bash';
+      const shellExecutable = isWin ? 'powershell.exe' : (process.env.SHELL && require('fs').existsSync(process.env.SHELL) ? process.env.SHELL : '/bin/bash');
       const shellArgs = isWin
         ? ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command]
         : ['-c', command];

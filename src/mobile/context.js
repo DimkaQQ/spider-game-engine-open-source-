@@ -66,7 +66,16 @@ export function summarizeHead(turns) {
     }
   }
   const out = [];
-  if (asks.length) out.push("User asked, in order:", ...asks.map((a, i) => `${i + 1}. ${a}`));
+  if (asks.length > 16) {
+    // two levels: the first request and the newest ones in full, everything between as one brief line
+    const L = asks.length;
+    out.push(
+      "User asked, in order:",
+      `1. ${asks[0]}`,
+      `2-${L - 12}. In brief: ${asks.slice(1, L - 12).map((a) => (a.length > 60 ? `${a.slice(0, 59)}…` : a)).join("; ")}`,
+      ...asks.slice(L - 12).map((a, i) => `${L - 12 + 1 + i}. ${a}`)
+    );
+  } else if (asks.length) out.push("User asked, in order:", ...asks.map((a, i) => `${i + 1}. ${a}`));
   if (outcomes.length) out.push("What came of it:", ...outcomes.slice(-12).map((o) => `- ${o}`));
   if (problems.length) out.push("Attempts that failed:", ...problems.slice(-5).map((p) => `- ${p}`));
   if (files.size) out.push(`Files written so far: ${[...files].join(", ")}`);
@@ -120,7 +129,10 @@ export function buildMemory(messages, budgetChars) {
   let rest = summaryLines.slice(2);
   let finalText = combined;
   while (finalText.length > budgetChars && rest.length > 0) {
-    rest = rest.slice(1);
+    // outcome bullets go first: what the user asked for matters more than how each turn ended
+    const at = rest.findIndex((l) => l.startsWith("- "));
+    const drop = at >= 0 ? at : Math.max(0, rest.findIndex((l) => !l.includes("In brief:")));
+    rest = [...rest.slice(0, drop), ...rest.slice(drop + 1)];
     finalText = `[Prior Session Context - Summary of Earlier Turns (compacted)]:\n${[...pinned, ...rest].join("\n")}\n\n[Recent Conversation - Verbatim]:\n${tailText}`;
   }
 

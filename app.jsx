@@ -150,7 +150,8 @@ const SLASH_COMMANDS = [
   { id: "teamwork", name: "teamwork", desc: "Invoke a team of agents to autonomously tackle large projects.", iconType: "team" },
   { id: "play", name: "play", desc: "Toggle live game play testing mode.", iconType: "play" },
   { id: "clear", name: "clear", desc: "Clear conversation history to start fresh.", iconType: "trash" },
-  { id: "stop", name: "stop", desc: "Stop active agent execution.", iconType: "stop" }
+  { id: "stop", name: "stop", desc: "Stop active agent execution.", iconType: "stop" },
+  { id: "help", name: "help", desc: "List every slash command.", iconType: "help" }
 ];
 
 function SlashCmdIcon({ type }) {
@@ -1258,6 +1259,37 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const promptText = raw || (currentImg ? `Visually analyze this attached reference image "${currentImg.name}". Recreate its exact 3D visual scene, architecture, environment, lighting, colors, and atmospheric mood with procedural sound (Web Audio API) using render_jsx!` : "");
     const q = promptText.toLowerCase();
 
+    // Slash commands: the palette autocompletes them, this is where they run.
+    let agentText = promptText;
+    const slash = /^\/([a-z-]+)\s*([\s\S]*)$/i.exec(promptText.trim());
+    const slashName = slash?.[1]?.toLowerCase();
+    if (slash && slashName !== "blender" && SLASH_COMMANDS.some((c) => c.name === slashName)) {
+      const arg = slash[2].trim();
+      const reply = (text, ok = true) => {
+        pushMsg(promptText, text, ok);
+        setTimeout(() => aiEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+      };
+      if (slashName === "help") {
+        reply(SLASH_COMMANDS.map((c) => `/${c.name}: ${c.desc}`).join("\n"));
+        return;
+      }
+      if (slashName === "clear") { newChat(); return; }
+      if (slashName === "stop") { stopAgent(); reply("Agent stopped."); return; }
+      if (slashName === "play") { handleTogglePlay(); reply(isPlaying ? "Play mode turned off." : "Play mode turned on."); return; }
+      if (slashName === "compact") { reply("Context is compacted automatically before it fills the window: the newest turns stay word for word and older ones are summarised."); return; }
+      if (slashName === "schedule") { reply("Scheduling is not available in this build yet.", false); return; }
+      const wrap = {
+        plan: "Plan carefully before executing. First write a short numbered plan, then carry it out step by step.\n\nTask: ",
+        goal: "Keep working until this goal is completely finished and verified in the viewport. Do not stop early.\n\nGoal: ",
+        browser: "If a browser tool is available, research this on the web first, then apply what you found.\n\nTopic: ",
+        "grill-me": "Interview me with short focused questions, one at a time, until we agree on a plan. Then build it.\n\nSubject: ",
+        teamwork: "This is a large project. Split it into parts, build each part in turn, and integrate them into one playable result.\n\nProject: ",
+        btw: "Answer briefly in text only. Do not change the scene or run tools.\n\nQuestion: ",
+      }[slashName];
+      if (wrap && !arg && slashName !== "grill-me") { reply(`Add a request after /${slashName}, for example /${slashName} a racing game.`, false); return; }
+      if (wrap) agentText = wrap + (arg || "my game idea");
+    }
+
     // Real-Time Blender MCP slash command handler
     if (q === "/blender" || q.startsWith("/blender ") || q === "blender" || q === "/blender connect") {
       const sub = q.replace(/^\/?blender\s*/, "").trim();
@@ -1310,7 +1342,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     // Thinking shimmer window — then the router runs for real
     setTimeout(async () => {
       try {
-        await runAskAi(promptText, q, currentImg);
+        await runAskAi(agentText, agentText.toLowerCase(), currentImg);
         if (effort === "high") appendLog("Info", `Reasoning (high): done — see reply above.`);
       } catch (err) {
         appendLog("Warning", `Ask AI error: ${err?.message || err}`);
@@ -5053,11 +5085,14 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
         e.stopPropagation();
       }
     };
-    window.addEventListener("keydown", handleInputKeystrokes, true);
-    window.addEventListener("keyup", handleInputKeystrokes, true);
+    // Bubble phase on document, not capture on window: React listens on the root element, which sits
+    // below document, so every onKeyDown in a field (Enter to send, Tab, arrows in the slash palette)
+    // still runs, while the window-level game and viewport listeners no longer see typed keys.
+    document.addEventListener("keydown", handleInputKeystrokes);
+    document.addEventListener("keyup", handleInputKeystrokes);
     return () => {
-      window.removeEventListener("keydown", handleInputKeystrokes, true);
-      window.removeEventListener("keyup", handleInputKeystrokes, true);
+      document.removeEventListener("keydown", handleInputKeystrokes);
+      document.removeEventListener("keyup", handleInputKeystrokes);
     };
   }, []);
 

@@ -17,6 +17,8 @@ import { Chess } from "chess.js";
 import { sfx, SoundEffects } from "./audioSynthesizer.js";
 import * as ArenaModule from "../game/ArenaEnv.jsx";
 import * as TouchKit from "./touchControls.jsx";
+
+const MAX_FRAME_STEP = 0.033; // seconds: the longest step any generated game is ever given
 import * as ChessBoardEnvModule from "../game/ChessBoardEnv.jsx";
 import * as PiecesModule from "../game/pieces.jsx";
 import * as ChessRulesModule from "../game/ChessRules.js";
@@ -183,7 +185,12 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
     const scopeMap = {
       react: React,
       three: THREE,
-      "@react-three/fiber": { ...Fiber, Canvas: SafeCanvas },
+      "@react-three/fiber": {
+        ...Fiber,
+        Canvas: SafeCanvas,
+        // every generated game gets the same capped frame step, so a slow frame cannot make objects tunnel
+        useFrame: (cb, priority) => Fiber.useFrame((state, delta, frame) => cb(state, Math.min(delta, MAX_FRAME_STEP), frame), priority),
+      },
       "@react-three/drei": Drei,
       "lucide-react": safeLucide,
       "chess.js": { Chess, default: Chess },
