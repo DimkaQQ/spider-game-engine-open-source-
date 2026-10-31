@@ -147,7 +147,7 @@ export default function MobileApp() {
     <>
       {tab === "scene" && (
         <div className="sp-pane">
-          <Scene s={s} notify={notify} onOpenInspector={openInspector} onShowStudio={() => go("studio")} />
+          <Scene s={s} notify={notify} onOpenInspector={openInspector} onShowInStudio={() => go("studio")} />
         </div>
       )}
       {eff === "ai" && (

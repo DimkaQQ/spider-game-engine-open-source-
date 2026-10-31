@@ -28,7 +28,7 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 - **Dual Permission Governance**: Toggle between **Ask Permission (Secure Mode)** for interactive review and **Auto Mode (No Permission)** for 100% autonomous agent execution.
 - **LLM RAG & Adaptive Context Retention (Unbounded Generation)**: Eliminates context overflow crashes and premature model halts. Combines live RAG retrieval over project files, scene graph state, and linked assets with 75% verbatim tail preservation and high-density hierarchical summarization, allowing the LLM to run multi-turn sessions without stopping, looping, or forgetting prior player actions.
 - **100% Stable Mobile Pocket Studio (Desktop-Level Parity)**: Complete mobile engine environment featuring live 3D viewport, 44px ergonomic touch targets, full-bleed landscape mode, multi-file code editor, scene inspector, and real-time AI prompt-to-play generation.
-- **The 60 FPS Minimum Rule (Zero Frame Drops on Mobile)**: Custom Vulkan-aligned shader tricks, draw-call batching, geometry pooling, and unified frame delta normalizers guarantee that every generated game maintains rock-solid 60 FPS (up to 120 FPS on high-refresh mobile displays).
+- **Mobile rendering**: a lighter renderer on touch devices with adaptive pixel ratio (see "Mobile rendering" below).
 - **Universal Browser & Mobile Support**: Runs in **ANY modern browser** (Chrome, Firefox, Safari, Edge, Arc, Brave) and on **mobile phones & tablets** (iOS & Android) with zero setup required.
 - **Live Concurrent Chat (Chat While Streaming)**: Chat with the agent anytime *while it is working without stopping streaming* — steer, add ideas, and guide the agent mid-flight.
 - **Multi-Platform Support**:
@@ -308,22 +308,14 @@ flowchart TD
 
 Spider Game Engine features a completely unified, **100% stable Mobile Pocket Studio** that delivers the exact same power, stability, and capabilities as the desktop suite, redesigned from the ground up for one-handed mobile creation and gaming.
 
-### ⚡ The 60 FPS Minimum Rule
-Our core engine philosophy mandates that **no generated 3D game drops below 60 FPS on mobile devices**. To achieve this across phones and tablets (including budget and flagship hardware), we implemented dedicated Vulkan and WebGL pipeline optimizations:
+### ⚡ Mobile rendering
+Phones and tablets get a lighter renderer than the desktop editor. Speed still depends on the device and on the scene the AI generates, and we do not promise a fixed frame rate.
 
-1. **Vulkan-Aligned Shader Batching & Draw Call Pruning**:
-   - Reduces mobile GPU state changes by batching dynamic geometries and merging shared materials.
-   - Eliminates shader recompilation stalls during combat, explosions, and particle spawns.
-2. **Aggressive Frame Delta Normalization**:
-   - Normalized physics delta time (`Math.min(dt, 0.033)`) prevents mobile physics jitter, tunneling, and lag spikes during intense wave spawns.
-3. **Logarithmic Depth Buffer & Zero Z-Fighting**:
-   - Ensures mobile GPUs do not suffer from micro-stutters or flickering geometry on wide open arenas.
-4. **Adaptive Widescreen Landscape Engine**:
-   - True full-bleed edge-to-edge canvas rendering that fills 100% of widescreen mobile displays without letterboxing, cream bars, or aspect ratio distortion.
-5. **Ergonomic Virtual Touch Controller**:
-   - Analog virtual stick with 44px thumb targets that dispatches both `window.__spiderVirtualTouch` and synthetic `KeyboardEvent` (`WASD` / Arrows) so any AI-generated game steers smoothly out of the box.
-6. **Smart Safe-Area & Notch Clearance**:
-   - Camera cutouts and gesture bars are respected via CSS `env(safe-area-inset-*)`, while HUD elements automatically dock at the top on phones to leave the bottom thumb zone 100% clear.
+1. **Lite renderer on touch devices** (`src/engine/GameViewport.jsx`): pixel ratio capped at 1.5, no MSAA, no logarithmic depth buffer, 1024 px shadow maps, and no per-frame aim raycast.
+2. **Adaptive quality**: the pixel ratio drops when the frame rate falls and rises again when there is headroom.
+3. **Frame delta clamp**: physics use `Math.min(dt, 0.033)` so a slow frame does not make objects tunnel.
+4. **Touch controls kit** (`spider-touch`): analog stick and action buttons that generated games import, with keyboard fallback.
+5. **Safe areas**: notches and gesture bars are respected through CSS `env(safe-area-inset-*)`.
 
 ---
 
