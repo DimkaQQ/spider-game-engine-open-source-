@@ -8,6 +8,16 @@
 
 ---
 
+## Quickstart
+
+```bash
+npm install
+npm run dev        # open the printed URL; on a phone you get Pocket Studio, on a computer the full editor
+npm test           # contract tests for the Meta integrations (mocked API replies)
+```
+
+No API key? Open the **AI** tab on a phone and tap **Watch a demo build, no key**. It runs the real agent loop with a scripted reply, so you can see a game get written, mounted and checked. To build your own ideas, add a key in More, Settings, AI providers (Meta, OpenAI, Anthropic, Gemini, DeepSeek, xAI, Mistral, Groq, OpenRouter, Baseten or any OpenAI-compatible server). Keys stay in your browser.
+
 ## Overview
 
 **Spider Game Engine** is an autonomous, agentic 3D game engine and simulation environment built on React, Three.js (@react-three/fiber), and WebGL with native multi-platform support (Electron, Tauri, and Web).
@@ -18,7 +28,7 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 
 ## 🌟 Key Features
 
-- **Meta Muse Real-Time Voice Transcribe (3.1% WER)**: Ultra-low latency (~0.16s) live speech-to-text recognition streaming over WebSockets (`wss://api.meta.ai/v1/asr/realtime`) with native turn endpointing.
+- **Meta Muse Real-Time Voice Transcribe**: Live speech-to-text recognition streaming over WebSockets (`wss://api.meta.ai/v1/asr/realtime`) with native turn endpointing.
 - **Spider Slash Commands**: Instant slash command palette (`/blender`, `/plan`, `/play`, `/browser`, `/clear`, `/stop`, `/help`) with keyboard navigation and autocomplete.
 - **Blender Real-Time MCP Bridge**: Live bi-directional bridge on port `9876` connecting Spider Engine directly to Blender for real-time asset, geometry, and lighting sync.
 - **Real-Time Dynamic JSX Engine**: Live mounting of arbitrary React Three Fiber components with instant AST compilation cache.
@@ -86,7 +96,7 @@ flowchart TD
 
 ---
 
-### Diagram 2: Meta Muse Real-Time ASR & Voice Pipeline (3.1% WER)
+### Diagram 2: Meta Muse Real-Time ASR & Voice Pipeline
 ```mermaid
 sequenceDiagram
     autonumber
@@ -347,7 +357,7 @@ Spider Game Engine solves this with a native **LLM RAG & Adaptive Context Memory
 
 Spider Game Engine grants AI agents complete developer execution capabilities with configurable governance:
 
-### 1. 🎙️ Meta Muse Real-Time Speech Perception (3.1% WER)
+### 1. 🎙️ Meta Muse Real-Time Speech Perception
 - **Direct Neural Streaming**: Streams microphone audio packets in real-time to Meta’s `muse-voice-transcribe-1.0` model via WebSockets (`wss://api.meta.ai/v1/asr/realtime`).
 - **Low Latency & High Precision**: ~0.16-second latency with 3.1% Word Error Rate.
 
@@ -422,13 +432,13 @@ Every source file contains the provenance watermark:
 
 ## Meta AI tooling map
 
-| Tool | Where it is used | Model / endpoint |
-|---|---|---|
-| Muse Spark 1.3 | Main agent model, 1M-token context, vision | `muse-spark-1.3` on `api.meta.ai/v1` |
-| Muse Spark Open | Open weights on your own Baseten endpoint (Baseten provider) | `meta-models/muse-spark-open-1026` |
-| Muse Voice Transcribe | Mic button in the AI tab (falls back to browser speech) | `wss://api.meta.ai/v1/asr/realtime` |
-| Muse Image | Scene, Library, Create with Meta AI: textures and sprite props | `muse-image-1.0` via `/v1/responses` |
-| SAM 3.1 | Same sheet: cut an object out of a photo | `sam-3.1` via `/v1/responses` |
-| Muse Wonder | Optional plan before a big build (Settings) | `muse-wonder` |
+| Tool | Where it is used | Model / endpoint | Status |
+|---|---|---|---|
+| Muse Spark 1.3 | Main agent model, 1M-token context, vision | `muse-spark-1.3` on `api.meta.ai/v1` | Mocked tests only |
+| Muse Spark Open | Open weights on your own Baseten endpoint (Baseten provider) | `meta-models/muse-spark-open-1026` | Not tested |
+| Muse Voice Transcribe | Mic button in the AI tab (falls back to browser speech) | `wss://api.meta.ai/v1/asr/realtime` | Not tested with a live key |
+| Muse Image | Scene, Library, Create with Meta AI: textures and sprite props | `muse-image-1.0` via `/v1/responses` | Contract tested with mocks |
+| SAM 3.1 | Same sheet: cut an object out of a photo | `sam-3.1` via `/v1/responses` | Not tested with a live key |
+| Muse Wonder | Optional plan before a big build (Settings) | `muse-wonder` | Mocked tests only |
 
 All keys stay in the browser. The code lives in `src/mobile/meta.js`. Calls were tested against mocked responses; a real Meta key (and the browser CORS policy of the API) has not been verified.

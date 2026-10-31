@@ -86,6 +86,7 @@ const TOUCH_CONTROLS_RULES = [
   "- Render <TouchControls touch={touch} buttons={['Jump']} /> as a child of the game's root <group>. Up to two buttons: buttons={['Jump','Shoot']} maps to touch.a and touch.b.",
   "- The kit puts the joystick in a FIXED place (bottom-left) and the buttons bottom-right, sizes them from the viewport, and keeps them there in portrait and landscape. The same touch object also reacts to WASD / arrows / Space / E on a computer, so you do not need any other input code.",
   "- Do not draw other controls in those corners. Put score and lives top-centre.",
+  "- For score, timer, health, messages and game-over menus use <Hud> from the same import: import { useTouch, TouchControls, Hud } from 'spider-touch'; then <Hud><div style={{position:'absolute',top:12,left:12,color:'#fff',font:'700 16px system-ui'}}>Score {score}</div></Hud> inside the root <group>. Plain DOM only. Give a tappable panel or button style pointerEvents:'auto'. Do NOT use drei <Html> for the HUD, it does not show on phones.",
   "- Minimal pattern: const touch = useTouch(); const ref = useRef(); useFrame((_, dt) => { ref.current.position.x += touch.move.x * 6 * dt; ref.current.position.z -= touch.move.y * 6 * dt; }); return (<group><mesh ref={ref}>...</mesh><TouchControls touch={touch} buttons={['Jump']} /></group>);",
   "",
 ].join("\n");

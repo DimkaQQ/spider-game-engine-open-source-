@@ -1305,7 +1305,16 @@ export default function GameViewport({
 
   const gizmoMode =
     activeGizmo === "rotate" ? "rotate" : activeGizmo === "scale" ? "scale" : "translate";
-  const showTransform = activeGizmo !== "select" && selectedObj && selectedObj.parent && !isPlaying;
+  // the gizmo may only attach to an object that is still connected to the scene (a hidden actor is not)
+  const inScene = (o) => {
+    while (o?.parent) o = o.parent;
+    return o?.type === "Scene";
+  };
+  // a selected actor that was deleted or hidden is gone from the scene graph; detach the gizmo first
+  const selectedAlive = (sceneGroups || []).some(
+    (g) => g?.visible !== false && (g?.id === selectedNodeId || (g?.children || []).some((c) => c?.id === selectedNodeId && c.visible !== false))
+  );
+  const showTransform = activeGizmo !== "select" && selectedObj && selectedAlive && inScene(selectedObj) && !isPlaying;
   const heroMoving = isPlaying && keysPressed && Object.values(keysPressed).some(Boolean);
 
   return (

@@ -7,8 +7,10 @@
  * or "anthropic" (messages API). Keys live only in this browser.
  */
 import { read, write } from "./store.js";
+import { demoChat } from "./demo.js";
 
 export const PROVIDERS = [
+  { id: "demo", name: "Demo (no key needed)", short: "Demo", kind: "demo", baseUrl: "demo://local", keyHint: "No key needed", models: ["scripted-demo"] },
   { id: "meta", name: "Meta", kind: "openai", baseUrl: "https://api.meta.ai/v1", keyHint: "Key from dev.meta.ai", models: ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"] },
   { id: "baseten", name: "Baseten (Muse Spark Open)", short: "Baseten", kind: "openai", baseUrl: "https://inference.baseten.co/v1", keyHint: "Baseten API key", models: ["meta-models/muse-spark-open-1026"] },
   { id: "openai", name: "OpenAI", kind: "openai", baseUrl: "https://api.openai.com/v1", keyHint: "sk-…", models: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"] },
@@ -36,6 +38,7 @@ export function loadConfig() {
 export const saveConfig = (c) => write(CFG, c);
 
 export function loadKey(id) {
+  if (id === "demo") return "demo";
   try {
     const k = sanitizeKey(localStorage.getItem(keyName(id)));
     return k && k !== "[objectObject]" ? k : "";
@@ -80,6 +83,7 @@ function headers(provider, key) {
 }
 
 export async function fetchModels(provider, key, cfg) {
+  if (provider.kind === "demo") return provider.models;
   const base = baseUrlFor(provider, cfg);
   if (!base) throw new Error("Enter the base URL first");
   if (!key && !provider.custom) throw new Error("Key is empty");
@@ -193,6 +197,7 @@ const STALL_MS = () => (typeof window !== "undefined" && window.__STALL_MS) || 9
  *  - Meta falls back to sibling models on 400.
  */
 export async function chat({ provider, key, model, baseUrl, messages, onToken, onFinish, signal, maxTokens }) {
+  if (provider.kind === "demo") return demoChat({ messages, onToken, onFinish, signal });
   const base = String(baseUrl || provider.baseUrl).replace(/\/+$/, "");
   if (!base) throw new Error("No base URL set for this provider. Open More, then Settings, then AI.");
   if (!key && !provider.custom) throw new Error(`No ${provider.name} key yet. Open More, then Settings, then AI.`);

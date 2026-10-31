@@ -213,6 +213,22 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
                 </span>
               </button>
             )}
+            {!hasKey && (
+              <button
+                type="button"
+                className="sp-keycard"
+                onClick={() => {
+                  s.setProvider("demo");
+                  setTimeout(() => s.send("Build me a game"), 80);
+                }}
+              >
+                <Bot size={18} />
+                <span>
+                  <b>Watch a demo build, no key</b>
+                  <small>A scripted run of the real agent loop</small>
+                </span>
+              </button>
+            )}
             <div className="sp-quick">
               {QUICK.map((q) => (
                 <button key={q.label} type="button" onClick={() => { setText(q.task); requestAnimationFrame(() => { grow(input.current); input.current?.focus(); }); }}>

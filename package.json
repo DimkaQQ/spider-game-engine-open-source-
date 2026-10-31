@@ -17,7 +17,8 @@
     "electron:built": "electron . --built",
     "start": "vite",
     "dist": "vite build && electron-builder --win",
-    "dist:portable": "vite build && electron-builder --win portable"
+    "dist:portable": "vite build && electron-builder --win portable",
+    "test": "node --test \"tests/**/*.test.mjs\""
   },
   "keywords": [],
   "license": "ISC",
