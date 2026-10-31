@@ -24,8 +24,28 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import * as THREE from 'three'
 import { Chess } from 'chess.js'
-import App from '../app.jsx'
 import './index.css'
+
+// Phones and tablets never download the desktop editor (about 9,600 lines of panels), and the
+// other way round. Same detection as the router inside app.jsx.
+const isPhoneOrTablet = () => {
+  try {
+    const ua = navigator.userAgent || '';
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua);
+    const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    const isCoarse = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    const isSmall = window.matchMedia && window.matchMedia('(max-width: 959px)').matches;
+    return isMobileUA || isIPadOS || (isSmall && isCoarse);
+  } catch {
+    return false;
+  }
+};
+const App = React.lazy(() => (isPhoneOrTablet() ? import('./mobile/MobileApp.jsx') : import('../app.jsx')));
+const Loading = () => (
+  <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0b0f19', color: '#94a3b8', fontFamily: 'system-ui, sans-serif' }}>
+    Loading Spider Engine…
+  </div>
+);
 
 // Expose on window for sandboxed ArtifactPreview fallback
 if (typeof window !== 'undefined') {
@@ -76,7 +96,9 @@ try {
   } else {
     ReactDOM.createRoot(rootEl).render(
       <RootErrorBoundary>
-        <App />
+        <React.Suspense fallback={<Loading />}>
+          <App />
+        </React.Suspense>
       </RootErrorBoundary>
     );
     console.log("src/main.jsx: root.render called successfully!");

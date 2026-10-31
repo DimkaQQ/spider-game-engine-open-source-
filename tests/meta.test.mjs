@@ -107,3 +107,31 @@ test("HTTP transcription sends the request and audio parts the API asks for", as
   assert.equal(req.model, "muse-voice-transcribe-1.0");
   assert.equal(req.audioEncoding, "WAV");
 });
+
+test("reasoning models get a budget big enough to think and answer", async () => {
+  const { chat, providerById, isReasoningModel } = await import("../src/mobile/ai.js");
+  assert.equal(isReasoningModel("meta", "muse-spark-1.3"), true);
+  assert.equal(isReasoningModel("openai", "gpt-4o"), false);
+  let sent;
+  globalThis.fetch = async (_u, init) => {
+    sent = JSON.parse(init.body);
+    return { ok: true, status: 200, headers: new Headers({ "content-type": "application/json" }), body: null, json: async () => ({ choices: [{ finish_reason: "stop", message: { content: "Yes." } }] }) };
+  };
+  const text = await chat({ provider: providerById("meta"), key: "k", model: "muse-spark-1.3", messages: [{ role: "user", content: "Done?" }], maxTokens: 500 });
+  assert.equal(text, "Yes.");
+  assert.ok((sent.max_tokens ?? sent.max_completion_tokens) >= 6000, `sent ${sent.max_tokens}`);
+});
+
+test("an empty reply caused by the length limit is retried with a larger budget", async () => {
+  const { chat, providerById } = await import("../src/mobile/ai.js");
+  const budgets = [];
+  globalThis.fetch = async (_u, init) => {
+    const b = JSON.parse(init.body);
+    budgets.push(b.max_tokens ?? b.max_completion_tokens);
+    const empty = budgets.length === 1;
+    return { ok: true, status: 200, headers: new Headers({ "content-type": "application/json" }), body: null, json: async () => ({ choices: [{ finish_reason: empty ? "length" : "stop", message: { content: empty ? null : "Answer" } }] }) };
+  };
+  const text = await chat({ provider: providerById("meta"), key: "k", model: "muse-spark-1.3", messages: [{ role: "user", content: "hi" }], maxTokens: 6000 });
+  assert.equal(text, "Answer");
+  assert.ok(budgets[1] > budgets[0], budgets.join(","));
+});

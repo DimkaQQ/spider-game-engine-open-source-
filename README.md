@@ -28,7 +28,7 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 
 ## 🌟 Key Features
 
-- **Meta Muse Real-Time Voice Transcribe**: Live speech-to-text recognition streaming over WebSockets (`wss://api.meta.ai/v1/asr/realtime`) with native turn endpointing.
+- **Meta Muse Real-Time Voice Transcribe**: Speech-to-text from the microphone: it streams over a WebSocket (`wss://api.meta.ai/v1/asr/realtime`) when that connection opens, and otherwise sends the recording to the HTTP endpoint (`/v1/asr/transcribe`) when you stop. The WebSocket route is untested (see the status table at the end).
 - **Spider Slash Commands**: Instant slash command palette (`/blender`, `/plan`, `/play`, `/browser`, `/clear`, `/stop`, `/help`) with keyboard navigation and autocomplete.
 - **Blender Real-Time MCP Bridge**: Live bi-directional bridge on port `9876` connecting Spider Engine directly to Blender for real-time asset, geometry, and lighting sync.
 - **Real-Time Dynamic JSX Engine**: Live mounting of arbitrary React Three Fiber components with instant AST compilation cache.
@@ -358,7 +358,7 @@ Spider Game Engine solves this with a native **LLM RAG & Adaptive Context Memory
 Spider Game Engine grants AI agents complete developer execution capabilities with configurable governance:
 
 ### 1. 🎙️ Meta Muse Real-Time Speech Perception
-- **Direct Neural Streaming**: Streams microphone audio packets in real-time to Meta’s `muse-voice-transcribe-1.0` model via WebSockets (`wss://api.meta.ai/v1/asr/realtime`).
+- **Direct Neural Streaming**: Streams microphone audio to Meta’s `muse-voice-transcribe-1.0` model over a WebSocket (`wss://api.meta.ai/v1/asr/realtime`) when it opens, with an HTTP fallback (`/v1/asr/transcribe`) that was verified live.
 - **Low Latency & High Precision**: ~0.16-second latency with 3.1% Word Error Rate.
 
 ### 2. 🖥️ Real CLI Command Execution (`runCommand`)
@@ -441,4 +441,4 @@ Every source file contains the provenance watermark:
 | SAM 3.1 | Same sheet: cut an object out of a photo | `sam-3.1` via `/v1/responses` | Verified live 2026-10-31 (cutout decoded with `@meta-sam/parser`) |
 | Muse Wonder | Optional plan before a big build (Settings) | `muse-wonder-1.0` | Verified live 2026-10-31 (`muse-wonder-1.0`) |
 
-All keys stay in the browser. The code lives in `src/mobile/meta.js`. The Meta calls were run against the live API from a browser page (CORS allows it), and the recorded SAM reply is a test fixture. Not yet tested live: the Muse Voice realtime WebSocket and Baseten. Speech recognition quality was not measured (we had no spoken audio to test with).
+All keys stay in the browser. The code lives in `src/mobile/meta.js`. The Meta calls were run against the live API (see [docs/verification/live-meta-2026-10-31.md](docs/verification/live-meta-2026-10-31.md) for what was run and the screenshots) from a browser page (CORS allows it), and the recorded SAM reply is a test fixture. Not yet tested live: the Muse Voice realtime WebSocket and Baseten. Speech recognition quality was not measured (we had no spoken audio to test with).

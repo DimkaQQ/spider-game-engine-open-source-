@@ -196,6 +196,9 @@ const STALL_MS = () => (typeof window !== "undefined" && window.__STALL_MS) || 9
  *  - A 400 that complains about the token limit is retried with half the limit.
  *  - Meta falls back to sibling models on 400.
  */
+export const REASONING_FLOOR = 6000;
+export const isReasoningModel = (providerId, model) => providerId === "meta" || providerId === "baseten" || /muse|wonder|deepseek-reasoner|\bo[134]\b/i.test(String(model || ""));
+
 export async function chat({ provider, key, model, baseUrl, messages, onToken, onFinish, signal, maxTokens }) {
   if (provider.kind === "demo") return demoChat({ messages, onToken, onFinish, signal });
   const base = String(baseUrl || provider.baseUrl).replace(/\/+$/, "");
@@ -209,6 +212,9 @@ export async function chat({ provider, key, model, baseUrl, messages, onToken, o
 
   const limitKey = `${provider.id}:${model}`;
   let limit = Math.min(maxTokens || outputLimit(provider.id, model), learnedLimit.get(limitKey) || Infinity);
+  // Muse models think before they answer and the thinking counts against the budget: a small limit
+  // (verified live: 80 tokens) is spent entirely on reasoning and the reply comes back empty.
+  if (isReasoningModel(provider.id, model)) limit = Math.max(limit, Math.min(REASONING_FLOOR, outputLimit(provider.id, model)));
   let lastErr = null;
   let modelStep = 0;
   let stalls = 0;
@@ -324,6 +330,12 @@ export async function chat({ provider, key, model, baseUrl, messages, onToken, o
         if (full) onToken?.(full, full);
       }
       if (!full.trim()) full = pickModelText(last);
+      if (!full.trim() && (finishReason === "length" || finishReason === "max_tokens") && limit < outputLimit(provider.id, model)) {
+        // all of the budget went on reasoning: ask again with more room instead of showing a blank reply
+        limit = Math.min(outputLimit(provider.id, model), limit * 4);
+        lastErr = new Error("The model used its whole budget thinking");
+        continue;
+      }
       if (!full.trim()) throw new Error("Empty model response");
       const truncated = finishReason === "length" || finishReason === "max_tokens" || finishReason === "MAX_TOKENS";
       onFinish?.({ finishReason, truncated, usage, maxTokens: limit, model: current });
