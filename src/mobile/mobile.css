@@ -673,3 +673,7 @@ html.sp-mobile body:has(.is-full) {
 .sp-editing span { flex: 1; min-width: 0; }
 .sp-editing .sp-icon-btn { width: 36px; height: 36px; color: var(--accent); }
 .sp-msg.is-user { display: flex; flex-direction: column; }
+
+/* a game that brings its own touch controls (the spider-touch kit) replaces the built-in stick and Action button */
+.sp-viewport:has([data-spider-touch]) .sp-stick,
+.sp-viewport:has([data-spider-touch]) .sp-jump { display: none; }
