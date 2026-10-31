@@ -35,9 +35,9 @@ It integrates directly with multimodal AI models (including Meta Llama and Muse 
 - **Autonomous Agentic Loop**: Built-in MCP server (`http://localhost:9287/mcp`) supporting live inspection, screenshot capture, 3D viewport verification, and autonomous game generation.
 - **Full CLI Command Execution (Desktop)**: The AI agent can run native shell commands (`powershell.exe` on Windows, `/bin/bash` on Linux/Unix) with live streaming output.
 - **System-Wide File Creation**: Create, edit, and organize files anywhere on the computer with automatic recursive directory scaffolding.
-- **Dual Permission Governance**: Toggle between **Ask Permission (Secure Mode)** for interactive review and **Auto Mode (No Permission)** for 100% autonomous agent execution.
+- **Dual Permission Governance**: Toggle between **Ask Permission (Secure Mode)** for interactive review and **Auto Mode (No Permission)** for fully autonomous agent runs.
 - **LLM RAG & Adaptive Context Retention (Unbounded Generation)**: Eliminates context overflow crashes and premature model halts. Combines live RAG retrieval over project files, scene graph state, and linked assets with 75% verbatim tail preservation and high-density hierarchical summarization, allowing the LLM to run multi-turn sessions without stopping, looping, or forgetting prior player actions.
-- **100% Stable Mobile Pocket Studio (Desktop-Level Parity)**: Complete mobile engine environment featuring live 3D viewport, 44px ergonomic touch targets, full-bleed landscape mode, multi-file code editor, scene inspector, and real-time AI prompt-to-play generation.
+- **Mobile Pocket Studio**: A phone and tablet version of the editor with a live 3D viewport, scene tree, code editor and AI chat,  featuring live 3D viewport, 44px ergonomic touch targets, full-bleed landscape mode, multi-file code editor, scene inspector, and real-time AI prompt-to-play generation.
 - **Mobile rendering**: a lighter renderer on touch devices with adaptive pixel ratio (see "Mobile rendering" below).
 - **Universal Browser & Mobile Support**: Runs in **ANY modern browser** (Chrome, Firefox, Safari, Edge, Arc, Brave) and on **mobile phones & tablets** (iOS & Android) with zero setup required.
 - **Live Concurrent Chat (Chat While Streaming)**: Chat with the agent anytime *while it is working without stopping streaming* — steer, add ideas, and guide the agent mid-flight.
@@ -314,9 +314,9 @@ flowchart TD
 
 ---
 
-## 📱 100% Stable Mobile Pocket Studio (Desktop-Level Parity)
+## 📱 Mobile Pocket Studio
 
-Spider Game Engine features a completely unified, **100% stable Mobile Pocket Studio** that delivers the exact same power, stability, and capabilities as the desktop suite, redesigned from the ground up for one-handed mobile creation and gaming.
+Spider Game Engine has a **Mobile Pocket Studio** that covers the same workflow as the desktop suite, redesigned from the ground up for one-handed mobile creation and gaming.
 
 ### ⚡ Mobile rendering
 Phones and tablets get a lighter renderer than the desktop editor. Speed still depends on the device and on the scene the AI generates, and we do not promise a fixed frame rate.
