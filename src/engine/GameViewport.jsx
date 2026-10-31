@@ -9,7 +9,7 @@
  */
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
-import { OrbitControls, Sky, Stars, Grid, TransformControls, GizmoHelper, GizmoViewport, useGLTF, useTexture } from "@react-three/drei";
+import { OrbitControls, PerformanceMonitor, Sky, Stars, Grid, TransformControls, GizmoHelper, GizmoViewport, useGLTF, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
@@ -22,6 +22,21 @@ function DomGameRenderer({ code, name, projectFiles }) {
 
   if (!ComponentToRender) return null;
   return <ComponentToRender />;
+}
+
+// Phones and tablets get a lighter renderer: capped pixel ratio, no MSAA, no logarithmic depth
+// (it turns off early-z on mobile GPUs), smaller shadow maps and a drawing buffer that is not
+// preserved between frames. Desktop keeps the full-quality settings.
+const LITE =
+  typeof window !== "undefined" &&
+  (Boolean(window.matchMedia?.("(pointer: coarse)").matches) || Math.min(window.screen?.width || 9999, window.screen?.height || 9999) < 820);
+const SHADOW_MAP = LITE ? [1024, 1024] : [2048, 2048];
+
+// Lowers the pixel ratio on the fly when the frame rate drops, raises it again when there is room.
+function AdaptiveQuality() {
+  const setDpr = useThree((st) => st.setDpr);
+  if (!LITE) return null;
+  return <PerformanceMonitor flipflops={4} onChange={({ factor }) => setDpr(Math.max(0.75, Math.min(1.5, 0.75 + 0.75 * factor)))} />;
 }
 
 // 1 engine unit = 1m. App mock numbers are large, so static scenery uses WORLD scale.
@@ -139,11 +154,15 @@ function CameraRig({ isPlaying, followRef, mode, keysPressed, activeGizmo, hasCh
 // Exposes renderer capture for the Screenshot button & Agent Multimodal Vision.
 function CaptureApi() {
   const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
   useEffect(() => {
     viewportApi.canvas = gl.domElement;
     viewportApi.getCanvas = () => gl.domElement;
     viewportApi.capture = (download = false, maxWidth = 640) => {
       try {
+        // the drawing buffer is not preserved on phones, so draw a fresh frame right before reading it
+        gl.render(scene, camera);
         let url = gl.domElement.toDataURL("image/jpeg", 0.82);
         if (maxWidth && gl.domElement.width > maxWidth) {
           const c = document.createElement("canvas");
@@ -172,7 +191,7 @@ function CaptureApi() {
       viewportApi.canvas = null;
       viewportApi.getCanvas = null;
     };
-  }, [gl]);
+  }, [gl, scene, camera]);
   return null;
 }
 
@@ -1023,6 +1042,7 @@ function ShootHandler({ registry, isPlaying, onShoot, hasChess }) {
   };
   // Live aim marker — raycast from the cursor every frame while playing
   useFrame(() => {
+    if (LITE) return; // no cursor on touch screens, so skip the per-frame raycast
     if (hasChess || !isPlaying || !mouse.current.inside) {
       if (aim) setAim(null);
       return;
@@ -1315,12 +1335,13 @@ export default function GameViewport({
             ? { position: [0, 16, 18], fov: 46 / cameraZoom }
             : { position: [14, 10, 18], fov: 55 / cameraZoom }
         }
-        dpr={[1, 2]}
-        gl={{ preserveDrawingBuffer: true, antialias: true, logarithmicDepthBuffer: true }}
+        dpr={LITE ? [1, 1.5] : [1, 2]}
+        gl={LITE ? { antialias: false, powerPreference: "high-performance" } : { preserveDrawingBuffer: true, antialias: true, logarithmicDepthBuffer: true }}
         onPointerMissed={() => {
           if (!isBoardGame) onSelectNode("player");
         }}
       >
+        <AdaptiveQuality />
         {!night && sky && sky.visible !== false ? (
           <Sky distance={450000} sunPosition={sunPos} inclination={0.52} />
         ) : (
@@ -1334,7 +1355,7 @@ export default function GameViewport({
             position={sunPos}
             intensity={night ? 0.4 : 1.6}
             castShadow={rtxEnabled}
-            shadow-mapSize={[2048, 2048]}
+            shadow-mapSize={SHADOW_MAP}
             shadow-camera-left={-40}
             shadow-camera-right={40}
             shadow-camera-top={40}
@@ -1350,7 +1371,7 @@ export default function GameViewport({
               position={[14, 24, 18]}
               intensity={1.6}
               castShadow
-              shadow-mapSize={[2048, 2048]}
+              shadow-mapSize={SHADOW_MAP}
               shadow-camera-left={-16}
               shadow-camera-right={16}
               shadow-camera-top={16}
