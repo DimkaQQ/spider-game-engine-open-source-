@@ -10,6 +10,7 @@ import { read, write } from "./store.js";
 
 export const PROVIDERS = [
   { id: "meta", name: "Meta", kind: "openai", baseUrl: "https://api.meta.ai/v1", keyHint: "Key from dev.meta.ai", models: ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"] },
+  { id: "baseten", name: "Baseten (Muse Spark Open)", short: "Baseten", kind: "openai", baseUrl: "https://inference.baseten.co/v1", keyHint: "Baseten API key", models: ["meta-models/muse-spark-open-1026"] },
   { id: "openai", name: "OpenAI", kind: "openai", baseUrl: "https://api.openai.com/v1", keyHint: "sk-…", models: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"] },
   { id: "anthropic", name: "Anthropic", kind: "anthropic", baseUrl: "https://api.anthropic.com/v1", keyHint: "sk-ant-…", models: ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"] },
   { id: "google", name: "Google Gemini", kind: "openai", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", keyHint: "AIza…", models: ["gemini-2.5-pro", "gemini-2.5-flash"] },
@@ -174,7 +175,7 @@ export function outputLimit(providerId, model) {
   if (/gpt-4o/.test(m)) return 16384;
   if (/deepseek-reasoner/.test(m)) return 32768;
   if (/deepseek/.test(m)) return 8192;
-  if (providerId === "meta" || /muse/.test(m)) return 16000;
+  if (providerId === "meta" || providerId === "baseten" || /muse/.test(m)) return 16000;
   return 8192;
 }
 

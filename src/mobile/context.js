@@ -15,7 +15,7 @@ export function contextWindow(providerId, model, setting = "auto") {
   if (setting && setting !== "auto" && WINDOWS[setting]) return WINDOWS[setting];
   const m = String(model || "").toLowerCase();
   if (/gemini/.test(m) || /gpt-4\.1/.test(m)) return WINDOWS["1m"];
-  if (providerId === "meta" || /muse/.test(m)) return WINDOWS["1m"];
+  if (providerId === "meta" || providerId === "baseten" || /muse/.test(m)) return WINDOWS["1m"];
   if (/claude/.test(m)) return WINDOWS["200k"];
   return WINDOWS["128k"];
 }

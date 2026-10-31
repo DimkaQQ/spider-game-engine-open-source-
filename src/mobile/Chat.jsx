@@ -5,6 +5,7 @@
  */
 import React, { useEffect, useRef, useState } from "react";
 import { startVoice, voiceLang, voiceSupported } from "./voice.js";
+import { hasMetaKey, museVoiceSupported, startMuseVoice } from "./meta.js";
 import Markdown from "./Markdown.jsx";
 import {
   ArrowUp, Mic, Check, RotateCcw, MoreHorizontal, Pencil, Copy, ChevronDown, FileCode2, History, KeyRound, Loader2, Plus, Shield, Square, Trash2, Undo2, X, Zap, AlertTriangle, Bot, Crown, Dices, Coins, Rocket,
@@ -79,7 +80,8 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
   const input = useRef(null);
   const [listening, setListening] = useState(false);
   const voice = useRef(null);
-  const canVoice = voiceSupported();
+  const useMuse = settings.voiceEngine === "muse" || (settings.voiceEngine !== "browser" && hasMetaKey());
+  const canVoice = (useMuse && museVoiceSupported()) || voiceSupported();
 
   const toggleVoice = () => {
     if (voice.current) {
@@ -88,8 +90,9 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
     }
     const base = text.trim() ? `${text.trim()} ` : "";
     setListening(true);
-    voice.current = startVoice({
+    const handlers = {
       lang: voiceLang(settings.voiceLang),
+      language: settings.voiceLang === "auto" ? undefined : settings.voiceLang,
       onText: (t) => {
         setText(base + t);
         requestAnimationFrame(() => grow(input.current));
@@ -99,7 +102,19 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
         setListening(false);
       },
       onError: (m) => notify(m, "warn"),
-    });
+    };
+    if (useMuse && museVoiceSupported()) {
+      // the Muse handle arrives after the mic permission, so stop() waits for it
+      let handle = null;
+      let stopAsked = false;
+      voice.current = { stop: () => { stopAsked = true; handle?.stop(); } };
+      startMuseVoice(handlers).then((h) => {
+        handle = h;
+        if (stopAsked) h.stop();
+      });
+    } else {
+      voice.current = startVoice(handlers);
+    }
   };
   useEffect(() => () => voice.current?.stop(), []);
 

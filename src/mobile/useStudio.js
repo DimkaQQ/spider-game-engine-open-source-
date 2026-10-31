@@ -33,6 +33,7 @@ import {
 } from "./store.js";
 import { buildMemory, contextWindow, fitMessages, isSmallTalk, joinContinuation, memoryBudget, runLimits } from "./context.js";
 import { retrieveRagContext, ragStore } from "../engine/ragEngine.js";
+import { hasMetaKey, planGame } from "./meta.js";
 import { PROVIDERS, baseUrlFor, chat, outputLimit, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
 
 const MAX_UNDO = 40;
@@ -1299,7 +1300,16 @@ export function useStudio() {
           return { raw, truncated };
         };
 
-        const final = await runAgent(goal, {
+        let agentGoal = goal;
+        if (settingsRef.current.wonderPlan && hasMetaKey() && !isSmallTalk(goal) && goal.length > 30) {
+          setStream({ thought: "Muse Wonder is planning…", text: "", steps: [] });
+          const plan = await planGame(goal, { signal: ctrlRef.current.signal });
+          if (plan) {
+            agentGoal = `${goal}\n\nPLAN FROM MUSE WONDER (follow it unless the scene needs something different):\n${plan}`;
+            log("Info", "Muse Wonder plan added");
+          }
+        }
+        const final = await runAgent(agentGoal, {
           ctx: { runTool, isAborted: () => abortRef.current },
           callModel,
           maxSteps: 40,

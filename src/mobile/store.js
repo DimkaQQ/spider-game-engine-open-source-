@@ -215,6 +215,8 @@ export const DEFAULT_SETTINGS = {
   autosave: true,
   wrapCode: true,
   voiceLang: "auto",
+  voiceEngine: "auto",
+  wonderPlan: false,
   contextWindow: "auto",
 };
 

@@ -12,6 +12,7 @@ import {
 import { PLAYER, PRIMITIVE_SHAPES } from "../game/index.js";
 import licenses from "../../THIRD_PARTY_LICENSES.md?raw";
 import Markdown from "./Markdown.jsx";
+import { META_TOOLS, hasMetaKey } from "./meta.js";
 import { TEMPLATES } from "./store.js";
 import { Empty, Segmented, Sheet, TemplateIcon, Toggle, cx } from "./ui.jsx";
 
@@ -339,7 +340,18 @@ function AiSettings({ s, notify }) {
       <div className="sp-field">
         <span>Voice input language</span>
         <Segmented label="Voice language" value={settings.voiceLang} onChange={(voiceLang) => setSettings({ voiceLang })} options={[{ value: "auto", label: "Auto" }, { value: "en", label: "English" }, { value: "ru", label: "Русский" }]} />
-        <small className="sp-muted">The mic button in the AI tab uses your browser's speech recognition (Chrome, Edge, Safari).</small>
+        <small className="sp-muted">The mic button in the AI tab uses Muse Voice when a Meta key is saved, otherwise your browser's speech recognition (Chrome, Edge, Safari).</small>
+      </div>
+
+      <div className="sp-field">
+        <span>Voice engine</span>
+        <Segmented label="Voice engine" value={settings.voiceEngine || "auto"} onChange={(voiceEngine) => setSettings({ voiceEngine })} options={[{ value: "auto", label: "Auto" }, { value: "muse", label: "Muse Voice" }, { value: "browser", label: "Browser" }]} />
+      </div>
+
+      <div className="sp-field">
+        <span>Plan with Muse Wonder</span>
+        <Segmented label="Wonder plan" value={settings.wonderPlan ? "on" : "off"} onChange={(v) => setSettings({ wonderPlan: v === "on" })} options={[{ value: "off", label: "Off" }, { value: "on", label: "On" }]} />
+        <small className="sp-muted">Before a big build, Muse Wonder writes a short plan and the agent follows it. Needs a Meta key.</small>
       </div>
 
       <div className="sp-field">
@@ -401,6 +413,19 @@ function Settings({ s, onBack, notify }) {
         </section>
 
         <AiSettings s={s} notify={notify} />
+
+        <section className="sp-card sp-stack-sm">
+          <h3 className="sp-h3"><KeyRound size={16} /> Meta AI tooling</h3>
+          <dl className="sp-kv">
+            {META_TOOLS.map((t) => (
+              <React.Fragment key={t.id}>
+                <dt>{t.name}</dt>
+                <dd>{t.id === "baseten" ? (s.isConfigured("baseten") ? "Ready" : "Needs Baseten key") : hasMetaKey() ? "Ready" : "Needs Meta key"}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+          <small className="sp-muted">Keys stay in this browser. Muse Image and SAM are in Scene, Library. Muse Voice is the mic in AI. Muse Wonder planning is switched on above.</small>
+        </section>
       </div>
     </>
   );

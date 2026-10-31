@@ -295,8 +295,17 @@ function ObjModel({ url, wire, selected }) {
 }
 
 // Real imported texture mapped onto a prop box.
-function TexturedProp({ url, wire, selected }) {
+function TexturedProp({ url, wire, selected, sprite }) {
   const map = useTexture(url);
+  if (sprite) {
+    // cutouts and generated pictures with transparency stand upright as a billboard-sized plane
+    return (
+      <mesh castShadow position={[0, 1.2, 0]}>
+        <planeGeometry args={[2.4, 2.4]} />
+        <meshStandardMaterial map={wire ? undefined : map} color={selected ? "#a5b4fc" : "#ffffff"} wireframe={wire} transparent alphaTest={0.05} side={2} roughness={0.9} />
+      </mesh>
+    );
+  }
   return (
     <mesh castShadow>
       <boxGeometry args={[1.6, 1.6, 1.6]} />
@@ -323,7 +332,7 @@ function PropMesh({ node, wire, selected }) {
   if (node.textureUrl) {
     return (
       <Suspense fallback={null}>
-        <TexturedProp url={node.textureUrl} wire={wire} selected={selected} />
+        <TexturedProp url={node.textureUrl} wire={wire} selected={selected} sprite={node.sprite} />
       </Suspense>
     );
   }

@@ -427,3 +427,16 @@ Every source file contains the provenance watermark:
 ## ⚠️ Disclaimer & Safety Notice
 
 > **NOTE**: All games, scripts, simulations, and dynamic code generated or executed using Spider Game Engine (including AI-generated code from Meta Llama, Muse AI, or external scripts) are **created and played strictly at your own risk**. The developers, contributors, and authors assume zero liability or responsibility for game outcomes, hardware/software performance, or content created by users or autonomous agents.
+
+## Meta AI tooling map
+
+| Tool | Where it is used | Model / endpoint |
+|---|---|---|
+| Muse Spark 1.3 | Main agent model, 1M-token context, vision | `muse-spark-1.3` on `api.meta.ai/v1` |
+| Muse Spark Open | Open weights on your own Baseten endpoint (Baseten provider) | `meta-models/muse-spark-open-1026` |
+| Muse Voice Transcribe | Mic button in the AI tab (falls back to browser speech) | `wss://api.meta.ai/v1/asr/realtime` |
+| Muse Image | Scene, Library, Create with Meta AI: textures and sprite props | `muse-image-1.0` via `/v1/responses` |
+| SAM 3.1 | Same sheet: cut an object out of a photo | `sam-3.1` via `/v1/responses` |
+| Muse Wonder | Optional plan before a big build (Settings) | `muse-wonder` |
+
+All keys stay in the browser. The code lives in `src/mobile/meta.js`. Calls were tested against mocked responses; a real Meta key (and the browser CORS policy of the API) has not been verified.
