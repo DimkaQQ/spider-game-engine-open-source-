@@ -83,3 +83,27 @@ test("Wonder is asked by its real model id with room to think", async () => {
   assert.equal(body.model, "muse-wonder-1.0");
   assert.ok(body.max_tokens >= 4000);
 });
+
+test("WAV encoder writes a valid 16 kHz mono header", async () => {
+  const wav = meta.encodeWav(new Int16Array([0, 1000, -1000, 32767]), 16000);
+  const b = new DataView(await wav.arrayBuffer());
+  const tag = (o) => String.fromCharCode(b.getUint8(o), b.getUint8(o + 1), b.getUint8(o + 2), b.getUint8(o + 3));
+  assert.equal(tag(0), "RIFF");
+  assert.equal(tag(8), "WAVE");
+  assert.equal(b.getUint32(24, true), 16000);
+  assert.equal(b.getUint16(22, true), 1);
+  assert.equal(b.getUint32(40, true), 8);
+  assert.equal(wav.size, 44 + 8);
+});
+
+test("HTTP transcription sends the request and audio parts the API asks for", async () => {
+  let form;
+  globalThis.fetch = async (url, init) => ((form = { url, body: init.body }), reply({ transcript: " hello there " }));
+  const text = await meta.transcribeWav(meta.encodeWav(new Int16Array(100)), { language: "en" });
+  assert.equal(text, "hello there");
+  assert.equal(form.url, "https://api.meta.ai/v1/asr/transcribe");
+  assert.ok(form.body.has("request") && form.body.has("audio"));
+  const req = JSON.parse(await form.body.get("request").text());
+  assert.equal(req.model, "muse-voice-transcribe-1.0");
+  assert.equal(req.audioEncoding, "WAV");
+});

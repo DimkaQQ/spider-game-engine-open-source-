@@ -180,9 +180,45 @@ export async function cutOut(file, what = "object", { signal } = {}) {
 
 export const museVoiceSupported = () => typeof window !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext) && window.WebSocket);
 
+/** 16-bit mono PCM to a WAV file. */
+export function encodeWav(samples, rate = 16000) {
+  const buf = new ArrayBuffer(44 + samples.length * 2);
+  const v = new DataView(buf);
+  const str = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF");
+  v.setUint32(4, 36 + samples.length * 2, true);
+  str(8, "WAVE");
+  str(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); // PCM
+  v.setUint16(22, 1, true); // mono
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  str(36, "data");
+  v.setUint32(40, samples.length * 2, true);
+  new Int16Array(buf, 44).set(samples);
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+/** Whole-clip transcription over HTTP. Verified live: multipart with a JSON "request" part and an "audio" part. */
+export async function transcribeWav(wav, { language, signal } = {}) {
+  const key = metaKey();
+  if (!key) throw new Error("Add your Meta key in Settings > AI providers first.");
+  const form = new FormData();
+  form.append("request", new Blob([JSON.stringify({ model: "muse-voice-transcribe-1.0", audioEncoding: "WAV", ...(language ? { languageCode: language } : {}) })], { type: "application/json" }));
+  form.append("audio", wav, "speech.wav");
+  const res = await fetch(`${META_BASE}/asr/transcribe`, { method: "POST", headers: { authorization: `Bearer ${key}` }, body: form, signal });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.error) throw new Error(`Muse Voice failed (${res.status}): ${data?.error?.message || "unknown error"}`);
+  return String(data.transcript || "").trim();
+}
+
 /**
- * Realtime dictation over wss://api.meta.ai/v1/asr/realtime. Microphone audio is converted to
- * 16 kHz PCM16 and streamed; partial and final text come back as JSON events.
+ * Dictation with Muse Voice. Microphone audio is converted to 16 kHz PCM16 and streamed over
+ * wss://api.meta.ai/v1/asr/realtime for live text. The same audio is kept, so if the socket cannot be
+ * opened (blocked network, proxy) the clip is sent as a WAV to the HTTP endpoint when the user stops.
  * Returns { stop }.
  */
 export async function startMuseVoice({ language, onText, onEnd, onError }) {
@@ -201,69 +237,95 @@ export async function startMuseVoice({ language, onText, onEnd, onError }) {
     return { stop() {} };
   }
   const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-  const ws = new WebSocket("wss://api.meta.ai/v1/asr/realtime");
-  ws.binaryType = "arraybuffer";
-  let done = false;
+  let ws = null;
+  try {
+    ws = new WebSocket("wss://api.meta.ai/v1/asr/realtime");
+    ws.binaryType = "arraybuffer";
+  } catch {
+    ws = null;
+  }
+  let finished = false;
+  let wsOk = Boolean(ws);
+  let gotText = false;
   let committed = "";
   let partial = "";
   let node;
   let source;
+  const pcm = []; // everything said, for the HTTP fallback
 
-  const cleanup = () => {
-    if (done) return;
-    done = true;
+  const release = () => {
     try { node?.disconnect(); source?.disconnect(); } catch {}
     stream.getTracks().forEach((t) => t.stop());
     ctx.close().catch(() => {});
-    try { ws.close(); } catch {}
+  };
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    release();
+    try { ws?.close(); } catch {}
     onEnd?.();
   };
-
-  ws.onopen = () => {
-    ws.send(JSON.stringify({
-      authorization: { accessToken: key },
-      config: { language: language || undefined, encoding: "pcm_s16le", sampleRate: ctx.sampleRate },
-    }));
-    source = ctx.createMediaStreamSource(stream);
-    node = ctx.createScriptProcessor(4096, 1, 1);
-    node.onaudioprocess = (e) => {
-      if (ws.readyState !== 1) return;
-      const f = e.inputBuffer.getChannelData(0);
-      const pcm = new Int16Array(f.length);
-      for (let i = 0; i < f.length; i++) pcm[i] = Math.max(-1, Math.min(1, f[i])) * 0x7fff;
-      ws.send(pcm.buffer);
-    };
-    source.connect(node);
-    node.connect(ctx.destination);
-  };
-  ws.onmessage = (ev) => {
-    if (typeof ev.data !== "string") return;
-    let m;
-    try { m = JSON.parse(ev.data); } catch { return; }
-    if (m.error) {
-      onError?.(`Muse Voice: ${m.error.message || m.error}`);
-      return cleanup();
+  const viaHttp = async () => {
+    release();
+    const total = pcm.reduce((n, c) => n + c.length, 0);
+    if (total < 3200) return finish(); // under 0.2 s: nothing to send
+    const all = new Int16Array(total);
+    let at = 0;
+    for (const c of pcm) { all.set(c, at); at += c.length; }
+    try {
+      const text = await transcribeWav(encodeWav(all, 16000), { language });
+      if (text) onText?.(text);
+    } catch (e) {
+      onError?.(e.message);
     }
-    const t = m.transcript ?? m.text ?? "";
-    if (!t) return;
-    if (m.is_final || m.final || m.type === "final") {
-      committed = `${committed} ${t}`.trim();
-      partial = "";
-    } else partial = t;
-    onText?.(`${committed} ${partial}`.trim());
-    if (m.type === "end" || m.done) cleanup();
+    finish();
   };
-  ws.onerror = () => {
-    onError?.("Muse Voice could not connect. Check your Meta key and connection.");
-    cleanup();
+
+  source = ctx.createMediaStreamSource(stream);
+  node = ctx.createScriptProcessor(4096, 1, 1);
+  node.onaudioprocess = (e) => {
+    const f = e.inputBuffer.getChannelData(0);
+    const chunk = new Int16Array(f.length);
+    for (let i = 0; i < f.length; i++) chunk[i] = Math.max(-1, Math.min(1, f[i])) * 0x7fff;
+    pcm.push(chunk);
+    if (wsOk && ws.readyState === 1) ws.send(chunk.buffer);
   };
-  ws.onclose = () => cleanup();
+  source.connect(node);
+  node.connect(ctx.destination);
+
+  if (ws) {
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ authorization: { accessToken: key }, config: { language: language || undefined, encoding: "pcm_s16le", sampleRate: ctx.sampleRate } }));
+    };
+    ws.onmessage = (ev) => {
+      if (typeof ev.data !== "string") return;
+      let m;
+      try { m = JSON.parse(ev.data); } catch { return; }
+      if (m.error) {
+        wsOk = false;
+        return;
+      }
+      const t = m.transcript ?? m.text ?? "";
+      if (!t) return;
+      gotText = true;
+      if (m.is_final || m.final || m.type === "final") {
+        committed = `${committed} ${t}`.trim();
+        partial = "";
+      } else partial = t;
+      onText?.(`${committed} ${partial}`.trim());
+      if (m.type === "end" || m.done) finish();
+    };
+    ws.onerror = () => { wsOk = false; };
+    ws.onclose = () => { if (!gotText) wsOk = false; };
+  }
 
   return {
     stop() {
-      if (done) return;
-      try { if (ws.readyState === 1) ws.send(JSON.stringify({ endStream: true })); } catch {}
-      setTimeout(cleanup, 1500); // let the final transcript arrive
+      if (finished) return;
+      if (wsOk && ws?.readyState === 1) {
+        try { ws.send(JSON.stringify({ endStream: true })); } catch {}
+        setTimeout(() => (gotText ? finish() : viaHttp()), 1500); // let the final transcript arrive
+      } else viaHttp();
     },
   };
 }

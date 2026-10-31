@@ -434,11 +434,11 @@ Every source file contains the provenance watermark:
 
 | Tool | Where it is used | Model / endpoint | Status |
 |---|---|---|---|
-| Muse Spark 1.3 | Main agent model, 1M-token context, vision | `muse-spark-1.3` on `api.meta.ai/v1` | Mocked tests only |
-| Muse Spark Open | Open weights on your own Baseten endpoint (Baseten provider) | `meta-models/muse-spark-open-1026` | Not tested |
-| Muse Voice Transcribe | Mic button in the AI tab (falls back to browser speech) | `wss://api.meta.ai/v1/asr/realtime` | Not tested with a live key |
-| Muse Image | Scene, Library, Create with Meta AI: textures and sprite props | `muse-image-1.0` via `/v1/responses` | Contract tested with mocks |
-| SAM 3.1 | Same sheet: cut an object out of a photo | `sam-3.1` via `/v1/responses` | Not tested with a live key |
-| Muse Wonder | Optional plan before a big build (Settings) | `muse-wonder` | Mocked tests only |
+| Muse Spark 1.3 | Main agent model, 1M-token context, vision | `muse-spark-1.3` on `api.meta.ai/v1` | Verified live 2026-10-31: chat works, built a playable game in ~50 s |
+| Muse Spark Open | Open weights on your own Baseten endpoint (Baseten provider) | `meta-models/muse-spark-open-1026` | Not tested (needs a Baseten key) |
+| Muse Voice Transcribe | Mic button in the AI tab (falls back to browser speech) | `wss://api.meta.ai/v1/asr/realtime`, HTTP `/v1/asr/transcribe` | HTTP path verified live 2026-10-31 (mic to WAV to `/v1/asr/transcribe`, 200). The realtime WebSocket could not be opened from our test network, so it is untested; the app falls back to the HTTP path |
+| Muse Image | Scene, Library, Create with Meta AI: textures and sprite props | `muse-image-1.0` via `/v1/responses` | Verified live 2026-10-31 (returns WebP) |
+| SAM 3.1 | Same sheet: cut an object out of a photo | `sam-3.1` via `/v1/responses` | Verified live 2026-10-31 (cutout decoded with `@meta-sam/parser`) |
+| Muse Wonder | Optional plan before a big build (Settings) | `muse-wonder-1.0` | Verified live 2026-10-31 (`muse-wonder-1.0`) |
 
-All keys stay in the browser. The code lives in `src/mobile/meta.js`. Calls were tested against mocked responses; a real Meta key (and the browser CORS policy of the API) has not been verified.
+All keys stay in the browser. The code lives in `src/mobile/meta.js`. The Meta calls were run against the live API from a browser page (CORS allows it), and the recorded SAM reply is a test fixture. Not yet tested live: the Muse Voice realtime WebSocket and Baseten. Speech recognition quality was not measured (we had no spoken audio to test with).
