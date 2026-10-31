@@ -1503,8 +1503,8 @@ export default function GameViewport({
           <WeaponFollow player={player} weapon={weapon} wire={wire} selected={selId === "weapon"} onSelect={onSelectNode} />
         )}
 
-        {/* Camera helper */}
-        {cameraNode && cameraNode.visible !== false && (
+        {/* Camera helper: an editor marker, not part of a game */}
+        {cameraNode && cameraNode.visible !== false && !isolateCustomGame && !isPlaying && (
           <LiveGroup node={cameraNode} selected={selId === "camera"} onSelect={onSelectNode} register={register}>
             <mesh position={[0, 1.2, 0]} onClick={(e) => { e.stopPropagation(); onSelectNode("camera"); }}>
               <boxGeometry args={[0.5, 0.35, 0.7]} />

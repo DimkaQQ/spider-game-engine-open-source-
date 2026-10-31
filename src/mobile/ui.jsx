@@ -4,7 +4,7 @@
  * Author: M4SPIDER (support@m4spider.com)
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { X, Minus, Plus, Check, User, Square, Crosshair, Eye, Flag, Code2 } from "lucide-react";
+import { X, Minus, Plus, Check, User, Square, Crosshair, Eye, Flag, Code2, Gamepad2 } from "lucide-react";
 
 export const cx = (...a) => a.filter(Boolean).join(" ");
 
@@ -243,7 +243,7 @@ export function useToast() {
   return [show, node];
 }
 
-const TPL_ICONS = { normal: User, blank: Square, tpp: Crosshair, fpp: Eye, racing: Flag, code: Code2 };
+const TPL_ICONS = { arena: Gamepad2, normal: User, blank: Square, tpp: Crosshair, fpp: Eye, racing: Flag, code: Code2 };
 export function TemplateIcon({ id, size = 22 }) {
   const I = TPL_ICONS[id] || User;
   return <I size={size} strokeWidth={1.8} />;

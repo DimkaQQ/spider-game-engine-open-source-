@@ -4,7 +4,7 @@
  * fixed script: render the game, look at the viewport, report. The code is mounted, compiled and
  * checked exactly like model output, so the whole pipeline is exercised. Not an AI model.
  */
-const GAME = `import React, { useMemo, useRef, useState } from 'react';
+export const DEMO_GAME_CODE = `import React, { useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useTouch, TouchControls, Hud } from 'spider-touch';
@@ -15,6 +15,17 @@ const COINS = Array.from({ length: 14 }, (_, i) => {
 });
 const BLOCKS = [[-6, 3], [5, -4], [-3, -7], [8, 6], [0, 9], [-9, -2]];
 
+function Coin({ position }) {
+  const ref = useRef();
+  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += dt * 3; }); // each coin turns on its own spot
+  return (
+    <mesh ref={ref} position={position} rotation-x={Math.PI / 2} castShadow>
+      <cylinderGeometry args={[0.45, 0.45, 0.12, 20]} />
+      <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={0.8} metalness={0.7} roughness={0.25} />
+    </mesh>
+  );
+}
+
 export default function GameComponent() {
   const touch = useTouch();
   const hero = useRef();
@@ -22,14 +33,13 @@ export default function GameComponent() {
   const vel = useRef(new THREE.Vector3());
   const [taken, setTaken] = useState([]);
   const [t, setT] = useState(45);
-  const spin = useRef();
   const left = COINS.length - taken.length;
   const over = t <= 0 || left === 0;
 
   useFrame((state, dt) => {
     dt = Math.min(dt, 0.033);
     if (!over) setT((v) => Math.max(0, v - dt));
-    const dir = new THREE.Vector3(touch.move.x, 0, touch.move.y);
+    const dir = new THREE.Vector3(touch.move.x, 0, -touch.move.y); // stick up = forward = away from the camera (-Z)
     vel.current.lerp(over ? new THREE.Vector3() : dir.multiplyScalar(7), 0.18);
     pos.current.addScaledVector(vel.current, dt);
     pos.current.x = THREE.MathUtils.clamp(pos.current.x, -12, 12);
@@ -43,9 +53,8 @@ export default function GameComponent() {
       hero.current.position.y = 0.6 + Math.abs(Math.sin(state.clock.elapsedTime * 9)) * 0.12 * Math.min(1, vel.current.length());
     }
     COINS.forEach((c, i) => {
-      if (!taken.includes(i) && Math.hypot(pos.current.x - c[0], pos.current.z - c[2]) < 1) setTaken((a) => [...a, i]);
+      if (!taken.includes(i) && Math.hypot(pos.current.x - c[0], pos.current.z - c[2]) < 0.9) setTaken((a) => [...a, i]);
     });
-    if (spin.current) spin.current.rotation.y += dt * 2.5;
     state.camera.position.lerp(new THREE.Vector3(pos.current.x * 0.6, 12, pos.current.z * 0.6 + 12), 0.06);
     state.camera.lookAt(pos.current.x * 0.6, 0, pos.current.z * 0.6);
   });
@@ -63,11 +72,7 @@ export default function GameComponent() {
           <boxGeometry args={[1.8, 1.8 + (i % 3) * 0.6, 1.8]} /><meshStandardMaterial color={['#6366f1', '#8b5cf6', '#ec4899'][i % 3]} roughness={0.5} />
         </mesh>
       ))}
-      <group ref={spin}>
-        {COINS.map((c, i) => !taken.includes(i) && (
-          <mesh key={i} position={c} castShadow><cylinderGeometry args={[0.45, 0.45, 0.12, 20]} /><meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={0.8} metalness={0.7} roughness={0.25} /></mesh>
-        ))}
-      </group>
+      {COINS.map((c, i) => !taken.includes(i) && <Coin key={i} position={c} />)}
       <mesh ref={hero} castShadow><sphereGeometry args={[0.6, 28, 20]} /><meshStandardMaterial color="#34d399" emissive="#059669" emissiveIntensity={0.35} roughness={0.35} /></mesh>
       <Hud>
         <div style={{ position: 'absolute', top: 64, left: 14, right: 14, display: 'flex', justifyContent: 'space-between', color: '#fff', font: '700 15px system-ui', textShadow: '0 1px 6px #000a' }}>
@@ -87,7 +92,7 @@ export default function GameComponent() {
 
 const act = (thought, tool, args) => JSON.stringify({ thought, action: { tool, args } });
 const REPLIES = [
-  () => act("Demo: building a coin-chase arena with a rolling hero, lit neon ring, obstacles, timer and restart.", "render_jsx", { name: "GameComponent.jsx", code: GAME }),
+  () => act("Demo: building a coin-chase arena with a rolling hero, lit neon ring, obstacles, timer and restart.", "render_jsx", { name: "GameComponent.jsx", code: DEMO_GAME_CODE }),
   () => act("Checking the viewport to make sure it renders.", "check3DView", {}),
   () => JSON.stringify({ thought: "Done.", final: "Demo game ready: collect all 14 coins in 45 seconds. Drag the stick (or use WASD) to roll. This was a scripted demo, add an API key in Settings to build your own idea with a real model." }),
 ];

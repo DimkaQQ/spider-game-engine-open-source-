@@ -30,7 +30,10 @@ export default function GameComponent() {
 }
 `;
 
+import { DEMO_GAME_CODE } from "./demo.js";
+
 export const TEMPLATES = [
+  { id: "arena", name: "Coin arena", blurb: "Collect every coin before time runs out", emoji: "🪙" },
   { id: "normal", name: "Third person", blurb: "Hero, coins, tutorial", emoji: "🧍" },
   { id: "blank", name: "Blank level", blurb: "Empty black viewport", emoji: "⬛" },
   { id: "tpp", name: "TPP shooting", blurb: "Rifle + 3 targets", emoji: "🎯" },
@@ -125,6 +128,14 @@ export function buildTemplate(tpl, fallbackGroups) {
       code: tpl === "code" ? STARTER_CODE : null,
     };
   }
+  if (tpl === "arena") {
+    // a finished little game: clear goal, working controls, restart. The starter level objects stay in Scene, hidden.
+    return {
+      groups: starterWorld().map((g) => ({ ...g, children: (g.children || []).map((c) => (STARTER_IDS.has(c.id) ? { ...c, visible: false } : c)) })),
+      select: null,
+      code: DEMO_GAME_CODE,
+    };
+  }
   if (tpl === "custom") return { groups: clone(fallbackGroups || full), select: "player", code: null };
   if (tpl === "tpp") {
     const targets = [8, 12, 16].map((z, i) => ({
@@ -196,7 +207,7 @@ export function loadProjects() {
       files: Array.isArray(p.files) && p.files.length ? p.files : [{ name: "GameComponent.jsx", content: STARTER_CODE }],
     }));
   }
-  const first = makeProject("My first game", "normal");
+  const first = makeProject("My first game", "arena");
   return [first];
 }
 
