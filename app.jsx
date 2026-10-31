@@ -97,6 +97,7 @@ import {
   MessageCircle
 } from "lucide-react";
 import { sfx } from "./src/engine/audioSynthesizer.js";
+import { copyText } from "./src/utils/clipboard.js";
 
 // Text purifier: strips all ** asterisks, bold markers, and markdown clutter from UI
 export function purifyUiText(text) {
@@ -454,7 +455,7 @@ function FileArtifactCard({ file }) {
             title="Copy code"
             onClick={(e) => {
               e.stopPropagation();
-              navigator.clipboard?.writeText(content);
+              copyText(content);
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             }}
@@ -480,7 +481,7 @@ function FileArtifactCard({ file }) {
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard?.writeText(content);
+                  copyText(content);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 1500);
                 }}
@@ -545,7 +546,7 @@ function CommandArtifactCard({ item }) {
             title="Copy command & output"
             onClick={(e) => {
               e.stopPropagation();
-              navigator.clipboard?.writeText(`$ ${cmd}\n\n${out}`);
+              copyText(`$ ${cmd}\n\n${out}`);
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             }}
@@ -6391,7 +6392,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                       onClick={() => {
                         const codeToCopy = activeJsxCode || "";
                         if (codeToCopy) {
-                          navigator.clipboard?.writeText(codeToCopy);
+                          copyText(codeToCopy);
                           setIsCodeCopied(true);
                           setTimeout(() => setIsCodeCopied(false), 1500);
                           appendLog("Success", "Game source code copied to clipboard");
@@ -8559,7 +8560,7 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                         <button
                           title="Copy answer"
                           onClick={() => {
-                            navigator.clipboard?.writeText(h.a).then(() => {
+                            copyText(h.a).then(() => {
                               setCopiedMsg(i);
                               setTimeout(() => setCopiedMsg(null), 1200);
                             }).catch(() => {});

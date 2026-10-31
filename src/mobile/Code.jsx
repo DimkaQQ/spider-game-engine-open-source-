@@ -3,6 +3,7 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  * Author: M4SPIDER (support@m4spider.com)
  */
+import { copyText } from "../utils/clipboard.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { highlight, highlightLines } from "./highlight.js";
 import { AlignLeft, Check, ClipboardCopy, WrapText, FilePlus2, Pencil, Play, RotateCcw, Square, Trash2, Wand2, Copy as CopyIcon } from "lucide-react";
@@ -288,7 +289,7 @@ export default function Code({ s, notify }) {
 
       <Sheet open={menu} onClose={() => setMenu(false)} title={file.name} subtitle={`${lines} lines`}>
         <div className="sp-menu">
-          <button type="button" onClick={() => { navigator.clipboard?.writeText(draft); setMenu(false); notify("Copied", "ok"); }}>
+          <button type="button" onClick={() => { copyText(draft); setMenu(false); notify("Copied", "ok"); }}>
             <ClipboardCopy size={18} /> Copy code
           </button>
           <button type="button" onClick={() => { s.setSettings({ wrapCode: !wrap }); setMenu(false); }}>

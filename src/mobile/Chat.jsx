@@ -3,6 +3,7 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  * Author: M4SPIDER (support@m4spider.com)
  */
+import { copyText } from "../utils/clipboard.js";
 import React, { useEffect, useRef, useState } from "react";
 import { startVoice, voiceLang, voiceSupported } from "./voice.js";
 import { hasMetaKey, museVoiceSupported, startMuseVoice } from "./meta.js";
@@ -359,7 +360,7 @@ export default function Chat({ s, onOpenSettings, notify, onShowStudio }) {
             <button
               type="button"
               onClick={() => {
-                navigator.clipboard?.writeText(menu.text);
+                copyText(menu.text);
                 setMenu(null);
                 notify("Copied", "ok");
               }}
