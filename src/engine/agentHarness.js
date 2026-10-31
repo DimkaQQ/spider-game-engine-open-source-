@@ -595,6 +595,37 @@ export function parseAgentReply(raw) {
   };
 }
 
+/**
+ * True when text starts like a JSON reply but its braces or its last string are not closed
+ * (a reply that was cut off). Plain chat text and complete JSON return false.
+ */
+export function isIncompleteJson(raw) {
+  const str = String(raw || "").trim();
+  if (!str) return false;
+  const fence = str.match(/^```(?:json)?\s*/i);
+  const body = fence ? str.slice(fence[0].length) : str;
+  if (!body.startsWith("{")) return false;
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return false;
+    }
+  }
+  return depth > 0 || inStr;
+}
+
 export async function runAgent(task, {
   ctx,
   callModel,
@@ -602,10 +633,21 @@ export async function runAgent(task, {
   maxSteps = MAX_STEPS,
   getQueuedMessages,
   historyKeep = 25,
-  obsChars = 4000
+  obsChars = 4000,
+  maxFailures = 4
 }) {
   const history = [];
   let consecutiveParseErrors = 0;
+  let failures = 0; // tool calls that failed in a row
+  let lastFailure = "";
+  let sameFailure = 0;
+  let cutOffs = 0; // replies that were cut off by the output limit, in a row
+  let lastActionKey = "";
+  let sameAction = 0;
+  const giveUp = (why) => {
+    onEvent && onEvent({ type: "giveup", message: why });
+    return why;
+  };
 
   for (let step = 1; step <= maxSteps; step++) {
     if (ctx?.isAborted && ctx.isAborted()) {
@@ -631,6 +673,22 @@ export async function runAgent(task, {
     if (ctx?.isAborted && ctx.isAborted()) {
       return "Agent execution stopped by user.";
     }
+    // A reply cut off by the output limit has half a JSON object (or half a file). Never run it and never
+    // treat it as an answer: tell the model to send smaller pieces instead.
+    if (reply.truncated || isIncompleteJson(reply.raw)) {
+      cutOffs++;
+      if (cutOffs >= 3) {
+        return giveUp(
+          "The model keeps running out of output space before it can finish the reply. Ask for a smaller game, or split the request into steps (for example: first the world, then the player, then the enemies)."
+        );
+      }
+      const note =
+        "YOUR LAST REPLY WAS CUT OFF by the output limit, so it was NOT executed. Do it in smaller pieces: write the game as several small files with create_multiple_files (each under about 150 lines, one component per file, GameComponent.jsx imports the others with relative paths), or write a compact first version and extend it later with editFile. Reply with exactly one JSON object.";
+      history.push({ role: "assistant", text: String(raw0(reply)).slice(0, 600) + " ...[cut off]" }, { role: "user", text: note });
+      onEvent && onEvent({ type: "error", step, message: "reply cut off by output limit" });
+      continue;
+    }
+    cutOffs = 0;
     const parsed = parseAgentReply(reply.raw);
 
     if (parsed.error) {
@@ -672,6 +730,38 @@ export async function runAgent(task, {
     observation = String(observation).slice(0, 32000);
     onEvent && onEvent({ type: "observation", step, observation, image_url: obsImage });
 
+    // ---- stop instead of looping forever on the same failure -------------------------------
+    const failed = /^TOOL ERROR|COMPILATION ERROR|3D VIEWPORT ERROR/.test(observation);
+    let extraHint = "";
+    if (failed) {
+      failures++;
+      const sig = observation.replace(/\d+/g, "#").slice(0, 160);
+      sameFailure = sig === lastFailure ? sameFailure + 1 : 1;
+      lastFailure = sig;
+      if (failures >= maxFailures || sameFailure >= 3) {
+        return giveUp(
+          `I could not get this working after ${failures} failed attempts. Last problem: ${observation.replace(/^TOOL ERROR:\s*/, "").slice(0, 400)}\nThe latest code is saved in your files, so you can open the Code tab to look at it, or tap Retry to try again.`
+        );
+      }
+    } else if (tool === "render_jsx" || tool === "editFile" || tool === "check3DView") {
+      failures = 0;
+      sameFailure = 0;
+      lastFailure = "";
+    }
+    const key = tool + ":" + JSON.stringify(args || {}).slice(0, 300);
+    sameAction = key === lastActionKey ? sameAction + 1 : 1;
+    lastActionKey = key;
+    if (sameAction >= 5 && !failed) {
+      // the model keeps repeating a step that already worked: finish instead of burning the whole step budget
+      return "The step worked, and the model kept repeating it, so I stopped here. Your work is saved: open the Studio tab to see and play it, or send a new request to change something.";
+    }
+    if (sameAction >= 3 && !failed) {
+      extraHint = "\nYou already did exactly this three times. Do not repeat it: either reply with the final answer or do something different.";
+    }
+    if (!failed && tool === "check3DView" && /HEALTHY/.test(observation)) {
+      extraHint += "\nThe game is verified and healthy. If the user's request is done, reply now with the final answer (a short summary and how to play). Do not rebuild it.";
+    }
+
     // If the model supplied 'final' alongside the action and the tool succeeded without error, finish immediately
     if (parsed.final && typeof parsed.final === "string" && !observation.startsWith("TOOL ERROR") && !observation.includes("WARNING") && !observation.includes("COMPILATION ERROR")) {
       return parsed.final;
@@ -705,7 +795,7 @@ export async function runAgent(task, {
 
     history.push(
       { role: "assistant", text: JSON.stringify({ thought: parsed.thought, action: historyAction }) },
-      { role: "user", text: `OBSERVATION: ${compactObservation}`, image_url: obsImage }
+      { role: "user", text: `OBSERVATION: ${compactObservation}${extraHint}`, image_url: obsImage }
     );
 
     // Keep history based on model token capacity (Spider adaptive default: 25-60 turns)

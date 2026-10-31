@@ -8,8 +8,8 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { viewportApi } from "../engine/GameViewport.jsx";
-import { compileJsxComponent } from "../engine/DynamicJsxRenderer.jsx";
-import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFromRawJson } from "../engine/agentHarness.js";
+import { compileJsxComponent, findMissingModules, AVAILABLE_MODULES } from "../engine/DynamicJsxRenderer.jsx";
+import { runAgent, systemPrompt, GAME_STEPS, GAME_BUILDER_PRIMER, extractFilesFromRawJson, isIncompleteJson } from "../engine/agentHarness.js";
 import { COINS, COIN_RULES, PLAYER, physicsFallSpeed, PRIMITIVE_SHAPES, GAME_WORLD } from "../game/index.js";
 import {
   STARTER_CODE,
@@ -31,11 +31,51 @@ import {
   saveSettings,
   haptic,
 } from "./store.js";
-import { buildMemory, contextWindow, memoryBudget, runLimits } from "./context.js";
+import { buildMemory, contextWindow, fitMessages, isSmallTalk, joinContinuation, memoryBudget, runLimits } from "./context.js";
 import { retrieveRagContext, ragStore } from "../engine/ragEngine.js";
-import { PROVIDERS, baseUrlFor, chat, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
+import { PROVIDERS, baseUrlFor, chat, outputLimit, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
 
 const MAX_UNDO = 40;
+
+const CONTINUE_PROMPT =
+  "Your previous reply was cut off by the output limit. Continue EXACTLY from the last character: no repetition, no apology, no code fences. Output only the missing remainder so that the whole reply becomes one complete JSON object.";
+
+/** A few lines of code around the line a compiler error points to, so the model can fix just that spot. */
+function errorContext(code, message) {
+  const m = String(message || "").match(/\((\d+):(\d+)\)/);
+  if (!m) return "";
+  const line = Number(m[1]);
+  const lines = String(code).split("\n");
+  if (line < 1 || line > lines.length) return "";
+  const from = Math.max(1, line - 2);
+  const to = Math.min(lines.length, line + 2);
+  const out = [];
+  for (let i = from; i <= to; i++) out.push(`${i === line ? ">" : " "} ${String(i).padStart(4)} | ${lines[i - 1].slice(0, 200)}`);
+  return `Around the error (line ${line}):\n${out.join("\n")}`;
+}
+
+/** Find `old` in `text` exactly, or while ignoring differences in spaces and line breaks. */
+function locate(text, old) {
+  const at = text.indexOf(old);
+  if (at >= 0) return { start: at, end: at + old.length };
+  const pieces = String(old).trim().split(/\s+/).filter(Boolean).map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  if (!pieces.length) return null;
+  const m = new RegExp(pieces.join("\\s*")).exec(text);
+  return m ? { start: m.index, end: m.index + m[0].length } : null;
+}
+
+// How to build so that replies never get cut off and one mistake never ends the run.
+const BUILD_STRATEGY = [
+  "",
+  "BUILD STRATEGY (important on phones, the reply size is limited):",
+  "- Work in stages with tools instead of one giant reply. Stage 1: a COMPACT playable version (about 150 lines or less) with render_jsx. Stage 2: check3DView. Stage 3: add features one at a time with editFile (small old/text edits). Never paste the whole game again just to change a few lines.",
+  "- A single reply must stay under about 5000 tokens. If the game needs more code, split it: create_multiple_files with several small files (under 150 lines each), and let GameComponent.jsx import the others with relative paths such as './Player.jsx'.",
+  "- Only these imports exist: react, three, @react-three/fiber, @react-three/drei, lucide-react, chess.js, spider-touch. Do NOT import physics or state libraries (rapier, cannon, zustand, leva, postprocessing); write simple physics yourself in useFrame.",
+  "- Sound is optional. Wrap every sound call in try/catch so that a sound problem can never stop the game.",
+  "- If render_jsx or editFile reports a COMPILATION ERROR, the code is already saved. Fix only the reported line with editFile. Do not rewrite the file.",
+  "- When check3DView says HEALTHY, reply with the final answer immediately.",
+  "",
+].join("\n");
 
 // Rules the agent must follow for on-screen controls in games it writes.
 const TOUCH_CONTROLS_RULES = [
@@ -508,6 +548,7 @@ export function useStudio() {
     [patchProject]
   );
 
+  const draftRef = useRef(null); // file whose last version failed to compile
   const mountCode = useCallback(
     (name, code) => {
       let err = null;
@@ -965,13 +1006,23 @@ export function useStudio() {
           }
           const name = String(args.name || args.filename || "GameComponent.jsx");
           if (!code) throw new Error("render_jsx requires JSX code string");
+          const missing = findMissingModules(code, projectRef.current.files);
+          if (missing.length) {
+            saveFile(name, code);
+            draftRef.current = name;
+            return `COMPILATION ERROR in "${name}": these imports do not exist in this engine: ${missing.join(", ")}. Allowed imports: ${AVAILABLE_MODULES.join(", ")}. Remove or replace them. The code is saved as "${name}" (not mounted): fix it with editFile (args: name, old, text), do not rewrite the whole file.`;
+          }
           const r = mountCode(name, code);
           if (!r.ok) {
-            const trunc = /Unexpected token|Unterminated/.test(r.error)
-              ? "\n(TOKEN LIMIT ADVISORY: code was cut off mid-expression. Re-mount a compact component under 60 lines.)"
+            saveFile(name, code); // keep the broken code so it can be repaired with small edits
+            draftRef.current = name;
+            const ctx = errorContext(code, r.error);
+            const trunc = /Unexpected token|Unterminated|Unexpected end/.test(r.error)
+              ? "\nThis usually means the code is incomplete or has an unclosed bracket or tag."
               : "";
-            return `COMPILATION ERROR in "${name}": ${r.error}${trunc}\nFix the code and call render_jsx again.`;
+            return `COMPILATION ERROR in "${name}": ${r.error}${trunc}\n${ctx}\nThe code is saved as "${name}" (not mounted). Fix ONLY the broken part with editFile (args: name: "${name}", old: the exact broken snippet, text: the corrected snippet). Do NOT rewrite the whole file.`;
           }
+          draftRef.current = null;
           return `Component "${name}" compiled, mounted and verified error-free in the 3D viewport. Ready to play.`;
         }
         case "clear_jsx":
@@ -1058,14 +1109,26 @@ export function useStudio() {
         case "editFile": {
           const name = String(args.name || args.path || "");
           const f = projectRef.current.files.find((x) => x.name === name);
-          if (!f) throw new Error(`file not found: ${name}`);
-          const find = args.find ?? args.old ?? args.search;
-          const rep = args.replace ?? args.new ?? args.with ?? "";
-          if (find == null || !f.content.includes(find)) throw new Error("search text not found in file");
+          if (!f) throw new Error(`file not found: ${name}. Files: ${projectRef.current.files.map((x) => x.name).join(", ")}`);
+          const find = args.old ?? args.find ?? args.search;
+          const rep = args.text ?? args.replace ?? args.new ?? args.with ?? "";
+          if (find == null || !String(find).length) throw new Error("editFile needs old (the exact snippet to replace) and text (the replacement)");
+          const hit = locate(f.content, String(find));
+          if (!hit) throw new Error(`the text in "old" was not found in ${name}. Call readFile to copy the exact text, then try again.`);
           await askPermission("editFile", name);
-          const next = f.content.replace(find, rep);
+          const next = f.content.slice(0, hit.start) + String(rep) + f.content.slice(hit.end);
+          const live = jsxRef.current.name === name || draftRef.current === name;
+          if (live) {
+            const r = mountCode(name, next);
+            if (!r.ok) {
+              saveFile(name, next);
+              draftRef.current = name;
+              return `COMPILATION ERROR in "${name}" after the edit: ${r.error}\n${errorContext(next, r.error)}\nThe edited code is saved. Fix just this spot with another editFile.`;
+            }
+            draftRef.current = null;
+            return `edited ${name}; it compiled and is mounted in the viewport.`;
+          }
           saveFile(name, next);
-          if (jsxRef.current.name === name) mountCode(name, next);
           return `edited ${name}`;
         }
         case "deleteFile": {
@@ -1121,6 +1184,7 @@ export function useStudio() {
       inflight.current = { sessionId: sessionRefId.current, goal, startedAt: Date.now(), steps: [] };
       persistInflight();
       let compactedLogged = false;
+      let gaveUp = false;
       abortRef.current = false;
       ctrlRef.current = new AbortController();
       const steps = [];
@@ -1130,6 +1194,26 @@ export function useStudio() {
       log("Info", `Agent: ${goal.slice(0, 80)}`);
       const touch = true;
       try {
+        if (isSmallTalk(goal) && priorMessages.length) {
+          const cfg = aiCfgRef.current;
+          const prov = providerById(cfg.provider);
+          const modelId = cfg.model[prov.id] || (cfg.models[prov.id] || prov.models)[0];
+          const recent = priorMessages.filter((m) => m.text && !m.queued).slice(-6).map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: String(m.text).slice(0, 1200) }));
+          const pr = projectRef.current;
+          const sysText = `You are the assistant inside a phone game studio. The user sent a short message that is not a build request. Answer in one to three short plain sentences, no JSON, no tools, no code. Project: "${pr.name}". Mounted game: ${jsxRef.current.name || "none"}. If they ask whether it is done, say what exists now and invite them to describe the next change.`;
+          const reply = await chat({
+            provider: prov,
+            baseUrl: baseUrlFor(prov, cfg),
+            key: loadKey(prov.id),
+            model: modelId,
+            messages: [{ role: "system", content: sysText }, ...recent, { role: "user", content: goal }],
+            signal: ctrlRef.current.signal,
+            maxTokens: 500,
+            onToken: (_t, full) => setStream((st) => ({ ...(st || { steps: [] }), thought: full.slice(0, 160) })),
+          });
+          pushMessage({ role: "assistant", ok: true, text: reply });
+          return;
+        }
         const callModel = async (task, history) => {
           const cfgNow = aiCfgRef.current;
           const provNow = providerById(cfgNow.provider);
@@ -1147,6 +1231,7 @@ export function useStudio() {
             (mem.text ? `\n\nCONVERSATION SO FAR (oldest first; the current goal comes below):\n${mem.text}\n` : "") +
             "\n\nCRITICAL MOBILE REQUIREMENT: The user is on a PHONE touchscreen. No keyboard controls (no WASD / arrows / space). All movement, steering and actions must be touch controlled (tap, swipe, drag, large on-screen buttons).\n" +
             TOUCH_CONTROLS_RULES +
+            BUILD_STRATEGY +
             GAME_BUILDER_PRIMER;
           const messages =
             history.length === 0
@@ -1165,34 +1250,59 @@ export function useStudio() {
                         : { role: "user", content: h.text }
                   ),
                 ];
-          let acc = "";
           const cfg = aiCfgRef.current;
           const prov = providerById(cfg.provider);
-          const out = await chat({
-            provider: prov,
-            baseUrl: baseUrlFor(prov, cfg),
-            key: loadKey(prov.id),
-            model: cfg.model[prov.id] || (cfg.models[prov.id] || prov.models)[0],
-            messages,
-            signal: ctrlRef.current.signal,
-            onToken: (tok) => {
-              acc += tok;
-              window.__lastStreamedAgentText = acc;
-              const p = parseStreaming(acc);
-              setStream((s) => ({
-                ...(s || { steps: [] }),
-                thought: p.final || p.thought || (p.tool ? `Running ${p.tool}…` : "Thinking…"),
-                code: p.code && p.code.length > 5 ? { name: p.name || "GameComponent.jsx", lines: p.code.split("\n").length } : null,
-              }));
-            },
-          });
-          return { raw: out };
+          const modelId = cfg.model[prov.id] || (cfg.models[prov.id] || prov.models)[0];
+          const outCap = outputLimit(prov.id, modelId);
+
+          // keep the whole request inside the context window (oldest bulk is shrunk first)
+          const fit = fitMessages(messages, win, outCap);
+          if (fit.compacted) log("Info", `Request compacted automatically: ${Math.round(fit.before / 4000)}K -> ${Math.round(fit.after / 4000)}K tokens`);
+
+          let raw = "";
+          let truncated = false;
+          let convo = fit.messages;
+          for (let part = 0; ; part++) {
+            let acc = "";
+            let finish = null;
+            const text = await chat({
+              provider: prov,
+              baseUrl: baseUrlFor(prov, cfg),
+              key: loadKey(prov.id),
+              model: modelId,
+              messages: convo,
+              signal: ctrlRef.current.signal,
+              onFinish: (f) => (finish = f),
+              onToken: (tok) => {
+                acc += tok;
+                const shown = raw ? joinContinuation(raw, acc) : acc;
+                window.__lastStreamedAgentText = shown;
+                const p = parseStreaming(shown);
+                setStream((st) => ({
+                  ...(st || { steps: [] }),
+                  thought: p.final || p.thought || (p.tool ? `Running ${p.tool}…` : "Thinking…"),
+                  code: p.code && p.code.length > 5 ? { name: p.name || "GameComponent.jsx", lines: p.code.split("\n").length } : null,
+                }));
+              },
+            });
+            raw = joinContinuation(raw, finish?.text ?? text);
+            const cutByLimit = finish?.truncated || (isIncompleteJson(raw) && !/^(stop|end_turn|STOP)$/i.test(String(finish?.finishReason || "")));
+            if (!cutByLimit) break;
+            if (part >= 4) {
+              truncated = true;
+              break;
+            }
+            log("Info", `Reply reached the output limit (${finish?.maxTokens || outCap} tokens, ${raw.length} chars): asking the model to continue (${part + 1}/4)`);
+            convo = [...fit.messages, { role: "assistant", content: raw }, { role: "user", content: CONTINUE_PROMPT }];
+          }
+          window.__lastStreamedAgentText = raw;
+          return { raw, truncated };
         };
 
         const final = await runAgent(goal, {
           ctx: { runTool, isAborted: () => abortRef.current },
           callModel,
-          maxSteps: GAME_STEPS,
+          maxSteps: 40,
           ...runLimits(contextWindow(aiCfgRef.current.provider, aiCfgRef.current.model[aiCfgRef.current.provider], settingsRef.current.contextWindow)),
           getQueuedMessages: () => {
             if (!queueRef.current.length) return [];
@@ -1215,9 +1325,20 @@ export function useStudio() {
               persistInflight();
               setStream((s) => ({ ...(s || {}), steps: [...steps] }));
             } else if (ev.type === "error") log("Warning", `Agent retry: ${ev.message}`);
+            else if (ev.type === "giveup") {
+              gaveUp = true;
+              log("Warning", `Agent stopped: ${String(ev.message).slice(0, 160)}`);
+            }
           },
         });
-        pushMessage({ role: "assistant", ok: true, text: String(final), steps: steps.map((s) => ({ ...s })), canUndo: true });
+        pushMessage({
+          role: "assistant",
+          ok: !gaveUp,
+          text: String(final),
+          steps: steps.map((s) => ({ ...s })),
+          canUndo: true,
+          ...(gaveUp ? { retryText: goal } : {}),
+        });
       } catch (e) {
         if (!unloading.current) {
           pushMessage({ role: "assistant", ok: false, text: `Agent failed: ${e.message}`, steps: steps.map((s) => ({ ...s })) });

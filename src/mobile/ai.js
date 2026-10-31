@@ -134,7 +134,7 @@ function toAnthropic(messages) {
   return { system, messages: out };
 }
 
-async function readSSE(res, onEvent) {
+async function readSSE(res, onEvent, onActivity) {
   const reader = res.body.getReader();
   const dec = new TextDecoder();
   let buf = "";
@@ -156,17 +156,42 @@ async function readSSE(res, onEvent) {
   };
   for (;;) {
     const { done, value } = await reader.read();
-    if (value) feed(dec.decode(value, { stream: true }));
+    if (value) {
+      onActivity?.();
+      feed(dec.decode(value, { stream: true }));
+    }
     if (done) break;
   }
   feed("\n\n");
 }
 
+/** Longest reply we ask each model for. Too high a value is rejected by some APIs; chat() then halves it. */
+export function outputLimit(providerId, model) {
+  const m = String(model || "").toLowerCase();
+  if (providerId === "anthropic" || /claude/.test(m)) return 32000;
+  if (providerId === "google" || /gemini/.test(m)) return 32768;
+  if (/gpt-4\.1/.test(m)) return 32768;
+  if (/gpt-4o/.test(m)) return 16384;
+  if (/deepseek-reasoner/.test(m)) return 32768;
+  if (/deepseek/.test(m)) return 8192;
+  if (providerId === "meta" || /muse/.test(m)) return 16000;
+  return 8192;
+}
+
+// a limit the provider rejected once is remembered for the session, so every later call starts below it
+const learnedLimit = new Map();
+
+const STALL_MS = () => (typeof window !== "undefined" && window.__STALL_MS) || 90000;
+
 /**
  * One chat turn. messages: [{role, content}] in OpenAI shape (images as image_url parts).
- * Streams via onToken(chunk). Retries once on 5xx; Meta also falls back to sibling models on 400.
+ * Streams via onToken(chunk). Returns the text.
+ *  - onFinish({ finishReason, truncated, usage }) tells the caller if the reply was cut by the output limit.
+ *  - A stream that goes silent for 90 s is aborted and retried once.
+ *  - A 400 that complains about the token limit is retried with half the limit.
+ *  - Meta falls back to sibling models on 400.
  */
-export async function chat({ provider, key, model, baseUrl, messages, onToken, signal, maxTokens = 4096 }) {
+export async function chat({ provider, key, model, baseUrl, messages, onToken, onFinish, signal, maxTokens }) {
   const base = String(baseUrl || provider.baseUrl).replace(/\/+$/, "");
   if (!base) throw new Error("No base URL set for this provider. Open More, then Settings, then AI.");
   if (!key && !provider.custom) throw new Error(`No ${provider.name} key yet. Open More, then Settings, then AI.`);
@@ -176,78 +201,146 @@ export async function chat({ provider, key, model, baseUrl, messages, onToken, s
       ? [model, ...(String(model).includes("contributor") ? [String(model).replace("-contributor", "")] : []), "muse-spark-1.3", "muse-spark-1.2"].filter((m, i, a) => m && a.indexOf(m) === i)
       : [model];
 
+  const limitKey = `${provider.id}:${model}`;
+  let limit = Math.min(maxTokens || outputLimit(provider.id, model), learnedLimit.get(limitKey) || Infinity);
   let lastErr = null;
-  for (let attempt = 0; attempt < (provider.id === "meta" ? 3 : 2); attempt++) {
+  let modelStep = 0;
+  let stalls = 0;
+  const MAX_ATTEMPTS = 6;
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     if (signal?.aborted) throw new Error("Stopped.");
-    const current = candidates[Math.min(attempt, candidates.length - 1)];
+    const current = candidates[Math.min(modelStep, candidates.length - 1)];
+
+    // our own controller: aborts on user stop OR on a silent stream
+    const ctl = new AbortController();
+    const onUserAbort = () => ctl.abort();
+    signal?.addEventListener("abort", onUserAbort);
+    let stalled = false;
+    let timer = null;
+    const poke = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        stalled = true;
+        ctl.abort();
+      }, STALL_MS());
+    };
+
     try {
+      poke();
       let res;
       if (provider.kind === "anthropic") {
         const conv = toAnthropic(messages);
         res = await fetch(`${base}/messages`, {
           method: "POST",
           headers: headers(provider, key),
-          body: JSON.stringify({ model: current, max_tokens: maxTokens, system: conv.system || undefined, messages: conv.messages, stream: true }),
-          signal,
+          body: JSON.stringify({ model: current, max_tokens: limit, system: conv.system || undefined, messages: conv.messages, stream: true }),
+          signal: ctl.signal,
         });
       } else {
         res = await fetch(`${base}/chat/completions`, {
           method: "POST",
           headers: headers(provider, key),
-          body: JSON.stringify({ model: current, messages: attempt >= 2 ? [messages[0], messages[messages.length - 1]] : messages, max_tokens: maxTokens, ...(attempt === 0 ? { stream: true } : {}) }),
-          signal,
+          body: JSON.stringify({ model: current, messages, max_tokens: limit, stream: true }),
+          signal: ctl.signal,
         });
       }
+      poke();
       if (!res.ok) {
         let detail = `${provider.name} ${res.status}`;
+        let raw = "";
         try {
           const err = await res.json();
-          detail += `: ${err?.error?.message || err?.message || JSON.stringify(err).slice(0, 160)}`;
+          raw = JSON.stringify(err);
+          detail += `: ${err?.error?.message || err?.message || raw.slice(0, 160)}`;
         } catch {}
-        if ((res.status === 400 && provider.id === "meta") || res.status >= 500) {
+        // token limit rejected: halve and retry (not counted as a model failure)
+        if (res.status === 400 && /max_tokens|max_completion_tokens|output token|too large|exceeds|maximum/i.test(raw || detail) && limit > 4096) {
+          limit = Math.max(4096, Math.floor(limit / 2));
+          learnedLimit.set(limitKey, limit);
           lastErr = new Error(detail);
-          await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+          continue;
+        }
+        if (res.status === 429) {
+          lastErr = new Error(detail);
+          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+          continue;
+        }
+        if (res.status === 400 && provider.id === "meta" && modelStep < candidates.length - 1) {
+          modelStep++;
+          lastErr = new Error(detail);
+          continue;
+        }
+        if (res.status >= 500) {
+          lastErr = new Error(detail);
+          await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
           continue;
         }
         throw new Error(detail);
       }
 
-      const streaming = provider.kind === "anthropic" || attempt === 0;
-      if (streaming && res.body?.getReader) {
-        let full = "";
-        let last = null;
-        await readSSE(res, (d) => {
-          last = d;
-          let s = "";
-          if (provider.kind === "anthropic") {
-            if (d.type === "content_block_delta") s = d.delta?.text || "";
-            if (d.type === "error") throw new Error(d.error?.message || "Anthropic stream error");
-          } else {
-            s = d.choices?.[0]?.delta?.content || (typeof d.choices?.[0]?.message?.content === "string" ? d.choices[0].message.content : "") || d.choices?.[0]?.delta?.text || d.choices?.[0]?.text || d.output_text || "";
-          }
-          if (s) {
-            full += s;
-            onToken?.(s, full);
-          }
-        });
-        if (full.trim()) return full.trim();
-        const t = pickModelText(last);
-        if (t) return t;
+      let full = "";
+      let finishReason = null;
+      let usage = null;
+      let last = null;
+      if (res.body?.getReader) {
+        await readSSE(
+          res,
+          (d) => {
+            last = d;
+            let s = "";
+            if (provider.kind === "anthropic") {
+              if (d.type === "content_block_delta") s = d.delta?.text || "";
+              if (d.type === "message_delta") {
+                if (d.delta?.stop_reason) finishReason = d.delta.stop_reason;
+                if (d.usage) usage = { ...(usage || {}), ...d.usage };
+              }
+              if (d.type === "message_start" && d.message?.usage) usage = { ...d.message.usage };
+              if (d.type === "error") throw new Error(d.error?.message || "Anthropic stream error");
+            } else {
+              const c = d.choices?.[0];
+              s = c?.delta?.content || (typeof c?.message?.content === "string" ? c.message.content : "") || c?.delta?.text || c?.text || d.output_text || "";
+              if (c?.finish_reason) finishReason = c.finish_reason;
+              if (d.usage) usage = d.usage;
+            }
+            if (s) {
+              full += s;
+              onToken?.(s, full);
+            }
+          },
+          poke
+        );
+      } else {
+        const data = await res.json();
+        full = pickModelText(data);
+        finishReason = data?.choices?.[0]?.finish_reason || data?.stop_reason || null;
+        usage = data?.usage || null;
+        if (full) onToken?.(full, full);
+      }
+      if (!full.trim()) full = pickModelText(last);
+      if (!full.trim()) throw new Error("Empty model response");
+      const truncated = finishReason === "length" || finishReason === "max_tokens" || finishReason === "MAX_TOKENS";
+      onFinish?.({ finishReason, truncated, usage, maxTokens: limit, model: current });
+      return full.trim();
+    } catch (e) {
+      if (signal?.aborted) throw new Error("Stopped.");
+      if (stalled) {
+        stalls++;
+        lastErr = new Error(`${provider.name} stopped sending data for ${Math.round(STALL_MS() / 1000)} s`);
+        if (stalls >= 2) throw lastErr;
         continue;
       }
-      const data = await res.json();
-      const text = pickModelText(data);
-      if (text) {
-        onToken?.(text, text);
-        return text;
-      }
-      throw new Error("Empty model response");
-    } catch (e) {
-      if (signal?.aborted || e?.name === "AbortError") throw new Error("Stopped.");
+      if (e?.name === "AbortError") throw new Error("Network request was interrupted.");
       if (e instanceof TypeError) e = new Error(`Cannot reach ${new URL(base).host}. The provider may block direct browser calls (CORS), or you are offline.`);
       lastErr = e;
-      if (attempt < 1 && /5\d\d/.test(String(e.message))) continue;
+      if (/\b5\d\d\b|timeout|network/i.test(String(e.message)) && attempt < MAX_ATTEMPTS - 1) {
+        await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+        continue;
+      }
       throw e;
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onUserAbort);
     }
   }
   throw lastErr || new Error(`${provider.name} failed after retries`);

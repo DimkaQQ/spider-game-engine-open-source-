@@ -293,6 +293,21 @@ export class SoundEffects {
 }
 
 // Global Singleton Instance
+// A sound problem (blocked autoplay, no audio device, a bad call) must never stop a game: every
+// method on the prototype swallows its own errors.
+for (const name of Object.getOwnPropertyNames(SoundEffects.prototype)) {
+  if (name === "constructor") continue;
+  const fn = SoundEffects.prototype[name];
+  if (typeof fn !== "function") continue;
+  SoundEffects.prototype[name] = function (...args) {
+    try {
+      return fn.apply(this, args);
+    } catch (e) {
+      return undefined;
+    }
+  };
+}
+
 export const sfx = new SoundEffects();
 
 // Attach to window so any script, dynamic JSX, or MCP tool has instant access

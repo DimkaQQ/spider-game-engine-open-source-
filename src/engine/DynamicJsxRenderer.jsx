@@ -16,6 +16,7 @@ import { transform } from "sucrase";
 import { Chess } from "chess.js";
 import { sfx, SoundEffects } from "./audioSynthesizer.js";
 import * as ArenaModule from "../game/ArenaEnv.jsx";
+import * as TouchKit from "./touchControls.jsx";
 import * as ChessBoardEnvModule from "../game/ChessBoardEnv.jsx";
 import * as PiecesModule from "../game/pieces.jsx";
 import * as ChessRulesModule from "../game/ChessRules.js";
@@ -105,6 +106,39 @@ export function cleanJsxCode(raw) {
  * Supports multi-file project imports by recursively resolving and compiling projectFiles.
  * Uses persistent compilation cache to preserve React component identity across parent re-renders.
  */
+/** Modules a generated game may import. Anything else is reported to the model, not silently ignored. */
+export const AVAILABLE_MODULES = [
+  "react", "three", "@react-three/fiber", "@react-three/drei", "lucide-react", "chess.js",
+  "spider-touch", "./audio", "./sound", "./ArenaEnv", "./ChessBoardEnv", "./pieces", "./ChessRules",
+];
+
+/** Bare imports in `code` that the sandbox does not provide (static check, no execution). */
+export function findMissingModules(code, projectFiles = []) {
+  const names = new Set();
+  const re = /(?:import\s+(?:[^'"]*?\s+from\s+)?|require\()\s*['"]([^'"]+)['"]/g;
+  let m;
+  while ((m = re.exec(String(code || ""))) !== null) names.add(m[1]);
+  const ok = new Set(AVAILABLE_MODULES.map((x) => x.replace(/^\.\//, "")));
+  return [...names].filter((n) => {
+    if (n.startsWith(".")) {
+      const base = n.replace(/^(\.\/|\.\.\/)+/, "").replace(/\.(jsx?|tsx?)$/, "");
+      return !(ok.has(base) || (projectFiles || []).some((f) => String(f.name || "").replace(/\.(jsx?|tsx?)$/, "") === base));
+    }
+    return !ok.has(n);
+  });
+}
+
+function missingModule(name) {
+  const fail = () => {
+    throw new Error(`Module "${name}" is not available in this engine. Allowed imports: ${AVAILABLE_MODULES.join(", ")}. Remove it and use only those.`);
+  };
+  return new Proxy(function () {}, {
+    get: (_t, prop) => (prop === "__esModule" ? true : prop === Symbol.toPrimitive || prop === "then" ? undefined : fail),
+    apply: fail,
+    construct: fail,
+  });
+}
+
 export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError = null, projectFiles = EMPTY_PROJECT_FILES, moduleCache = new Map()) {
   const codeStr = cleanJsxCode(rawCode);
   if (!codeStr) return null;
@@ -170,6 +204,7 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
       "./pieces": PiecesModule,
       "./pieces.jsx": PiecesModule,
       "pieces": PiecesModule,
+      "spider-touch": TouchKit,
       "./ChessRules": ChessRulesModule,
       "./ChessRules.js": ChessRulesModule,
       "ChessRules": ChessRulesModule,
@@ -289,6 +324,9 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
           }
         }
       }
+      // Unknown module: return a stub that fails with a clear message ONLY when something from it is used,
+      // so an unused import stays harmless but a used one tells the model exactly what is wrong.
+      if (!name.startsWith(".")) return missingModule(name);
       return {};
     };
 

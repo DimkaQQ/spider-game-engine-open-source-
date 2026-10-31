@@ -111,3 +111,75 @@ export function runLimits(windowTokens) {
   if (windowTokens >= 190000) return { historyKeep: 40, obsChars: 8000 };
   return { historyKeep: 25, obsChars: 4000 };
 }
+
+/* ------------------------------------------------------------------
+ * Automatic compaction of one request. The system prompt, the earlier chat and the agent's
+ * own steps together must fit in the window with room left for the model's reply. When they
+ * do not, the oldest bulky parts are shrunk first (old code and tool output), then whole
+ * old turns are dropped. The newest turns and the original goal always stay verbatim.
+ * ------------------------------------------------------------------ */
+const textOf = (c) => (typeof c === "string" ? c : Array.isArray(c) ? c.map((p) => p?.text || (p?.type === "image_url" ? "[image]" : "")).join("") : "");
+const sizeOf = (m) => textOf(m.content).length + (Array.isArray(m.content) ? 800 * m.content.filter((p) => p?.type === "image_url").length : 0);
+
+export function fitMessages(messages, windowTokens, replyTokens = 8000) {
+  const budget = Math.max(8000, Math.floor((windowTokens - replyTokens) * 0.85) * 4); // characters
+  const total = () => messages.reduce((n, m) => n + sizeOf(m), 0);
+  if (total() <= budget) return { messages, compacted: false, before: total(), after: total() };
+
+  const before = total();
+  const out = messages.map((m) => ({ ...m }));
+  const keepTail = 4; // newest messages stay as they are
+  const clip = (m, n, what) => {
+    const t = textOf(m.content);
+    if (t.length <= n) return;
+    m.content = `${t.slice(0, n)}\n...[${t.length - n} chars of ${what} omitted to save space]`;
+  };
+  const used = () => out.reduce((n, m) => n + sizeOf(m), 0);
+
+  // 1. old images go first
+  for (let i = 2; i < out.length - keepTail && used() > budget; i++) {
+    if (Array.isArray(out[i].content)) out[i].content = textOf(out[i].content);
+  }
+  // 2. shrink old bulky turns, oldest first, in two passes (generous then tight)
+  for (const limit of [2500, 600]) {
+    for (let i = 2; i < out.length - keepTail && used() > budget; i++) clip(out[i], limit, out[i].role === "assistant" ? "earlier code or reply" : "tool output");
+  }
+  // 3. drop the oldest middle turns (keep system, goal, newest)
+  while (used() > budget && out.length > keepTail + 3) out.splice(2, 2);
+  // 4. last resort: shorten the system prompt tail
+  if (used() > budget && out[0]?.role === "system") {
+    const over = used() - budget;
+    const sys = textOf(out[0].content);
+    out[0].content = sys.slice(0, Math.max(4000, sys.length - over));
+  }
+  return { messages: out, compacted: true, before, after: used() };
+}
+
+/** Short chit-chat ("Done?", "thanks", "why?") that needs an answer, not a new build run. */
+const BUILD_WORDS =
+  /\b(make|add|create|build|change|fix|remove|delete|spawn|set|move|rotate|scale|color|colour|paint|generate|write|update|increase|decrease|replace|rename|improve|apply|put|turn|resize|сделай|добавь|создай|измени|исправь|удали|поменяй)\b/i;
+export function isSmallTalk(text) {
+  const t = String(text || "").trim();
+  if (!t || t.length > 40 || t.split(/\s+/).length > 6) return false;
+  if (BUILD_WORDS.test(t)) return false;
+  return /^(done|ready|ok|okay|k|thanks|thank you|thx|ty|nice|cool|great|good|wow|hi|hello|hey|yes|no|yep|nope|why|what|how|when|where|which|is it|are you|did you|can you|does it|готово|спасибо|привет|да|нет|почему|что)\b/i.test(t) || /\?$/.test(t);
+}
+
+/**
+ * Join a continuation onto the text before it. Removes text the model repeated at the seam and
+ * handles the case where it started the whole reply again.
+ */
+export function joinContinuation(prev, next) {
+  const a = String(prev || "");
+  const b = String(next || "");
+  if (!a) return b;
+  const trimmed = b.replace(/^\s*```(?:json)?\s*/i, "");
+  if (a.length > 200 && /^\s*\{\s*"(thought|action|tool|final)"/.test(trimmed) && !/^\s*\{\s*"(thought|action|tool|final)"/.test(a.slice(a.length - 20))) {
+    return trimmed; // it restarted from the top: use the fresh, complete reply
+  }
+  const max = Math.min(300, a.length, trimmed.length);
+  for (let k = max; k >= 8; k--) {
+    if (a.endsWith(trimmed.slice(0, k))) return a + trimmed.slice(k);
+  }
+  return a + trimmed;
+}

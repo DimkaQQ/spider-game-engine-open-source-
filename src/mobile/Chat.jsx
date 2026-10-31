@@ -56,7 +56,7 @@ function Message({ m, last, onUndo, onRetry, busy, onMenu }) {
       <div className="sp-msg-text">
         <Markdown source={m.text} />
       </div>
-      {m.interrupted && last && (
+      {(m.interrupted || m.retryText) && last && (
         <button type="button" className="sp-btn is-primary" disabled={busy} onClick={() => onRetry(m.retryText)}>
           <RotateCcw size={15} /> Retry
         </button>
