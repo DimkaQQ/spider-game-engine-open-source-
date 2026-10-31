@@ -10,7 +10,7 @@ import { cutOut, generateImage, hasMetaKey } from "./meta.js";
 export default function MetaCreate({ s, open, onClose, notify }) {
   const [tab, setTab] = useState("image");
   const [prompt, setPrompt] = useState("");
-  const [what, setWhat] = useState("the main object");
+  const [what, setWhat] = useState("");
   const [as, setAs] = useState("sprite");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
@@ -72,10 +72,10 @@ export default function MetaCreate({ s, open, onClose, notify }) {
         ) : (
           <>
             <label className="sp-field">
-              <span>What to cut out</span>
-              <input value={what} onChange={(e) => setWhat(e.target.value)} placeholder="the red car" />
+              <span>What to cut out (a short name)</span>
+              <input value={what} onChange={(e) => setWhat(e.target.value)} placeholder="red car" />
             </label>
-            <button type="button" className="sp-btn is-primary" disabled={busy || !keyed} onClick={() => fileRef.current?.click()}>
+            <button type="button" className="sp-btn is-primary" disabled={busy || !keyed || !what.trim()} onClick={() => fileRef.current?.click()}>
               <Scissors size={16} /> {busy ? "Cutting…" : "Choose a photo"}
             </button>
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={pick} />

@@ -9,13 +9,14 @@
  * for the Meta provider. Nothing is proxied or stored by this app.
  */
 import { loadKey } from "./ai.js";
+import { decodeMaskToRaster, parseImageStream, recordsOfKind } from "@meta-sam/parser";
 
 export const META_BASE = "https://api.meta.ai/v1";
 export const META_TOOLS = [
-  { id: "voice", name: "Muse Voice Transcribe", what: "Dictate prompts with the mic button", model: "muse-voice-transcribe" },
+  { id: "voice", name: "Muse Voice Transcribe", what: "Dictate prompts with the mic button", model: "muse-voice-transcribe-1.0" },
   { id: "image", name: "Muse Image", what: "Generate textures and sprite props from text", model: "muse-image-1.0" },
   { id: "sam", name: "SAM 3.1", what: "Cut an object out of a photo to use as a prop", model: "sam-3.1" },
-  { id: "wonder", name: "Muse Wonder", what: "Plan a big game before the build starts", model: "muse-wonder" },
+  { id: "wonder", name: "Muse Wonder", what: "Plan a big game before the build starts", model: "muse-wonder-1.0" },
   { id: "spark", name: "Muse Spark 1.3", what: "Main agent model, 1M-token context and vision", model: "muse-spark-1.3" },
   { id: "baseten", name: "Muse Spark Open (Baseten)", what: "Open-weights Muse Spark on your own Baseten endpoint", model: "meta-models/muse-spark-open-1026" },
 ];
@@ -36,6 +37,14 @@ async function fail(res, what) {
 
 /* ------------------------------ Muse Image ------------------------------ */
 
+/** The API returns WebP today; read the type from the first bytes instead of assuming png. */
+export function imageMime(b64) {
+  if (b64.startsWith("iVBOR")) return "image/png";
+  if (b64.startsWith("/9j/")) return "image/jpeg";
+  if (b64.startsWith("UklGR")) return "image/webp";
+  return "image/png";
+}
+
 /** Text to image through the Responses API. Returns a data URL (png). */
 export async function generateImage(prompt, { size = "1024x1024", transparent = false, signal } = {}) {
   const key = metaKey();
@@ -55,7 +64,7 @@ export async function generateImage(prompt, { size = "1024x1024", transparent = 
   const data = await res.json();
   const call = (data.output || []).find((o) => o.type === "image_generation_call" && o.result);
   if (!call) throw new Error("Muse Image returned no picture.");
-  return `data:image/png;base64,${call.result}`;
+  return `data:${imageMime(call.result)};base64,${call.result}`;
 }
 
 /* -------------------------------- SAM 3.1 -------------------------------- */
@@ -77,69 +86,94 @@ function loadImage(src) {
   });
 }
 
-/** Pull polygons or an RLE-free mask list out of whatever shape the SAM reply uses. */
-function pickMasks(data) {
-  const out = [];
-  const walk = (v) => {
-    if (!v || typeof v !== "object") return;
-    if (Array.isArray(v)) return v.forEach(walk);
-    if (Array.isArray(v.polygon) || Array.isArray(v.polygons)) out.push(v.polygons || [v.polygon]);
-    if (typeof v.mask === "string" && v.mask.length > 64) out.push({ png: v.mask });
-    Object.values(v).forEach(walk);
-  };
-  walk(data);
-  return out;
+/** SAM wants a short noun phrase ("red car"), not a command. */
+export const samPhrase = (what) =>
+  String(what || "")
+    .toLowerCase()
+    .replace(/^(please |cut out |segment |select |find )+/, "")
+    .replace(/^(the|a|an|my) /, "")
+    .trim() || "object";
+
+/** Feed a finished Responses body to the official parser and return its mask records. */
+export async function masksFromResponse(body) {
+  const text = (body?.output || [])
+    .flatMap((o) => o?.content || [])
+    .filter((c) => c?.type === "output_text")
+    .map((c) => c.text)
+    .join("");
+  async function* events() {
+    yield { type: "response.output_text.delta", item_id: "m", output_index: 0, content_index: 0, delta: text };
+    yield { type: "response.output_text.done", item_id: "m", output_index: 0, content_index: 0, text };
+    yield { type: "response.completed" };
+  }
+  const result = await parseImageStream(events()).finalResult;
+  return recordsOfKind(result.records, "mask");
+}
+
+/** Shrink big photos before upload: SAM works on the pixels it is sent, and phone photos are huge. */
+async function prepareImage(file, maxSide = 1600) {
+  const img = await loadImage(await fileToDataUrl(file));
+  const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(img.naturalWidth * k));
+  c.height = Math.max(1, Math.round(img.naturalHeight * k));
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return { canvas: c, dataUrl: c.toDataURL("image/jpeg", 0.9) };
 }
 
 /**
- * Photo to cutout. Sends the photo to SAM 3.1 with a text prompt ("the red car") and returns a
- * transparent PNG data URL with only the matched object. If SAM returns nothing usable the photo
- * is returned untouched so the caller can still use it as a texture.
+ * Photo to cutout through SAM 3.1. Sends the photo with a short noun phrase, decodes the returned
+ * masks with Meta's parser, keeps only the matched pixels and crops to them. Returns a transparent
+ * PNG data URL. If nothing matched, the whole photo comes back with matched: false.
  */
-export async function cutOut(file, what = "the main object", { signal } = {}) {
+export async function cutOut(file, what = "object", { signal } = {}) {
   const key = metaKey();
   if (!key) throw new Error("Add your Meta key in Settings > AI providers first.");
-  const src = await fileToDataUrl(file);
+  const { canvas, dataUrl } = await prepareImage(file);
   const res = await fetch(`${META_BASE}/responses`, {
     method: "POST",
     headers: authHeaders(key),
     signal,
     body: JSON.stringify({
       model: "sam-3.1",
-      input: [{ role: "user", content: [{ type: "input_text", text: what }, { type: "input_image", image_url: src }] }],
+      input: [{ role: "user", content: [{ type: "input_text", text: samPhrase(what) }, { type: "input_image", image_url: dataUrl }] }],
     }),
   });
   if (!res.ok) await fail(res, "SAM 3.1");
-  const masks = pickMasks(await res.json());
-  const img = await loadImage(src);
-  const c = document.createElement("canvas");
-  c.width = img.naturalWidth;
-  c.height = img.naturalHeight;
-  const g = c.getContext("2d");
-  const first = masks[0];
-  if (!first) return { url: src, matched: false };
+  const masks = await masksFromResponse(await res.json());
+  if (!masks.length) return { url: canvas.toDataURL("image/png"), matched: false };
 
-  if (first.png) {
-    const mask = await loadImage(first.png.startsWith("data:") ? first.png : `data:image/png;base64,${first.png}`);
-    g.drawImage(mask, 0, 0, c.width, c.height);
-    g.globalCompositeOperation = "source-in";
-    g.drawImage(img, 0, 0);
-    return { url: c.toDataURL("image/png"), matched: true };
-  }
-  // polygon list in pixel or 0..1 coordinates
-  g.beginPath();
-  for (const poly of first) {
-    for (let i = 0; i + 1 < poly.length; i += 2) {
-      const px = poly[i] <= 1 ? poly[i] * c.width : poly[i];
-      const py = poly[i + 1] <= 1 ? poly[i + 1] * c.height : poly[i + 1];
-      if (i === 0) g.moveTo(px, py);
-      else g.lineTo(px, py);
+  const W = canvas.width;
+  const H = canvas.height;
+  const g = canvas.getContext("2d");
+  const px = g.getImageData(0, 0, W, H);
+  const keep = new Uint8Array(W * H);
+  let x0 = W, y0 = H, x1 = 0, y1 = 0;
+  for (const m of masks) {
+    const raster = decodeMaskToRaster(m.mask);
+    const { left, top } = m.bounds;
+    for (let y = 0; y < m.mask.height; y++) {
+      for (let x = 0; x < m.mask.width; x++) {
+        if (!raster[y * m.mask.width + x]) continue;
+        const X = left + x;
+        const Y = top + y;
+        if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+        keep[Y * W + X] = 1;
+        if (X < x0) x0 = X;
+        if (X > x1) x1 = X;
+        if (Y < y0) y0 = Y;
+        if (Y > y1) y1 = Y;
+      }
     }
-    g.closePath();
   }
-  g.clip();
-  g.drawImage(img, 0, 0);
-  return { url: c.toDataURL("image/png"), matched: true };
+  if (x1 < x0) return { url: canvas.toDataURL("image/png"), matched: false };
+  for (let i = 0; i < keep.length; i++) if (!keep[i]) px.data[i * 4 + 3] = 0;
+  g.putImageData(px, 0, 0);
+  const out = document.createElement("canvas");
+  out.width = x1 - x0 + 1;
+  out.height = y1 - y0 + 1;
+  out.getContext("2d").drawImage(canvas, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+  return { url: out.toDataURL("image/png"), matched: true };
 }
 
 /* --------------------------- Muse Voice Transcribe --------------------------- */
@@ -246,8 +280,8 @@ export async function planGame(request, { signal } = {}) {
       headers: authHeaders(key),
       signal,
       body: JSON.stringify({
-        model: "muse-wonder",
-        max_tokens: 900,
+        model: "muse-wonder-1.0",
+        max_tokens: 6000, // Wonder reasons first; a small budget is spent on thinking and the answer comes back empty
         messages: [
           { role: "system", content: "You plan small 3D browser games for a React Three Fiber engine. Reply with at most 8 short numbered steps: world, player controls, enemies or goals, scoring, polish. No code." },
           { role: "user", content: request },

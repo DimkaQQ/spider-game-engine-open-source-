@@ -53,3 +53,33 @@ test("the tool list names every integration", () => {
   const ids = meta.META_TOOLS.map((t) => t.id).sort();
   assert.deepEqual(ids, ["baseten", "image", "sam", "spark", "voice", "wonder"]);
 });
+
+test("SAM: the real recorded response decodes into a mask with the parser", async () => {
+  const fs = await import("node:fs");
+  const body = JSON.parse(fs.readFileSync(new URL("./fixtures/sam-real-response.json", import.meta.url), "utf8"));
+  const masks = await meta.masksFromResponse(body);
+  assert.equal(masks.length, 1);
+  const m = masks[0];
+  assert.deepEqual([m.mask.width, m.mask.height], [710, 839]);
+  assert.deepEqual(m.bounds, { left: 445, top: 373, right: 1155, bottom: 1212 });
+});
+
+test("SAM prompts are short noun phrases", () => {
+  assert.equal(meta.samPhrase("Cut out the red car"), "red car");
+  assert.equal(meta.samPhrase("the tree"), "tree");
+  assert.equal(meta.samPhrase(""), "object");
+});
+
+test("image type comes from the bytes: the API returns WebP", () => {
+  assert.equal(meta.imageMime("UklGRnoRAQBXRUJQ"), "image/webp");
+  assert.equal(meta.imageMime("iVBORw0KGgo"), "image/png");
+  assert.equal(meta.imageMime("/9j/4AAQ"), "image/jpeg");
+});
+
+test("Wonder is asked by its real model id with room to think", async () => {
+  let body;
+  globalThis.fetch = async (_u, init) => ((body = JSON.parse(init.body)), reply({ choices: [{ message: { content: "1. World" } }] }));
+  await meta.planGame("make a racer");
+  assert.equal(body.model, "muse-wonder-1.0");
+  assert.ok(body.max_tokens >= 4000);
+});

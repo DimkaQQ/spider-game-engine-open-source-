@@ -11,7 +11,7 @@ import { demoChat } from "./demo.js";
 
 export const PROVIDERS = [
   { id: "demo", name: "Demo (no key needed)", short: "Demo", kind: "demo", baseUrl: "demo://local", keyHint: "No key needed", models: ["scripted-demo"] },
-  { id: "meta", name: "Meta", kind: "openai", baseUrl: "https://api.meta.ai/v1", keyHint: "Key from dev.meta.ai", models: ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder"] },
+  { id: "meta", name: "Meta", kind: "openai", baseUrl: "https://api.meta.ai/v1", keyHint: "Key from dev.meta.ai", models: ["muse-spark-1.3", "muse-spark-1.3-contributor", "muse-spark-1.2", "muse-wonder-1.0"] },
   { id: "baseten", name: "Baseten (Muse Spark Open)", short: "Baseten", kind: "openai", baseUrl: "https://inference.baseten.co/v1", keyHint: "Baseten API key", models: ["meta-models/muse-spark-open-1026"] },
   { id: "openai", name: "OpenAI", kind: "openai", baseUrl: "https://api.openai.com/v1", keyHint: "sk-…", models: ["gpt-4.1", "gpt-4.1-mini", "gpt-4o", "gpt-4o-mini"] },
   { id: "anthropic", name: "Anthropic", kind: "anthropic", baseUrl: "https://api.anthropic.com/v1", keyHint: "sk-ant-…", models: ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5"] },
