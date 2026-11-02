@@ -166,26 +166,35 @@ export const rememberDeveloper = (n) => write(DEV_KEY, n);
 
 const localAll = () => read(LOCAL_KEY, []);
 
+// The server answers with root-relative image links; when the Store lives on another origin, anchor them there.
+function anchor(game) {
+  if (!game || !/^https?:\/\//.test(API)) return game;
+  const origin = new URL(API).origin;
+  return { ...game, images: (game.images || []).map((i) => (i.url && i.url.startsWith("/") ? { ...i, url: origin + i.url } : i)) };
+}
+
 async function http(path, init) {
   const r = await fetch(`${API.replace(/\/$/, "")}${path}`, { headers: { "content-type": "application/json" }, ...init });
   if (!r.ok) {
     let msg = `Store server answered ${r.status}`;
     try { msg = (await r.json()).error || msg; } catch {}
-    throw new Error(msg);
+    const err = new Error(msg);
+    err.status = r.status;
+    throw err;
   }
   return r.json();
 }
 
 /** All games, newest activity first. Each game: { slug, name, developer, category, description, images[], versions[] }. */
 export async function listGames() {
-  const games = API ? await http("/games") : localAll();
+  const games = API ? (await http("/games")).map(anchor) : localAll();
   return [...games].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 }
 
 export async function findGame(slug) {
   if (!slug) return null;
   if (API) {
-    try { return await http(`/games/${encodeURIComponent(slug)}`); } catch (e) { if (/404/.test(e.message)) return null; throw e; }
+    try { return anchor(await http(`/games/${encodeURIComponent(slug)}`)); } catch (e) { if (e.status === 404) return null; throw e; }
   }
   return localAll().find((g) => g.slug === slug) || null;
 }
@@ -206,7 +215,7 @@ export async function resolveTarget({ name, developer }) {
 
 /** Submits a prepared listing. `submission` is built by the publish page. */
 export async function submitGame(submission) {
-  if (API) return http("/games", { method: "POST", body: JSON.stringify(submission) });
+  if (API) return anchor(await http("/games", { method: "POST", body: JSON.stringify(submission) }));
   const list = localAll();
   const now = new Date().toISOString();
   const ver = { version: submission.version, notes: submission.notes || "", bytes: submission.package.bytes, createdAt: now, provenance: submission.provenance };

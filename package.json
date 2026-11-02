@@ -16,6 +16,7 @@
     "electron dev": "electron .",
     "electron:built": "electron . --built",
     "start": "vite",
+    "store:server": "node server/store-server.cjs",
     "dist": "vite build && electron-builder --win",
     "dist:portable": "vite build && electron-builder --win portable"
   },
