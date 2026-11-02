@@ -7,11 +7,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ChevronLeft, ChevronRight, Download, HelpCircle, Eye, EyeOff, FileText, FolderKanban, Gamepad2, Hammer, Info, KeyRound, Palette,
-  Plus, RefreshCw, Terminal, Trash2, Upload, Sun, CornerDownLeft, Settings as Cog, Check,
+  Plus, Rocket, Store as StoreIcon, RefreshCw, Terminal, Trash2, Upload, Sun, CornerDownLeft, Settings as Cog, Check,
 } from "lucide-react";
 import { PLAYER, PRIMITIVE_SHAPES } from "../game/index.js";
 import licenses from "../../THIRD_PARTY_LICENSES.md?raw";
 import Markdown from "./Markdown.jsx";
+import { StoreBrowse, StorePublish } from "./Store.jsx";
 import { TEMPLATES } from "./store.js";
 import { Empty, Segmented, Sheet, TemplateIcon, Toggle, cx } from "./ui.jsx";
 
@@ -44,7 +45,7 @@ function Back({ title, onBack, right }) {
 }
 
 /* ----------------------------- Projects ----------------------------- */
-function Projects({ s, onBack, notify, onOpened }) {
+function Projects({ s, onBack, notify, onOpened, onStore }) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [tpl, setTpl] = useState("code");
@@ -92,6 +93,9 @@ function Projects({ s, onBack, notify, onOpened }) {
           </button>
           <button type="button" className="sp-btn" onClick={() => { s.exportProject(); notify("Project exported", "ok"); }}>
             <Download size={16} /> Export current
+          </button>
+          <button type="button" className="sp-btn is-primary" onClick={onStore}>
+            <Rocket size={16} /> Export to Store
           </button>
         </div>
         <input
@@ -464,6 +468,7 @@ export default function More({ s, notify, onTour, onOpened, initialPage = null, 
             </button>
             <div className="sp-menu-list">
               <Row icon={FolderKanban} title="Projects" hint={`${s.projects.length} on this device`} onClick={() => setPage("projects")} />
+              <Row icon={StoreIcon} title="Spider Store" hint="Play, publish and update games" onClick={() => setPage("store")} />
               <Row icon={Terminal} title="Console" hint={warnings ? `${warnings} warning${warnings > 1 ? "s" : ""}` : "Logs and commands"} onClick={() => setPage("console")} />
               <Row icon={Cog} title="Settings" hint="Appearance, rendering, AI keys" onClick={() => setPage("settings")} />
               <Row icon={HelpCircle} title="Help" hint="Quick tour of the app" onClick={() => onTour?.()} />
@@ -472,7 +477,9 @@ export default function More({ s, notify, onTour, onOpened, initialPage = null, 
           </div>
         </>
       )}
-      {page === "projects" && <Projects s={s} notify={notify} onBack={() => setPage(null)} onOpened={() => { setPage(null); onOpened(); }} />}
+      {page === "store" && <StoreBrowse onBack={() => setPage(null)} onPublish={() => setPage("publish")} />}
+      {page === "publish" && <StorePublish s={s} notify={notify} onBack={() => setPage("store")} onDone={() => setPage("store")} />}
+      {page === "projects" && <Projects s={s} notify={notify} onStore={() => setPage("publish")} onBack={() => setPage(null)} onOpened={() => { setPage(null); onOpened(); }} />}
       {page === "console" && <Console s={s} onBack={() => setPage(null)} />}
       {page === "settings" && <Settings s={s} notify={notify} onBack={() => setPage(null)} />}
       {page === "about" && <About onBack={() => setPage(null)} />}
