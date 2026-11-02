@@ -1,0 +1,91 @@
+/* Spider Store (mobile). Calm, spacious, large type, soft depth. Uses the app theme tokens so light and dark both work. */
+.st-page { display: flex; flex-direction: column; gap: 22px; padding-bottom: 36px; }
+.st-lead h2 { margin: 0; font-size: 28px; line-height: 1.1; letter-spacing: -0.02em; }
+.st-lead p { margin: 8px 0 0; color: var(--text-2); font-size: 15px; line-height: 1.45; }
+
+.st-banner { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 20px; color: var(--text);
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface-2)); border: 1px solid var(--line); }
+.st-banner svg { flex: none; color: var(--accent); }
+.st-banner b { display: block; font-size: 17px; letter-spacing: -0.01em; }
+.st-banner small { display: block; margin-top: 3px; color: var(--text-2); font-size: 12.5px; line-height: 1.35; }
+
+.st-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 14px; }
+.st-card { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; padding: 0; background: none; border: 0; color: inherit; }
+.st-card:active { transform: scale(0.98); transition: transform 0.15s var(--ease); }
+.st-card b { margin-top: 9px; font-size: 15px; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-card small { color: var(--text-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-meta { color: var(--text-3); font-size: 11.5px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; }
+.st-cover { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 22%; display: block; background: var(--surface-2);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 8px 22px rgba(20, 22, 30, 0.18); }
+.st-cover-fallback { display: grid; place-items: center; color: #fff; font-size: 44px; font-weight: 800; }
+
+.st-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; padding: 38px 20px; border-radius: 22px; border: 1px dashed var(--line-2); }
+.st-empty > span { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); margin-bottom: 4px; }
+.st-empty b { font-size: 19px; }
+.st-empty small { color: var(--text-2); max-width: 28ch; line-height: 1.4; margin-bottom: 10px; }
+
+.st-hero { display: flex; gap: 16px; align-items: center; }
+.st-hero-art { width: 104px; flex: none; }
+.st-hero-text h2 { margin: 0; font-size: 26px; line-height: 1.12; letter-spacing: -0.02em; }
+.st-hero-text p { margin: 4px 0 10px; color: var(--text-2); }
+.st-pill { display: inline-block; padding: 4px 12px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 800; }
+.st-shots { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 4px 16px 10px; scrollbar-width: none; }
+.st-shots::-webkit-scrollbar { display: none; }
+.st-shots img { flex: none; height: 210px; width: auto; max-width: 78vw; object-fit: cover; scroll-snap-align: center; border-radius: 18px; box-shadow: 0 10px 28px rgba(20,22,30,0.22); background: var(--surface-2); }
+.st-block h3 { margin: 0 0 8px; font-size: 20px; letter-spacing: -0.01em; }
+.st-text { margin: 0; color: var(--text-2); line-height: 1.55; white-space: pre-wrap; }
+.st-versions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.st-versions li { padding: 14px 16px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.st-versions b { display: block; }
+.st-versions em { font-style: normal; margin-left: 8px; font-size: 11px; font-weight: 800; color: var(--accent); }
+.st-versions small { color: var(--text-3); }
+.st-versions p { margin: 8px 0 0; color: var(--text-2); font-size: 14px; }
+
+.st-form { gap: 16px; }
+.st-step { padding: 18px; border-radius: 22px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 1px 2px rgba(20,22,30,0.04), 0 10px 30px rgba(20,22,30,0.05); }
+.st-step > header { display: flex; align-items: center; gap: 12px; }
+.st-step h3 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+.st-step small { display: block; color: var(--text-3); font-size: 12.5px; margin-top: 2px; }
+.st-num { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--surface-3); color: var(--text-2); font-size: 13px; font-weight: 800; transition: background 0.25s var(--ease), color 0.25s var(--ease); }
+.st-num.is-done { background: var(--ok); color: #fff; }
+.st-count { float: right; font-style: normal; font-weight: 600; color: var(--text-3); }
+
+.st-note { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 12px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; background: var(--surface-2); color: var(--text-2); }
+.st-note svg { flex: none; margin-top: 2px; }
+.st-note.is-info { background: var(--accent-soft); color: var(--text); }
+.st-note.is-warn { background: rgba(251, 191, 36, 0.14); color: var(--text); }
+.st-note.is-bad { background: var(--bad-soft); color: var(--bad); }
+.st-foot { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: var(--text-3); font-size: 12.5px; line-height: 1.45; }
+.st-foot svg { flex: none; margin-top: 2px; }
+.st-hint { margin: 0; text-align: center; color: var(--text-3); font-size: 13px; }
+
+.st-thumbs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.st-thumbs figure { position: relative; margin: 0; }
+.st-thumbs img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 14px; display: block; background: var(--surface-2); }
+.st-thumbs figure button { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; }
+.st-thumbs figcaption { position: absolute; left: 6px; bottom: 6px; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,0.55); color: #fff; font-size: 10.5px; font-weight: 700; }
+.st-add { aspect-ratio: 3 / 4; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; border-radius: 14px; border: 1.5px dashed var(--line-2); color: var(--accent); background: var(--surface-2); font-size: 12.5px; font-weight: 700; }
+.st-add:disabled { opacity: 0.6; }
+
+.st-size { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 16px 18px; border-radius: 16px; background: var(--surface-2); color: var(--accent); overflow: hidden; }
+.st-size b { display: block; color: var(--text); font-size: 17px; }
+.st-size small { margin: 0; }
+.st-size i { position: absolute; left: 0; bottom: 0; height: 4px; width: var(--w); background: var(--accent); border-radius: 0 4px 4px 0; transition: width 0.4s var(--ease); }
+.st-size.is-bad { color: var(--bad); }
+.st-size.is-bad i { background: var(--bad); }
+
+.st-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.st-rules button { display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); color: var(--text); font-size: 14px; line-height: 1.4; }
+.st-rules button span { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-top: 1px; border-radius: 7px; border: 1.5px solid var(--line-2); color: transparent; background: var(--surface); transition: all 0.2s var(--ease); }
+.st-rules button.is-on span { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.st-submit { min-height: 54px; font-size: 17px; border-radius: 18px; }
+.st-submit:disabled { opacity: 0.45; }
+
+.st-success { align-items: center; text-align: center; padding-top: 56px; }
+.st-success h2 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
+.st-success p { margin: 0 0 12px; color: var(--text-2); max-width: 30ch; line-height: 1.45; }
+.st-tick { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: var(--ok); color: #fff; box-shadow: 0 14px 34px rgba(23,128,61,0.35); animation: st-pop 0.5s var(--ease); }
+@keyframes st-pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .st-tick { animation: none; } .st-card:active { transform: none; } }
