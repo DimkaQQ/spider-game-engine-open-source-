@@ -302,7 +302,6 @@ export function StorePublish({ s, notify, onBack, onDone }) {
         <button type="button" className="sp-btn is-primary is-block st-submit" disabled={!ready || sending} onClick={submit}>
           <Rocket size={18} /> {sending ? "Publishing…" : target?.kind === "version" ? `Publish version ${target.version}` : "Publish to Store"}
         </button>
-        <p className="st-foot">{storeMode() === "server" ? "Sent to the Spider Store server." : "Store server not connected: saved on this device only."}</p>
       </div>
     </>
   );
