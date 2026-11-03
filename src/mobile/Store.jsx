@@ -3,10 +3,13 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Check, ImagePlus, Layers, Package, Rocket, Search, ShieldCheck, X, AlertTriangle, Clock } from "lucide-react";
 import {
-  LIMITS, RULES, STORE_CATEGORIES, buildPackage, buildProvenance, checkListing, findGame, formatBytes, listGames, processImage,
-  getGame, rememberDeveloper, resolveTarget, savedDeveloper, storeMode, submitGame,
+  ChevronLeft, Check, ImagePlus, Layers, Package, Rocket, Search, ShieldCheck, X, AlertTriangle, Clock, ArrowRight, Download, Flame, Gamepad2,
+  Home, Library, RefreshCw, Star,
+} from "lucide-react";
+import {
+  LIMITS, RULES, STORE_CATEGORIES, buildPackage, buildProvenance, checkListing, formatBytes, getLibrary, listGames, processImage,
+  getGame, rememberDeveloper, resolveTarget, savedDeveloper, setLibraryVersion, storeMode, submitGame,
 } from "./storeApi.js";
 import { cx } from "./ui.jsx";
 import "./store.css";
@@ -22,15 +25,32 @@ function Head({ title, onBack, right }) {
   );
 }
 
-const hue = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
-const Cover = ({ game, className }) => (
-  game.images?.[0]
-    ? <img className={cx("st-cover", className)} src={game.images[0].dataUrl || game.images[0].url} alt="" loading="lazy" />
-    : <span className={cx("st-cover st-cover-fallback", className)} style={{ background: `linear-gradient(135deg, hsl(${hue(game.name)} 70% 56%), hsl(${(hue(game.name) + 60) % 360} 70% 38%))` }}>{game.name.slice(0, 1)}</span>
-);
+/* ----------------------------- shared bits ----------------------------- */
+const posterOf = (g) => g.images?.[0]?.dataUrl || g.images?.[0]?.url || "";
+const genre = (g) => (g.subtitle ? `${g.category} • ${g.subtitle}` : g.category);
+const latestOf = (g) => g.versions[0].version;
+const stateOf = (g, lib) => (lib[g.slug] == null ? "get" : lib[g.slug] < latestOf(g) ? "update" : "installed");
+
+/** Get / Installed / Update, one control used on every card. */
+function GetButton({ game, lib, onGet, round }) {
+  const st = stateOf(game, lib);
+  const label = st === "get" ? "Get" : st === "update" ? "Update" : "Installed";
+  if (round) {
+    return (
+      <button type="button" className={cx("st-round", st !== "get" && "is-on")} aria-label={`${label} ${game.name}`} onClick={(e) => { e.stopPropagation(); if (st !== "installed") onGet(game); }}>
+        {st === "installed" ? <Check size={17} strokeWidth={3} /> : st === "update" ? <RefreshCw size={16} /> : <Download size={17} />}
+      </button>
+    );
+  }
+  return (
+    <button type="button" className={cx("st-get", st === "installed" && "is-done")} onClick={(e) => { e.stopPropagation(); if (st !== "installed") onGet(game); }}>
+      {st === "installed" ? <Check size={16} strokeWidth={3} /> : st === "update" ? <RefreshCw size={15} /> : <Download size={16} />} {label}
+    </button>
+  );
+}
 
 /* ----------------------------- game page ----------------------------- */
-function GamePage({ slug, onBack }) {
+function GamePage({ slug, onBack, lib, onGet }) {
   const [game, setGame] = useState(null);
   const [err, setErr] = useState("");
   useEffect(() => { getGame(slug).then(setGame).catch((e) => setErr(e.message)); }, [slug]);
@@ -41,21 +61,23 @@ function GamePage({ slug, onBack }) {
     <>
       <Head title={game.name} onBack={onBack} />
       <div className="sp-scroll st-page">
-        <div className="st-hero">
-          <Cover game={game} className="st-hero-art" />
-          <div className="st-hero-text">
+        <div className="st-banner-img" style={{ backgroundImage: `url("${posterOf(game)}")` }}>
+          <div className="st-banner-fade">
+            <span className="st-pill">{genre(game)}</span>
             <h2>{game.name}</h2>
             <p>{game.developer}</p>
-            <span className="st-pill">{game.category}</span>{game.sample && <span className="st-pill is-sample">Sample</span>}
           </div>
         </div>
-        <div className="st-shots" role="list">
-          {game.images.map((im) => <img key={im.sha256 || im.name} role="listitem" src={im.dataUrl || im.url} alt={`${game.name} screenshot`} loading="lazy" />)}
-        </div>
+        <div className="st-actions"><GetButton game={game} lib={lib} onGet={onGet} /></div>
         <section className="st-block">
           <h3>About</h3>
           <p className="st-text">{game.description}</p>
         </section>
+        {game.images.length > 1 && (
+          <div className="st-shots" role="list">
+            {game.images.map((im) => <img key={im.sha256 || im.name} role="listitem" src={im.dataUrl || im.url} alt={`${game.name} screenshot`} loading="lazy" />)}
+          </div>
+        )}
         <section className="st-block">
           <h3>Versions</h3>
           <ul className="st-versions">
@@ -68,61 +90,189 @@ function GamePage({ slug, onBack }) {
             ))}
           </ul>
         </section>
-        {!game.sample && <p className="st-foot"><ShieldCheck size={14} /> Screenshots are metadata-free. Provenance recorded for version {latest.version}.</p>}
+        {game.sample
+          ? <p className="st-foot"><Package size={14} /> Sample listing for the demo. It has no playable build yet.</p>
+          : <p className="st-foot"><ShieldCheck size={14} /> Screenshots are metadata-free. Provenance recorded for version {latest.version}.</p>}
       </div>
     </>
   );
 }
 
-/* ----------------------------- browse ----------------------------- */
-export function StoreBrowse({ onBack, onPublish }) {
+/* ----------------------------- browse (Explore) ----------------------------- */
+function Featured({ games, onOpen, lib, onGet }) {
+  const [i, setI] = useState(0);
+  const ref = useRef(null);
+  const onScroll = () => { const el = ref.current; if (el) setI(Math.round(el.scrollLeft / el.clientWidth)); };
+  return (
+    <div className="st-feat">
+      <div className="st-feat-track" ref={ref} onScroll={onScroll}>
+        {games.map((g) => (
+          <article key={g.slug} className="st-slide" style={{ backgroundImage: `url("${posterOf(g)}")` }} onClick={() => onOpen(g.slug)}>
+            <div className="st-slide-fade">
+              <span className="st-tag">FEATURED</span>
+              <h2>{g.name}</h2>
+              <p>{g.description}</p>
+              <div className="st-slide-btns" onClick={(e) => e.stopPropagation()}>
+                <GetButton game={g} lib={lib} onGet={onGet} />
+                <button type="button" className="st-ghost" onClick={() => onOpen(g.slug)}>View Details</button>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+      <div className="st-dots" aria-hidden="true">{games.map((g, k) => <i key={g.slug} className={k === i ? "is-on" : ""} />)}</div>
+    </div>
+  );
+}
+
+function Shelf({ icon: Icon, title, hint, games, onOpen, onAll, lib, onGet }) {
+  if (!games.length) return null;
+  return (
+    <section className="st-shelf">
+      <header>
+        <span className="st-shelf-ico"><Icon size={17} /></span>
+        <div><h3>{title}</h3><small>{hint}</small></div>
+        <button type="button" className="st-all" onClick={onAll}>View All <ArrowRight size={14} /></button>
+      </header>
+      <ul className="st-row">
+        {games.map((g) => (
+          <li key={g.slug}>
+            <div className="st-tile" role="button" tabIndex={0} onClick={() => onOpen(g.slug)} onKeyDown={(e) => e.key === "Enter" && onOpen(g.slug)}>
+              <span className="st-tile-art" style={{ backgroundImage: `url("${posterOf(g)}")` }} />
+              <span className="st-tile-body">
+                <span><b>{g.name}</b><small>{genre(g)}</small></span>
+                <GetButton game={g} lib={lib} onGet={onGet} round />
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Grid({ games, onOpen, lib, onGet }) {
+  return (
+    <ul className="st-grid">
+      {games.map((g) => (
+        <li key={g.slug}>
+          <div className="st-tile" role="button" tabIndex={0} onClick={() => onOpen(g.slug)} onKeyDown={(e) => e.key === "Enter" && onOpen(g.slug)}>
+            <span className="st-tile-art" style={{ backgroundImage: `url("${posterOf(g)}")` }} />
+            <span className="st-tile-body">
+              <span><b>{g.name}</b><small>{genre(g)}{g.versions.length > 1 && !g.sample ? ` • v${latestOf(g)}` : ""}</small></span>
+              <GetButton game={g} lib={lib} onGet={onGet} round />
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const SECTIONS = [["home", "Home", Home], ["games", "Games", Gamepad2], ["library", "My Library", Library], ["updates", "Updates", Download]];
+
+export function StoreBrowse({ onBack, onPublish, notify }) {
   const [games, setGames] = useState(null);
   const [err, setErr] = useState("");
   const [open, setOpen] = useState(null);
+  const [sec, setSec] = useState("home");
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
-  const reload = useCallback(() => { listGames().then(setGames).catch((e) => setErr(e.message)); }, []);
-  useEffect(reload, [reload]);
-  if (open) return <GamePage slug={open} onBack={() => setOpen(null)} />;
+  const [lib, setLib] = useState(getLibrary);
+  useEffect(() => { listGames().then(setGames).catch((e) => setErr(e.message)); }, []);
+  const onGet = useCallback((g) => { setLib(setLibraryVersion(g.slug, latestOf(g))); notify?.(`${g.name} added to your library`, "ok"); }, [notify]);
+
+  if (open) return <GamePage slug={open} onBack={() => setOpen(null)} lib={lib} onGet={onGet} />;
+  const all = games || [];
   const needle = q.trim().toLowerCase();
-  const shown = (games || []).filter((g) => (cat === "All" || g.category === cat) && (!needle || `${g.name} ${g.developer} ${g.description}`.toLowerCase().includes(needle)));
-  const cats = ["All", ...new Set((games || []).map((g) => g.category))];
-  return (
-    <>
-      <Head title="Explore" onBack={onBack} right={onPublish && <button type="button" className="sp-btn is-primary" onClick={onPublish}><Rocket size={16} /> Publish</button>} />
-      <div className="sp-scroll st-page">
-        <label className="st-search">
-          <Search size={17} />
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search games and developers" aria-label="Search games" />
-        </label>
-        {err && <p className="st-note is-bad">{err}</p>}
-        {games && cats.length > 2 && (
+  const searching = needle.length > 0;
+  const match = (g) => `${g.name} ${g.developer} ${g.category} ${g.subtitle || ""} ${g.description}`.toLowerCase().includes(needle);
+  const owned = all.filter((g) => lib[g.slug] != null);
+  const updates = owned.filter((g) => stateOf(g, lib) === "update");
+  const byNew = [...all].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  const cats = ["All", ...new Set(all.map((g) => g.category))];
+  const counts = { library: owned.length, updates: updates.length };
+  const featured = all.filter((g) => g.featured).slice(0, 4);
+
+  let body = null;
+  if (games) {
+    if (searching) {
+      const r = all.filter(match);
+      body = r.length ? <Grid games={r} onOpen={setOpen} lib={lib} onGet={onGet} /> : <Empty title="No games match" text="Try another word." action={<button type="button" className="sp-btn" onClick={() => setQ("")}>Clear search</button>} />;
+    } else if (sec === "home") {
+      body = (
+        <>
+          {featured.length > 0 && <Featured games={featured} onOpen={setOpen} lib={lib} onGet={onGet} />}
+          <Shelf icon={Flame} title="Trending Games" hint="Top games loved by the Spider community" games={all.slice(0, 6)} onOpen={setOpen} onAll={() => setSec("games")} lib={lib} onGet={onGet} />
+          <Shelf icon={Star} title="New Releases" hint="Fresh games on Spider Store" games={byNew.slice(0, 6)} onOpen={setOpen} onAll={() => setSec("games")} lib={lib} onGet={onGet} />
+        </>
+      );
+    } else if (sec === "games") {
+      const r = all.filter((g) => cat === "All" || g.category === cat);
+      body = (
+        <>
           <div className="sp-chips sp-chips-row" role="tablist" aria-label="Category filter">
             {cats.map((c) => <button key={c} type="button" role="tab" aria-selected={cat === c} className={cx("sp-chip", cat === c && "is-on")} onClick={() => setCat(c)}>{c}</button>)}
           </div>
-        )}
-        {games && !shown.length && (
-          <div className="st-empty">
-            <span><Package size={30} /></span>
-            <b>{games.length ? "No games match" : "No games yet"}</b>
-            <small>{games.length ? "Try another word or category." : "Games published from Spider Engine show up here."}</small>
-            {games.length > 0 && <button type="button" className="sp-btn" onClick={() => { setQ(""); setCat("All"); }}>Clear filters</button>}
-          </div>
-        )}
-        <ul className="st-grid">
-          {shown.map((g) => (
+          {r.length ? <Grid games={r} onOpen={setOpen} lib={lib} onGet={onGet} /> : <Empty title="No games here yet" text="Try another category." />}
+        </>
+      );
+    } else if (sec === "library") {
+      body = owned.length ? <Grid games={owned} onOpen={setOpen} lib={lib} onGet={onGet} /> : <Empty title="Your library is empty" text="Games you get from the Store show up here." action={<button type="button" className="sp-btn is-primary" onClick={() => setSec("games")}>Browse games</button>} />;
+    } else {
+      body = updates.length ? (
+        <ul className="st-updates">
+          {updates.map((g) => (
             <li key={g.slug}>
-              <button type="button" className="st-card" onClick={() => setOpen(g.slug)}>
-                <Cover game={g} />
-                <b>{g.name}</b>
-                <small>{g.developer}</small>
-                <span className="st-meta">{g.category}{g.versions.length > 1 ? ` · v${g.versions[0].version}` : ""}{g.sample ? " · Sample" : ""}</span>
-              </button>
+              <span className="st-tile-art" style={{ backgroundImage: `url("${posterOf(g)}")` }} />
+              <span className="st-up-text"><b>{g.name}</b><small>Version {lib[g.slug]} → {latestOf(g)}</small>{g.versions[0].notes && <em>{g.versions[0].notes}</em>}</span>
+              <GetButton game={g} lib={lib} onGet={onGet} />
             </li>
           ))}
         </ul>
+      ) : <Empty title="Everything is up to date" text="New versions of your games appear here." />;
+    }
+  }
+
+  return (
+    <>
+      <header className="st-top">
+        {onBack && <button type="button" className="sp-icon-btn" onClick={onBack} aria-label="Back"><ChevronLeft size={22} /></button>}
+        <span className="st-brand-ico" aria-hidden="true"><Gamepad2 size={20} /></span>
+        <div className="st-brand"><b>SPIDER STORE</b><small>Games Only</small></div>
+        <span className="sp-grow" />
+        {onPublish && <button type="button" className="sp-btn is-primary" onClick={onPublish}><Rocket size={16} /> Publish</button>}
+      </header>
+      <div className="sp-scroll st-page">
+        <label className="st-search">
+          <Search size={17} />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search games..." aria-label="Search games" />
+        </label>
+        {!searching && (
+          <nav className="st-secs" role="tablist" aria-label="Store sections">
+            {SECTIONS.map(([id, label, Icon]) => (
+              <button key={id} type="button" role="tab" aria-selected={sec === id} className={cx(sec === id && "is-on")} onClick={() => setSec(id)}>
+                <Icon size={16} /> {label}{counts[id] > 0 && <i>{counts[id]}</i>}
+              </button>
+            ))}
+          </nav>
+        )}
+        {err && <p className="st-note is-bad">{err}</p>}
+        {!games && !err && <p className="st-note">Loading…</p>}
+        {body}
       </div>
     </>
+  );
+}
+
+function Empty({ title, text, action }) {
+  return (
+    <div className="st-empty">
+      <span><Package size={30} /></span>
+      <b>{title}</b>
+      <small>{text}</small>
+      {action}
+    </div>
   );
 }
 
@@ -310,10 +460,10 @@ export function StorePublish({ s, notify, onBack, onDone }) {
 }
 
 /** The Store tab in the bottom bar: Explore. Publishing starts from More, Projects, Export to Store. */
-export function StoreTab() {
+export function StoreTab({ notify }) {
   return (
     <section className="sp-page">
-      <StoreBrowse />
+      <StoreBrowse notify={notify} />
     </section>
   );
 }

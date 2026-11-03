@@ -11,7 +11,7 @@
  * works and can be tested before the server exists.
  */
 import { read, write } from "./store.js";
-import { SAMPLE_GAMES, sampleBySlug } from "./storeSamples.js";
+import { SAMPLE_GAMES, SAMPLE_LIBRARY, sampleBySlug } from "./storeSamples.js";
 
 export const STORE_CATEGORIES = ["Action", "Adventure", "Arcade", "Puzzle", "Racing", "Shooter", "Simulation", "Strategy", "Family", "Other"];
 
@@ -164,6 +164,15 @@ const DEV_KEY = "spider-store-developer";
 export const storeMode = () => (API ? "server" : "local");
 export const savedDeveloper = () => read(DEV_KEY, "");
 export const rememberDeveloper = (n) => write(DEV_KEY, n);
+
+const LIB_KEY = "spider-store-library";
+/** Games the user got from the Store: { slug: installedVersion }. */
+export const getLibrary = () => read(LIB_KEY, SAMPLE_LIBRARY);
+export function setLibraryVersion(slug, version) {
+  const lib = { ...getLibrary(), [slug]: version };
+  write(LIB_KEY, lib);
+  return lib;
+}
 
 const localAll = () => read(LOCAL_KEY, []);
 

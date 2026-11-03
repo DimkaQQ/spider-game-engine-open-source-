@@ -202,7 +202,7 @@ export default function MobileApp() {
       )}
       {eff === "store" && (
         <div className="sp-pane">
-          <StoreTab />
+          <StoreTab notify={notify} />
         </div>
       )}
       {eff === "code" && (
