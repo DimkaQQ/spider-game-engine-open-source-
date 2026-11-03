@@ -131,10 +131,21 @@ export async function processImage(file) {
 }
 
 /* ----------------------------- game package ----------------------------- */
-export function buildPackage(project) {
-  const body = JSON.stringify({ format: "spider-project", version: 1, name: project.name, groups: project.groups, files: project.files, mountedFile: project.mountedFile || null });
+/**
+ * The build that goes to the Store: exactly what the 3D view shows. The mounted game code (as it is in the
+ * viewport now, even if it differs from the saved file) and the scene objects.
+ */
+export function buildPackage(project, live) {
+  let files = project.files || [];
+  let mountedFile = project.mountedFile || null;
+  if (live?.code && live?.name) {
+    files = files.some((f) => f.name === live.name) ? files.map((f) => (f.name === live.name ? { ...f, content: live.code } : f)) : [...files, { name: live.name, content: live.code }];
+    mountedFile = live.name;
+  }
+  const objects = (project.groups || []).reduce((n, g) => n + (g.children || []).length, 0);
+  const body = JSON.stringify({ format: "spider-project", version: 1, name: project.name, groups: project.groups, files, mountedFile });
   const blob = new Blob([body], { type: "application/json" });
-  return { body, bytes: blob.size, blob };
+  return { body, bytes: blob.size, blob, mountedFile, objects, empty: !live?.code && !project.mountedFile && objects === 0 };
 }
 
 /**
