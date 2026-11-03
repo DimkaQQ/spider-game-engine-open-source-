@@ -360,12 +360,12 @@ export function StorePublish({ s, notify, onBack, onDone }) {
     }
   };
 
-  const pkg = useMemo(() => buildPackage(s.project), [s.project]);
+  const pkg = useMemo(() => buildPackage(s.project, { name: s.activeJsxName, code: s.activeJsx }), [s.project, s.activeJsx, s.activeJsxName]);
   const tooBig = pkg.bytes > LIMITS.maxGameBytes;
   const problems = checkListing({ name, developer, category, description });
   const ruleOk = RULES.every((r) => rules[r.id]);
   const imagesOk = images.length >= LIMITS.minImages;
-  const ready = !problems.length && imagesOk && ruleOk && !tooBig && target?.kind !== "taken" && !busyImg;
+  const ready = !problems.length && imagesOk && ruleOk && !tooBig && !pkg.empty && target?.kind !== "taken" && !busyImg;
 
   // What would this submission do? (new game, new version, or the name is taken)
   useEffect(() => {
@@ -493,6 +493,12 @@ export function StorePublish({ s, notify, onBack, onDone }) {
             <div><b>{formatBytes(pkg.bytes)}</b><small>Limit {formatBytes(LIMITS.maxGameBytes)}</small></div>
             <i style={{ "--w": `${Math.min(100, (pkg.bytes / LIMITS.maxGameBytes) * 100)}%` }} />
           </div>
+          <p className={cx("st-note", pkg.empty ? "is-bad" : "is-info")}>
+            <Layers size={15} />
+            {pkg.empty
+              ? "The 3D view is empty. Build or open a game in Studio first, then publish."
+              : <span>Publishing what the 3D view shows now: {pkg.mountedFile ? <b>{pkg.mountedFile}</b> : "the scene"}{pkg.objects ? `, ${pkg.objects} scene object${pkg.objects > 1 ? "s" : ""}` : ""}.</span>}
+          </p>
           {tooBig && (
             <p className="st-note is-warn"><Clock size={15} /> Games over 5 MB need an additional review with team support and a verified developer account. That process is coming soon. Reduce textures or models to publish now.</p>
           )}
@@ -511,8 +517,8 @@ export function StorePublish({ s, notify, onBack, onDone }) {
         </Step>
 
         {err && <p className="st-note is-bad"><AlertTriangle size={15} /> {err}</p>}
-        {!ready && !sending && (problems[0] || (!imagesOk && `Add ${LIMITS.minImages - images.length} more screenshot${LIMITS.minImages - images.length > 1 ? "s" : ""}.`) || (!ruleOk && "Accept the Store rules.") || (tooBig && "The package is over the size limit.")) && (
-          <p className="st-hint">{problems[0] || (!imagesOk && `Add ${LIMITS.minImages - images.length} more screenshot${LIMITS.minImages - images.length > 1 ? "s" : ""}.`) || (!ruleOk && "Accept the Store rules.") || "The package is over the size limit."}</p>
+        {!ready && !sending && (problems[0] || (!imagesOk && `Add ${LIMITS.minImages - images.length} more screenshot${LIMITS.minImages - images.length > 1 ? "s" : ""}.`) || (!ruleOk && "Accept the Store rules.") || (pkg.empty && "The 3D view is empty.") || (tooBig && "The package is over the size limit.")) && (
+          <p className="st-hint">{problems[0] || (!imagesOk && `Add ${LIMITS.minImages - images.length} more screenshot${LIMITS.minImages - images.length > 1 ? "s" : ""}.`) || (!ruleOk && "Accept the Store rules.") || (pkg.empty && "The 3D view is empty.") || "The package is over the size limit."}</p>
         )}
         <button type="button" className="sp-btn is-primary is-block st-submit" disabled={!ready || sending} onClick={submit}>
           <Rocket size={18} /> {sending ? "Publishing…" : target?.kind === "version" ? `Publish version ${target.version}` : "Publish to Store"}
