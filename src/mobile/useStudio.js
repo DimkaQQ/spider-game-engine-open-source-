@@ -34,6 +34,7 @@ import {
 } from "./store.js";
 import { buildMemory, contextWindow, memoryBudget, runLimits } from "./context.js";
 import { retrieveRagContext, ragStore } from "../engine/ragEngine.js";
+import { hasMetaKey, planGame } from "./meta.js";
 import { PROVIDERS, baseUrlFor, chat, fetchModels, friendlyModel, loadConfig, loadKey, providerById, saveConfig, saveKey } from "./ai.js";
 
 const MAX_UNDO = 40;
@@ -1463,7 +1464,22 @@ export function useStudio() {
           return { raw: out };
         };
 
-        const final = await runAgent(goal, {
+        // Muse Wonder reasons first and writes a short plan; Muse Spark then builds from it.
+        let agentGoal = goal;
+        if (settingsRef.current.wonderPlan && hasMetaKey() && goal.length > 30 && !/^(hi|hello|thanks|thank you)\b/i.test(goal.trim())) {
+          setStream({ thought: "Muse Wonder is planning…", text: "", steps: [] });
+          try {
+            const plan = await planGame(goal, { signal: ctrlRef.current.signal });
+            if (plan) {
+              agentGoal = `${goal}\n\nPLAN FROM MUSE WONDER (follow it unless the scene needs something different):\n${plan}`;
+              log("Info", "Muse Wonder plan added");
+              pushMessage({ role: "assistant", ok: true, text: `Plan from Muse Wonder:\n${plan}` });
+            }
+          } catch (e) {
+            log("Warning", `Muse Wonder plan skipped: ${String(e?.message || e).slice(0, 120)}`);
+          }
+        }
+        const final = await runAgent(agentGoal, {
           ctx: { runTool, isAborted: () => abortRef.current },
           callModel,
           maxSteps: GAME_STEPS,

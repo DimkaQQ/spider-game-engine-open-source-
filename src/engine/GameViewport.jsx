@@ -9,7 +9,7 @@
  */
 import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
-import { OrbitControls, Sky, Stars, Grid, TransformControls, GizmoHelper, GizmoViewport, useGLTF, useTexture } from "@react-three/drei";
+import { Billboard, OrbitControls, Sky, Stars, Grid, TransformControls, GizmoHelper, GizmoViewport, useGLTF, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
@@ -313,8 +313,30 @@ function ObjModel({ url, wire, selected }) {
 }
 
 // Real imported texture mapped onto a prop box.
-function TexturedProp({ url, wire, selected }) {
+function TexturedProp({ url, wire, selected, sprite }) {
   const map = useTexture(url);
+  if (sprite) {
+    // A cutout or generated picture becomes an upright "standee": it keeps its own proportions, always turns
+    // toward the camera (rotating around the vertical axis only) and sits on a soft blob shadow. This is how a flat
+    // picture reads as an object in a 3D scene.
+    const img = map.image;
+    const aspect = img && img.width && img.height ? img.width / img.height : 1;
+    const h = 3;
+    return (
+      <group>
+        <mesh rotation-x={-Math.PI / 2} position-y={0.03}>
+          <circleGeometry args={[Math.max(0.5, Math.min(1.6, h * aspect * 0.32)), 24]} />
+          <meshBasicMaterial color="#000000" transparent opacity={0.28} depthWrite={false} />
+        </mesh>
+        <Billboard position={[0, h / 2, 0]} follow lockX lockZ>
+          <mesh>
+            <planeGeometry args={[h * aspect, h]} />
+            <meshBasicMaterial map={wire ? undefined : map} color={selected ? "#a5b4fc" : "#ffffff"} wireframe={wire} transparent alphaTest={0.08} side={2} toneMapped={false} />
+          </mesh>
+        </Billboard>
+      </group>
+    );
+  }
   return (
     <mesh castShadow>
       <boxGeometry args={[1.6, 1.6, 1.6]} />
@@ -341,7 +363,7 @@ function PropMesh({ node, wire, selected }) {
   if (node.textureUrl) {
     return (
       <Suspense fallback={null}>
-        <TexturedProp url={node.textureUrl} wire={wire} selected={selected} />
+        <TexturedProp url={node.textureUrl} wire={wire} selected={selected} sprite={node.sprite} />
       </Suspense>
     );
   }
