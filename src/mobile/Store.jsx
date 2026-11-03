@@ -425,6 +425,7 @@ export function StorePublish({ s, notify, onBack, onDone }) {
           <span className="st-tick"><Check size={34} strokeWidth={3} /></span>
           <h2>{result.kind === "version" ? `Version ${result.version} is live` : "Your game is live"}</h2>
           <p>{result.game.name} {result.kind === "version" ? "was added under the same game." : `by ${result.game.developer} is in the Spider Store.`}</p>
+          {result.game.localOnly && <p className="st-note is-info">The Store server could not be reached, so it is saved on this device and shows in Explore here.</p>}
           <button type="button" className="sp-btn is-primary is-block" onClick={onDone}>View in the Store</button>
         </div>
       </>

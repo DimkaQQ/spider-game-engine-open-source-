@@ -208,14 +208,13 @@ async function http(path, init) {
 
 /** All games, newest activity first. Each game: { slug, name, developer, category, description, images[], versions[] }. */
 export async function listGames() {
-  let games;
-  try {
-    games = API ? (await http("/games")).map(anchor) : await localAll();
-  } catch (e) {
-    // Store server unreachable: Explore still shows the bundled games rather than an empty page.
-    console.warn("[store] server unreachable:", e.message);
-    games = [];
+  let games = [];
+  if (API) {
+    try { games = (await http("/games")).map(anchor); } catch (e) { console.warn("[store] server unreachable:", e.message); }
   }
+  // Games published on this device (all of them without a server, or those saved while the server was away).
+  const mine = await localAll().catch(() => []);
+  games = [...games, ...mine.filter((m) => !games.some((g) => g.slug === m.slug))];
   const real = [...games].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   // Sample listings come after the real ones, and only for names no real game uses.
   const taken = new Set(real.map((g) => g.slug));
@@ -229,10 +228,11 @@ export async function getGame(slug) {
 
 export async function findGame(slug) {
   if (!slug) return null;
+  const here = (await localAll().catch(() => [])).find((g) => g.slug === slug) || null;
   if (API) {
-    try { return anchor(await http(`/games/${encodeURIComponent(slug)}`)); } catch (e) { if (e.status === 404) return null; throw e; }
+    try { return anchor(await http(`/games/${encodeURIComponent(slug)}`)); } catch (e) { if (e.status === 404 || !e.status) return here; throw e; }
   }
-  return (await localAll()).find((g) => g.slug === slug) || null;
+  return here;
 }
 
 /**
@@ -251,7 +251,18 @@ export async function resolveTarget({ name, developer }) {
 
 /** Submits a prepared listing. `submission` is built by the publish page. */
 export async function submitGame(submission) {
-  if (API) return anchor(await http("/games", { method: "POST", body: JSON.stringify(submission) }));
+  if (API) {
+    try {
+      return anchor(await http("/games", { method: "POST", body: JSON.stringify(submission) }));
+    } catch (e) {
+      if (e.status) throw e; // the server answered and said no (a rule): show that
+      console.warn("[store] server unreachable, saving on this device:", e.message);
+    }
+  }
+  return submitLocal(submission, !!API);
+}
+
+async function submitLocal(submission, offline) {
   const now = new Date().toISOString();
   const ver = { version: submission.version, notes: submission.notes || "", bytes: submission.package.bytes, createdAt: now, provenance: submission.provenance, package: submission.package.base64 };
   const prev = (await localAll()).find((g) => g.slug === submission.slug);
@@ -263,7 +274,7 @@ export async function submitGame(submission) {
   } catch (e) {
     throw new Error(e?.message || "This device has no room left for the submission. Free some space and try again.");
   }
-  return game;
+  return offline ? { ...game, localOnly: true } : game;
 }
 
 /**
@@ -279,9 +290,14 @@ export async function fetchPackage(game, version) {
   }
   if (game.sample) throw new Error("This is a sample listing: no build has been uploaded for it yet.");
   if (API) {
-    const r = await fetch(`${API.replace(/\/$/, "")}/games/${encodeURIComponent(game.slug)}/versions/${v}/package`);
-    if (!r.ok) throw new Error(r.status === 404 ? "This version has no build on the server." : `The Store server answered ${r.status}.`);
-    return r.text();
+    try {
+      const r = await fetch(`${API.replace(/\/$/, "")}/games/${encodeURIComponent(game.slug)}/versions/${v}/package`);
+      if (r.ok) return r.text();
+      if (r.status !== 404) throw new Error(`The Store server answered ${r.status}.`);
+    } catch (e) {
+      if (/answered/.test(e.message)) throw e;
+      // network failure: fall through to the copy kept on this device, if any
+    }
   }
   const local = (await localAll()).find((g) => g.slug === game.slug)?.versions.find((x) => x.version === v);
   if (!local?.package) throw new Error("This game's build is not on this device.");
