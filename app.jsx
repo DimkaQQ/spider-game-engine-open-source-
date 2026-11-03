@@ -2823,18 +2823,19 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
   const [metaModel, setMetaModel] = useState(() => {
     try {
       const saved = localStorage.getItem("spider-meta-model");
+      if (saved === "muse-wonder") return "muse-wonder-1.0"; // older builds saved an id Meta does not have
       if (saved) return saved;
-      return "muse-wonder";
+      return "muse-wonder-1.0";
     }
-    catch { return "muse-wonder"; }
+    catch { return "muse-wonder-1.0"; }
   });
   const [metaModels, setMetaModels] = useState(() => {
     try {
       const raw = localStorage.getItem("spider-meta-models");
       const arr = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(arr) && arr.length > 0) return arr;
-      return ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"];
-    } catch { return ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]; }
+      if (Array.isArray(arr) && arr.length > 0) return arr.map((m) => (m === "muse-wonder" ? "muse-wonder-1.0" : m));
+      return ["muse-wonder-1.0", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"];
+    } catch { return ["muse-wonder-1.0", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]; }
   });
   // Friendly names for Meta models — fetched list stays source of truth (declared after state: no TDZ)
   const friendlyModel = (id) => {
@@ -2850,10 +2851,10 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     return { name: pretty.charAt(0).toUpperCase() + pretty.slice(1), desc: "Meta model" };
   };
   const chatModels = (metaModels.length > 0 ? metaModels : []).filter((id) => id.toLowerCase().includes("spark") || id.toLowerCase().includes("wonder") || id.toLowerCase().includes("contributor") || id.toLowerCase().includes("llama"));
-  const modelChoices = chatModels.length > 0 ? chatModels : (metaModels.length > 0 ? metaModels : ["muse-wonder", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]);
+  const modelChoices = chatModels.length > 0 ? chatModels : (metaModels.length > 0 ? metaModels : ["muse-wonder-1.0", "muse-spark-1.3-contributor", "muse-spark-1.3", "muse-spark-1.2"]);
   const effectiveModel = metaModel && modelChoices.includes(metaModel)
     ? metaModel
-    : (modelChoices.includes("muse-wonder") ? "muse-wonder" : modelChoices[0] || "muse-wonder");
+    : (modelChoices.includes("muse-wonder-1.0") ? "muse-wonder-1.0" : modelChoices[0] || "muse-wonder-1.0");
   const effectiveFriendly = effectiveModel ? friendlyModel(effectiveModel).name : "Muse Wonder";
 
   // Meta keys must be pure header-safe text — strip invisible copy-paste junk
@@ -2908,8 +2909,8 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
         setMetaModels(ids);
         try { localStorage.setItem("spider-meta-models", JSON.stringify(ids)); } catch {}
         setMetaModel((cur) => {
-          if (cur && (ids.includes(cur) || cur === "muse-wonder")) return cur;
-          const chosen = ids.find((id) => id.includes("wonder")) || ids.find((id) => id.includes("1.3")) || ids[0] || "muse-wonder";
+          if (cur && (ids.includes(cur) || cur === "muse-wonder-1.0")) return cur;
+          const chosen = ids.find((id) => id.includes("wonder")) || ids.find((id) => id.includes("1.3")) || ids[0] || "muse-wonder-1.0";
           try { localStorage.setItem("spider-meta-model", chosen); } catch {}
           return chosen;
         });
@@ -3040,7 +3041,7 @@ export default function ${componentName.replace(/[^a-zA-Z0-9]/g, "")}() {
     const fallbackCandidates = [
       chosenModel,
       ...(chosenModel.includes("contributor") ? [chosenModel.replace("-contributor", "")] : []),
-      "muse-wonder",
+      "muse-wonder-1.0",
       "muse-spark-1.3",
       "muse-spark-1.2"
     ].filter((m, i, arr) => m && arr.indexOf(m) === i);
@@ -9849,12 +9850,12 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
                     <div className="absolute bottom-6 right-0 w-52 bg-white border border-slate-200 rounded-xl shadow-xl py-1 z-50 max-h-56 overflow-y-auto no-scrollbar">
                       <button
                         type="button"
-                        onClick={() => { setMetaModel("muse-wonder"); try { localStorage.setItem("spider-meta-model", "muse-wonder"); } catch {} setModelMenuOpen(false); appendLog("Info", "Spider AI model → Muse Wonder"); }}
+                        onClick={() => { setMetaModel("muse-wonder-1.0"); try { localStorage.setItem("spider-meta-model", "muse-wonder-1.0"); } catch {} setModelMenuOpen(false); appendLog("Info", "Spider AI model → Muse Wonder"); }}
                         className="w-full text-left px-3 py-2 hover:bg-slate-50 transition cursor-pointer"
                       >
                         <div className="text-[11px] font-semibold text-slate-800 flex items-center justify-between">
                           <span>Muse Wonder (Creative & Autonomous)</span>
-                          {metaModel === "muse-wonder" && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                          {metaModel === "muse-wonder-1.0" && <Check className="w-3.5 h-3.5 text-indigo-600" />}
                         </div>
                         <div className="text-[10px] text-slate-400">Complex tasks, full games & autonomous planning</div>
                       </button>
