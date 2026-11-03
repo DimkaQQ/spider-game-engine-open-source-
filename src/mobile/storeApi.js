@@ -12,6 +12,7 @@
  */
 import { read, write } from "./store.js";
 import { SAMPLE_GAMES, SAMPLE_LIBRARY, sampleBySlug } from "./storeSamples.js";
+import { dbAll, dbDelete, dbGet, dbPut } from "./storeDb.js";
 
 export const STORE_CATEGORIES = ["Action", "Adventure", "Arcade", "Puzzle", "Racing", "Shooter", "Simulation", "Strategy", "Family", "Other"];
 
@@ -174,7 +175,17 @@ export function setLibraryVersion(slug, version) {
   return lib;
 }
 
-const localAll = () => read(LOCAL_KEY, []);
+/** Games published on this device. Older builds kept them in localStorage: move those over once. */
+let migrated = false;
+async function localAll() {
+  if (!migrated) {
+    migrated = true;
+    const old = read(LOCAL_KEY, []);
+    for (const g of old) { try { await dbPut("games", g); } catch {} }
+    if (old.length) { try { localStorage.removeItem(LOCAL_KEY); } catch {} }
+  }
+  return dbAll("games");
+}
 
 // The server answers with root-relative image links; when the Store lives on another origin, anchor them there.
 function anchor(game) {
@@ -197,14 +208,13 @@ async function http(path, init) {
 
 /** All games, newest activity first. Each game: { slug, name, developer, category, description, images[], versions[] }. */
 export async function listGames() {
-  let games;
-  try {
-    games = API ? (await http("/games")).map(anchor) : localAll();
-  } catch (e) {
-    // Store server unreachable: Explore still shows the bundled games rather than an empty page.
-    console.warn("[store] server unreachable:", e.message);
-    games = [];
+  let games = [];
+  if (API) {
+    try { games = (await http("/games")).map(anchor); } catch (e) { console.warn("[store] server unreachable:", e.message); }
   }
+  // Games published on this device (all of them without a server, or those saved while the server was away).
+  const mine = await localAll().catch(() => []);
+  games = [...games, ...mine.filter((m) => !games.some((g) => g.slug === m.slug))];
   const real = [...games].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   // Sample listings come after the real ones, and only for names no real game uses.
   const taken = new Set(real.map((g) => g.slug));
@@ -218,10 +228,11 @@ export async function getGame(slug) {
 
 export async function findGame(slug) {
   if (!slug) return null;
+  const here = (await localAll().catch(() => [])).find((g) => g.slug === slug) || null;
   if (API) {
-    try { return anchor(await http(`/games/${encodeURIComponent(slug)}`)); } catch (e) { if (e.status === 404) return null; throw e; }
+    try { return anchor(await http(`/games/${encodeURIComponent(slug)}`)); } catch (e) { if (e.status === 404 || !e.status) return here; throw e; }
   }
-  return localAll().find((g) => g.slug === slug) || null;
+  return here;
 }
 
 /**
@@ -240,21 +251,30 @@ export async function resolveTarget({ name, developer }) {
 
 /** Submits a prepared listing. `submission` is built by the publish page. */
 export async function submitGame(submission) {
-  if (API) return anchor(await http("/games", { method: "POST", body: JSON.stringify(submission) }));
-  const list = localAll();
+  if (API) {
+    try {
+      return anchor(await http("/games", { method: "POST", body: JSON.stringify(submission) }));
+    } catch (e) {
+      if (e.status) throw e; // the server answered and said no (a rule): show that
+      console.warn("[store] server unreachable, saving on this device:", e.message);
+    }
+  }
+  return submitLocal(submission, !!API);
+}
+
+async function submitLocal(submission, offline) {
   const now = new Date().toISOString();
   const ver = { version: submission.version, notes: submission.notes || "", bytes: submission.package.bytes, createdAt: now, provenance: submission.provenance, package: submission.package.base64 };
-  const at = list.findIndex((g) => g.slug === submission.slug);
-  let game;
-  if (at >= 0) {
-    game = { ...list[at], description: submission.description, category: submission.category, images: submission.images, updatedAt: now, versions: [ver, ...list[at].versions] };
-    list[at] = game;
-  } else {
-    game = { slug: submission.slug, name: submission.name, developer: submission.developer, category: submission.category, description: submission.description, images: submission.images, createdAt: now, updatedAt: now, versions: [ver] };
-    list.unshift(game);
+  const prev = (await localAll()).find((g) => g.slug === submission.slug);
+  const game = prev
+    ? { ...prev, description: submission.description, category: submission.category, images: submission.images, updatedAt: now, versions: [ver, ...prev.versions] }
+    : { slug: submission.slug, name: submission.name, developer: submission.developer, category: submission.category, description: submission.description, images: submission.images, createdAt: now, updatedAt: now, versions: [ver] };
+  try {
+    await dbPut("games", game);
+  } catch (e) {
+    throw new Error(e?.message || "This device has no room left for the submission. Free some space and try again.");
   }
-  if (!write(LOCAL_KEY, list)) throw new Error("This device has no room left for the submission. Free some space and try again.");
-  return game;
+  return offline ? { ...game, localOnly: true } : game;
 }
 
 /**
@@ -270,13 +290,29 @@ export async function fetchPackage(game, version) {
   }
   if (game.sample) throw new Error("This is a sample listing: no build has been uploaded for it yet.");
   if (API) {
-    const r = await fetch(`${API.replace(/\/$/, "")}/games/${encodeURIComponent(game.slug)}/versions/${v}/package`);
-    if (!r.ok) throw new Error(r.status === 404 ? "This version has no build on the server." : `The Store server answered ${r.status}.`);
-    return r.text();
+    try {
+      const r = await fetch(`${API.replace(/\/$/, "")}/games/${encodeURIComponent(game.slug)}/versions/${v}/package`);
+      if (r.ok) return r.text();
+      if (r.status !== 404) throw new Error(`The Store server answered ${r.status}.`);
+    } catch (e) {
+      if (/answered/.test(e.message)) throw e;
+      // network failure: fall through to the copy kept on this device, if any
+    }
   }
-  const local = localAll().find((g) => g.slug === game.slug)?.versions.find((x) => x.version === v);
+  const local = (await localAll()).find((g) => g.slug === game.slug)?.versions.find((x) => x.version === v);
   if (!local?.package) throw new Error("This game's build is not on this device.");
   return decodeURIComponent(escape(atob(local.package)));
 }
 
 export const canPlay = (game) => !!game.packageUrl || !game.sample;
+
+/* ----------------------------- Studio screenshot tray ----------------------------- */
+// The camera button in Studio also drops the picture here, so publishing can use real in-game screenshots.
+export async function addShot(projectId, dataUrl) {
+  await dbPut("shots", { id: `shot-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`, projectId, dataUrl, at: Date.now() });
+  return (await listShots(projectId)).length;
+}
+export async function listShots(projectId) {
+  return (await dbAll("shots")).filter((x) => x.projectId === projectId).sort((a, b) => a.at - b.at);
+}
+export const removeShot = (id) => dbDelete("shots", id);

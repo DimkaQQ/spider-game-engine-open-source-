@@ -1,5 +1,7 @@
 # Spider Store API (what the mobile app sends)
 
+**The server is optional.** With no `VITE_STORE_API` the app publishes fully on the device: games, screenshots and builds are kept in IndexedDB (`src/mobile/storeDb.js`), Explore lists them, Play Now runs them, and nothing depends on a backend. Set `VITE_STORE_API` only when you want games shared between devices.
+
 The Pocket Studio store UI (`src/mobile/Store.jsx`, `storeApi.js`) talks to a server whose base URL is set in `VITE_STORE_API` at build time. With no value it runs a local adapter that keeps submissions in the browser, so the flow can be tested before the server exists.
 
 ## Endpoints

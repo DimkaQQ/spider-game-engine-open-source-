@@ -4,13 +4,14 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronLeft, Check, ImagePlus, Layers, Package, Rocket, Search, ShieldCheck, X, AlertTriangle, Clock, ArrowRight, Download, Flame, Gamepad2,
+  ChevronLeft, Check, Sparkles, ImagePlus, Layers, Package, Rocket, Search, ShieldCheck, X, AlertTriangle, Clock, ArrowRight, Download, Flame, Gamepad2,
   Home, Library, Play, RefreshCw, Star,
 } from "lucide-react";
 import {
   LIMITS, RULES, STORE_CATEGORIES, buildPackage, buildProvenance, checkListing, formatBytes, getLibrary, listGames, processImage,
-  getGame, rememberDeveloper, resolveTarget, savedDeveloper, setLibraryVersion, storeMode, submitGame,
+  getGame, listShots, rememberDeveloper, removeShot, resolveTarget, savedDeveloper, setLibraryVersion, storeMode, submitGame,
 } from "./storeApi.js";
+import { assistProvider, suggestListing } from "./storeAi.js";
 import { cx } from "./ui.jsx";
 import "./store.css";
 
@@ -318,6 +319,46 @@ export function StorePublish({ s, notify, onBack, onDone }) {
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
   const file = useRef(null);
+  const [tray, setTray] = useState([]);
+  const [writing, setWriting] = useState(false);
+  const assist = assistProvider();
+
+  useEffect(() => { listShots(s.project.id).then(setTray).catch(() => {}); }, [s.project.id]);
+
+  // Studio screenshots (camera button) that are not in the listing yet
+  const fromStudio = async () => {
+    const room = LIMITS.maxImages - images.length;
+    const picks = tray.slice(-Math.max(0, room));
+    if (!picks.length) return;
+    setBusyImg((n) => n + picks.length);
+    for (const t of picks) {
+      try {
+        const blob = await (await fetch(t.dataUrl)).blob();
+        const im = await processImage(new File([blob], `studio-${t.id}.jpg`, { type: blob.type || "image/jpeg" }));
+        setImages((cur) => (cur.some((x) => x.sha256 === im.sha256) ? cur : [...cur, im]));
+        await removeShot(t.id);
+      } catch (e) {
+        notify(e.message, "warn");
+      } finally {
+        setBusyImg((n) => n - 1);
+      }
+    }
+    setTray(await listShots(s.project.id));
+  };
+
+  const writeWithMuse = async () => {
+    setWriting(true);
+    try {
+      const r = await suggestListing(s.project);
+      setDescription(r.description);
+      setCategory((c) => c || r.category);
+      notify(`Written by ${r.by}. Edit it freely.`, "ok");
+    } catch (e) {
+      notify(e.message || "Could not write the listing.", "warn");
+    } finally {
+      setWriting(false);
+    }
+  };
 
   const pkg = useMemo(() => buildPackage(s.project), [s.project]);
   const tooBig = pkg.bytes > LIMITS.maxGameBytes;
@@ -384,6 +425,7 @@ export function StorePublish({ s, notify, onBack, onDone }) {
           <span className="st-tick"><Check size={34} strokeWidth={3} /></span>
           <h2>{result.kind === "version" ? `Version ${result.version} is live` : "Your game is live"}</h2>
           <p>{result.game.name} {result.kind === "version" ? "was added under the same game." : `by ${result.game.developer} is in the Spider Store.`}</p>
+          {result.game.localOnly && <p className="st-note is-info">The Store server could not be reached, so it is saved on this device and shows in Explore here.</p>}
           <button type="button" className="sp-btn is-primary is-block" onClick={onDone}>View in the Store</button>
         </div>
       </>
@@ -406,6 +448,9 @@ export function StorePublish({ s, notify, onBack, onDone }) {
             <input value={name} maxLength={LIMITS.nameMax + 10} onChange={(e) => setName(e.target.value)} placeholder="Neon Rift" /></label>
           <div className="sp-field"><span>Category</span>
             <div className="sp-chips">{STORE_CATEGORIES.map((c) => <button key={c} type="button" className={cx("sp-chip", category === c && "is-on")} onClick={() => setCategory(c)}>{c}</button>)}</div></div>
+          <button type="button" className="st-muse" onClick={writeWithMuse} disabled={!assist || writing} title={assist ? `Written by ${assist.provider.name}` : "Add an AI key in More, Settings"}>
+            <Sparkles size={16} /> {writing ? "Writing…" : assist ? "Write description with Muse" : "Add an AI key to write it with Muse"}
+          </button>
           <label className="sp-field"><span>Description <em className="st-count">{description.length}/{LIMITS.descMax}</em></span>
             <textarea rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What do you do in this game? What makes it fun?" /></label>
           {target?.kind === "version" && (
@@ -421,6 +466,9 @@ export function StorePublish({ s, notify, onBack, onDone }) {
         </Step>
 
         <Step n={2} title="Screenshots" hint={`At least ${LIMITS.minImages}, up to ${LIMITS.maxImages}`} done={imagesOk}>
+          <button type="button" className="st-muse" onClick={fromStudio} disabled={!tray.length || !!busyImg || images.length >= LIMITS.maxImages}>
+            <ImagePlus size={16} /> {tray.length ? `Use ${tray.length} Studio screenshot${tray.length > 1 ? "s" : ""}` : "Studio screenshots: play, then tap the camera"}
+          </button>
           <div className="st-thumbs">
             {images.map((im) => (
               <figure key={im.id}>
