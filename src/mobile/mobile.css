@@ -796,3 +796,11 @@ html.sp-mobile body:has(.is-full) {
 .sp-editing span { flex: 1; min-width: 0; }
 .sp-editing .sp-icon-btn { width: 36px; height: 36px; color: var(--accent); }
 .sp-msg.is-user { display: flex; flex-direction: column; }
+
+/* a game that brings its own touch controls (the spider-touch kit) replaces the built-in stick and Action button */
+.sp-viewport:has([data-spider-touch]) .sp-stick,
+.sp-viewport:has([data-spider-touch]) .sp-jump,
+.sp-viewport:has([data-spider-touch]) .sp-combat-pad { display: none; }
+/* a game that draws its own HUD keeps its top bar clear: the quick actions drop below it and shrink */
+.sp-viewport:has([data-spider-hud]) .sp-float-tr { top: 76px; gap: 6px; opacity: 0.85; }
+.sp-viewport:has([data-spider-hud]) .sp-float-tr .sp-fab { width: 38px; height: 38px; }
