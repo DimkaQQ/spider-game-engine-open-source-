@@ -164,3 +164,6 @@
 .st-page { overflow-x: clip; }
 .st-row { scroll-padding-inline: 16px; }
 .st-feat-track { scroll-padding-inline: 16px; }
+
+.st-muse { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 16px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 14px; text-align: center; }
+.st-muse:disabled { opacity: 0.6; background: var(--surface-2); color: var(--text-3); }
