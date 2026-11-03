@@ -177,3 +177,6 @@
 .sp-att i { font-style: normal; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-att button { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: var(--text-3); }
 .sp-att.is-busy { padding: 6px 12px; }
+
+.sp-msg-images { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; }
+.sp-msg-images img { max-width: 100%; max-height: 220px; border-radius: 12px; background: repeating-conic-gradient(#8881 0% 25%, transparent 0% 50%) 50% / 16px 16px; object-fit: contain; }

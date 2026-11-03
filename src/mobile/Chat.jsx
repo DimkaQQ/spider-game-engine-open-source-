@@ -58,6 +58,11 @@ function Message({ m, last, onUndo, onRetry, busy, onMenu }) {
       <div className="sp-msg-text">
         <Markdown source={m.text} />
       </div>
+      {!!m.images?.length && (
+        <div className="sp-msg-images">
+          {m.images.map((u, i) => <img key={i} src={u} alt="Created with Muse Image" />)}
+        </div>
+      )}
       {m.interrupted && last && (
         <button type="button" className="sp-btn is-primary" disabled={busy} onClick={() => onRetry(m.retryText)}>
           <RotateCcw size={15} /> Retry
