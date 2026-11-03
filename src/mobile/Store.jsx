@@ -14,7 +14,7 @@ import "./store.css";
 function Head({ title, onBack, right }) {
   return (
     <header className="sp-page-head">
-      <button type="button" className="sp-icon-btn" onClick={onBack} aria-label="Back"><ChevronLeft size={22} /></button>
+      {onBack && <button type="button" className="sp-icon-btn" onClick={onBack} aria-label="Back"><ChevronLeft size={22} /></button>}
       <h1>{title}</h1>
       <span className="sp-grow" />
       {right}
@@ -304,5 +304,17 @@ export function StorePublish({ s, notify, onBack, onDone }) {
         </button>
       </div>
     </>
+  );
+}
+
+/** The Store tab in the bottom bar: browse, and publish from the same place. */
+export function StoreTab({ s, notify }) {
+  const [view, setView] = useState("browse");
+  return (
+    <section className="sp-page">
+      {view === "publish"
+        ? <StorePublish s={s} notify={notify} onBack={() => setView("browse")} onDone={() => setView("browse")} />
+        : <StoreBrowse onPublish={() => setView("publish")} />}
+    </section>
   );
 }
