@@ -20,6 +20,7 @@ import * as ChessBoardEnvModule from "../game/ChessBoardEnv.jsx";
 import * as PiecesModule from "../game/pieces.jsx";
 import * as ChessRulesModule from "../game/ChessRules.js";
 import * as MobileTouchModule from "../game/mobileTouch.jsx";
+import * as TouchKit from "./touchControls.jsx";
 
 // Bulletproof R3F HTML tag extension shims: prevents "R3F: Span is not part of the THREE namespace" crashes
 try {
@@ -274,6 +275,8 @@ export function compileJsxComponent(rawCode, customScope = EMPTY_SCOPE, onError 
       "./mobileTouch.js": MobileTouchModule,
       "mobileTouch": MobileTouchModule,
       "touch": MobileTouchModule,
+      // The spider-touch kit (useTouch, TouchControls, Hud) that the mobile agent writes games against
+      "spider-touch": TouchKit,
       "./touch": MobileTouchModule,
       "nipplejs": MobileTouchModule.nipplejs,
       "react-joystick-component": { Joystick: MobileTouchModule.Joystick, default: { Joystick: MobileTouchModule.Joystick } },
