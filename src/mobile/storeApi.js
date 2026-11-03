@@ -197,7 +197,14 @@ async function http(path, init) {
 
 /** All games, newest activity first. Each game: { slug, name, developer, category, description, images[], versions[] }. */
 export async function listGames() {
-  const games = API ? (await http("/games")).map(anchor) : localAll();
+  let games;
+  try {
+    games = API ? (await http("/games")).map(anchor) : localAll();
+  } catch (e) {
+    // Store server unreachable: Explore still shows the bundled games rather than an empty page.
+    console.warn("[store] server unreachable:", e.message);
+    games = [];
+  }
   const real = [...games].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
   // Sample listings come after the real ones, and only for names no real game uses.
   const taken = new Set(real.map((g) => g.slug));
