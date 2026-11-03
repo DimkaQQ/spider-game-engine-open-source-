@@ -236,7 +236,7 @@ export async function submitGame(submission) {
   if (API) return anchor(await http("/games", { method: "POST", body: JSON.stringify(submission) }));
   const list = localAll();
   const now = new Date().toISOString();
-  const ver = { version: submission.version, notes: submission.notes || "", bytes: submission.package.bytes, createdAt: now, provenance: submission.provenance };
+  const ver = { version: submission.version, notes: submission.notes || "", bytes: submission.package.bytes, createdAt: now, provenance: submission.provenance, package: submission.package.base64 };
   const at = list.findIndex((g) => g.slug === submission.slug);
   let game;
   if (at >= 0) {
@@ -249,3 +249,27 @@ export async function submitGame(submission) {
   if (!write(LOCAL_KEY, list)) throw new Error("This device has no room left for the submission. Free some space and try again.");
   return game;
 }
+
+/**
+ * The game package text for Play Now: from the Store server, from this device (local mode),
+ * or from the static file a bundled demo game points to. Sample listings without a build refuse.
+ */
+export async function fetchPackage(game, version) {
+  const v = version || game.versions[0].version;
+  if (game.packageUrl) {
+    const r = await fetch(game.packageUrl);
+    if (!r.ok) throw new Error("Could not load this game.");
+    return r.text();
+  }
+  if (game.sample) throw new Error("This is a sample listing: no build has been uploaded for it yet.");
+  if (API) {
+    const r = await fetch(`${API.replace(/\/$/, "")}/games/${encodeURIComponent(game.slug)}/versions/${v}/package`);
+    if (!r.ok) throw new Error(r.status === 404 ? "This version has no build on the server." : `The Store server answered ${r.status}.`);
+    return r.text();
+  }
+  const local = localAll().find((g) => g.slug === game.slug)?.versions.find((x) => x.version === v);
+  if (!local?.package) throw new Error("This game's build is not on this device.");
+  return decodeURIComponent(escape(atob(local.package)));
+}
+
+export const canPlay = (game) => !!game.packageUrl || !game.sample;

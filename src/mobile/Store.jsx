@@ -5,7 +5,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronLeft, Check, ImagePlus, Layers, Package, Rocket, Search, ShieldCheck, X, AlertTriangle, Clock, ArrowRight, Download, Flame, Gamepad2,
-  Home, Library, RefreshCw, Star,
+  Home, Library, Play, RefreshCw, Star,
 } from "lucide-react";
 import {
   LIMITS, RULES, STORE_CATEGORIES, buildPackage, buildProvenance, checkListing, formatBytes, getLibrary, listGames, processImage,
@@ -49,8 +49,18 @@ function GetButton({ game, lib, onGet, round }) {
   );
 }
 
+/** Play Now: fetches the build from the Store and runs it in the app. */
+function PlayButton({ game, onPlay, light }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <button type="button" className={cx("st-play", light && "is-light")} disabled={busy} onClick={async (e) => { e.stopPropagation(); setBusy(true); try { await onPlay(game); } finally { setBusy(false); } }}>
+      <Play size={16} fill="currentColor" /> {busy ? "Loading…" : "Play Now"}
+    </button>
+  );
+}
+
 /* ----------------------------- game page ----------------------------- */
-function GamePage({ slug, onBack, lib, onGet }) {
+function GamePage({ slug, onBack, lib, onGet, onPlay }) {
   const [game, setGame] = useState(null);
   const [err, setErr] = useState("");
   useEffect(() => { getGame(slug).then(setGame).catch((e) => setErr(e.message)); }, [slug]);
@@ -68,7 +78,7 @@ function GamePage({ slug, onBack, lib, onGet }) {
             <p>{game.developer}</p>
           </div>
         </div>
-        <div className="st-actions"><GetButton game={game} lib={lib} onGet={onGet} /></div>
+        <div className="st-actions"><PlayButton game={game} onPlay={onPlay} /><GetButton game={game} lib={lib} onGet={onGet} /></div>
         <section className="st-block">
           <h3>About</h3>
           <p className="st-text">{game.description}</p>
@@ -90,7 +100,9 @@ function GamePage({ slug, onBack, lib, onGet }) {
             ))}
           </ul>
         </section>
-        {game.sample
+        {game.demo
+          ? <p className="st-foot"><Package size={14} /> Built by Muse Spark inside Spider Engine. Play Now runs it here.</p>
+          : game.sample
           ? <p className="st-foot"><Package size={14} /> Sample listing for the demo. It has no playable build yet.</p>
           : <p className="st-foot"><ShieldCheck size={14} /> Screenshots are metadata-free. Provenance recorded for version {latest.version}.</p>}
       </div>
@@ -99,7 +111,7 @@ function GamePage({ slug, onBack, lib, onGet }) {
 }
 
 /* ----------------------------- browse (Explore) ----------------------------- */
-function Featured({ games, onOpen, lib, onGet }) {
+function Featured({ games, onOpen, lib, onGet, onPlay }) {
   const [i, setI] = useState(0);
   const ref = useRef(null);
   const onScroll = () => { const el = ref.current; if (el) setI(Math.round(el.scrollLeft / el.clientWidth)); };
@@ -113,7 +125,7 @@ function Featured({ games, onOpen, lib, onGet }) {
               <h2>{g.name}</h2>
               <p>{g.description}</p>
               <div className="st-slide-btns" onClick={(e) => e.stopPropagation()}>
-                <GetButton game={g} lib={lib} onGet={onGet} />
+                <PlayButton game={g} onPlay={onPlay} light />
                 <button type="button" className="st-ghost" onClick={() => onOpen(g.slug)}>View Details</button>
               </div>
             </div>
@@ -171,7 +183,7 @@ function Grid({ games, onOpen, lib, onGet }) {
 
 const SECTIONS = [["home", "Home", Home], ["games", "Games", Gamepad2], ["library", "My Library", Library], ["updates", "Updates", Download]];
 
-export function StoreBrowse({ onBack, onPublish, notify }) {
+export function StoreBrowse({ onBack, onPublish, notify, onPlay }) {
   const [games, setGames] = useState(null);
   const [err, setErr] = useState("");
   const [open, setOpen] = useState(null);
@@ -182,7 +194,10 @@ export function StoreBrowse({ onBack, onPublish, notify }) {
   useEffect(() => { listGames().then(setGames).catch((e) => setErr(e.message)); }, []);
   const onGet = useCallback((g) => { setLib(setLibraryVersion(g.slug, latestOf(g))); notify?.(`${g.name} added to your library`, "ok"); }, [notify]);
 
-  if (open) return <GamePage slug={open} onBack={() => setOpen(null)} lib={lib} onGet={onGet} />;
+  const playIt = useCallback(async (g) => {
+    try { await onPlay?.(g); } catch (e) { notify?.(e.message || "Could not start the game.", "warn"); }
+  }, [onPlay, notify]);
+  if (open) return <GamePage slug={open} onBack={() => setOpen(null)} lib={lib} onGet={onGet} onPlay={playIt} />;
   const all = games || [];
   const needle = q.trim().toLowerCase();
   const searching = needle.length > 0;
@@ -202,7 +217,7 @@ export function StoreBrowse({ onBack, onPublish, notify }) {
     } else if (sec === "home") {
       body = (
         <>
-          {featured.length > 0 && <Featured games={featured} onOpen={setOpen} lib={lib} onGet={onGet} />}
+          {featured.length > 0 && <Featured games={featured} onOpen={setOpen} lib={lib} onGet={onGet} onPlay={playIt} />}
           <Shelf icon={Flame} title="Trending Games" hint="Top games loved by the Spider community" games={all.slice(0, 6)} onOpen={setOpen} onAll={() => setSec("games")} lib={lib} onGet={onGet} />
           <Shelf icon={Star} title="New Releases" hint="Fresh games on Spider Store" games={byNew.slice(0, 6)} onOpen={setOpen} onAll={() => setSec("games")} lib={lib} onGet={onGet} />
         </>
@@ -460,10 +475,10 @@ export function StorePublish({ s, notify, onBack, onDone }) {
 }
 
 /** The Store tab in the bottom bar: Explore. Publishing starts from More, Projects, Export to Store. */
-export function StoreTab({ notify }) {
+export function StoreTab({ notify, onPlay }) {
   return (
     <section className="sp-page">
-      <StoreBrowse notify={notify} />
+      <StoreBrowse notify={notify} onPlay={onPlay} />
     </section>
   );
 }

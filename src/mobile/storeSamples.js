@@ -15,7 +15,18 @@ const mk = (slug, name, developer, category, subtitle, description, versions, ex
   createdAt: versions[versions.length - 1].createdAt, updatedAt: versions[0].createdAt, versions, ...extra,
 });
 
+// A real, playable game: NEON RIFT was written by Muse Spark inside Spider Engine and ships here as a static package.
+const NEON_RIFT = {
+  slug: "neon-rift", name: "Neon Rift", developer: "Muse Spark × DarQQ", category: "Shooter", subtitle: "Survival", demo: true, featured: true,
+  description: "A neon survival shooter built by Muse Spark inside Spider Engine from one prompt and two follow-ups. Move, auto-fire at the swarm, pick an upgrade every level and take down the Rift Warden.",
+  images: [1, 2, 3, 4].map((i) => ({ name: `neon-rift-${i}`, url: `${base}store-samples/${i === 1 ? "neon-rift" : `neon-rift-${i}`}.webp`, sha256: `neon-rift-${i}` })),
+  packageUrl: `${base}store-samples/neon-rift.spider.json`,
+  createdAt: "2026-11-01T10:00:00.000Z", updatedAt: "2026-11-03T08:00:00.000Z",
+  versions: [ver(1, "2026-11-03T08:00:00.000Z", 26661, "Waves, boss with bullet rings, upgrade cards, victory screen.")],
+};
+
 export const SAMPLE_GAMES = [
+  NEON_RIFT,
   mk("neon-drift", "Neon Drift", "M4 Spider Studios", "Adventure", "Action",
     "Immerse yourself in a rain-soaked cyberpunk metropolis. Infiltrate megacorporations, wield advanced tech blades and uncover dark conspiracies hidden in the neon.",
     [ver(2, "2026-11-01T12:00:00.000Z", 412000, "New district, tech blade upgrades, smoother camera."), ver(1, "2026-10-28T09:00:00.000Z", 360000)], { featured: true }),

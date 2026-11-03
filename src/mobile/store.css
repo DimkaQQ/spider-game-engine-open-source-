@@ -155,3 +155,9 @@
 .st-up-text small { color: var(--text-3); }
 .st-up-text em { font-style: normal; color: var(--text-2); font-size: 12.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .st-updates .st-get { min-height: 38px; padding: 0 14px; }
+
+.st-play { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 20px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 800; font-size: 14px; }
+.st-play.is-light { background: #fff; color: #111; }
+.st-play:disabled { opacity: 0.6; }
+.st-actions { gap: 10px; flex-wrap: wrap; }
+.st-actions .st-play { min-height: 48px; padding: 0 28px; font-size: 16px; }
