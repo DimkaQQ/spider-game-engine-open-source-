@@ -21,41 +21,28 @@ async function buildExe() {
     execSync('taskkill.exe /F /IM spider-chess.exe /IM SpiderChess.exe /T', { stdio: 'ignore' });
   } catch {}
 
-  console.log('--- Spider Chess 3D Standalone Game Builder ---');
-  console.log('1. Compiling dedicated WebGPU Game Bundle (dist-game)...');
+  console.log('--- Spider Engine Standalone Game Builder ---');
+  console.log('1. Compiling engine bundle (dist)...');
 
   try {
-    execSync('npx vite build --config vite.game.config.js', { cwd: rootDir, stdio: 'inherit' });
-    const gameSrc = path.join(rootDir, 'dist-game', 'game.html');
-    const gameDest = path.join(rootDir, 'dist-game', 'index.html');
-    if (fs.existsSync(gameSrc)) fs.copyFileSync(gameSrc, gameDest);
+    const viteBin = path.join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js');
+    execSync(`"${process.execPath}" "${viteBin}" build`, {
+      cwd: rootDir,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+      stdio: 'inherit'
+    });
   } catch (err) {
-    console.warn('Vite game build warning:', err.message);
+    console.warn('Vite build warning:', err.message);
   }
 
-  // Check if Cargo and Tauri CLI are available to compile native Tauri binary
-  const userCargoBin = path.join(process.env.USERPROFILE || '', '.cargo', 'bin');
-  const envWithCargo = {
-    ...process.env,
-    PATH: `${userCargoBin};${process.env.PATH || ''}`
-  };
-  try {
-    const cargoExe = path.join(userCargoBin, 'cargo.exe');
-    const hasCargo = fs.existsSync(cargoExe);
-    if (hasCargo) {
-      console.log('2. Rust/Cargo detected! Invoking native Tauri v2 compiler...');
-      execSync('npx tauri build --no-bundle', { cwd: rootDir, env: envWithCargo, stdio: 'inherit' });
-      const tauriExe = path.join(rootDir, 'src-tauri', 'target', 'release', 'spider-chess.exe');
-      if (fs.existsSync(tauriExe)) {
-        fs.mkdirSync(outDir, { recursive: true });
-        const targetExe = path.join(outDir, 'SpiderChess.exe');
-        fs.copyFileSync(tauriExe, targetExe);
-        console.log('SUCCESS: Native Tauri + WebGPU binary created at:', targetExe);
-        return { ok: true, exePath: targetExe, outDir, engine: 'Tauri + WebGPU (Native Rust)' };
-      }
-    }
-  } catch (e) {
-    console.log('Tauri compile step message:', e.message);
+  // Check if pre-compiled native Tauri executable exists
+  const tauriExe = path.join(rootDir, 'src-tauri', 'target', 'release', 'spider-chess.exe');
+  if (fs.existsSync(tauriExe)) {
+    fs.mkdirSync(outDir, { recursive: true });
+    const targetExe = path.join(outDir, 'SpiderChess.exe');
+    fs.copyFileSync(tauriExe, targetExe);
+    console.log('SUCCESS: Native Tauri binary deployed to:', targetExe);
+    // Continue to package standalone runtime assets alongside it
   }
 
   // Standalone WebGPU Runtime Packager
@@ -101,12 +88,8 @@ if (typeof global !== "undefined") { global.__M4_LINEAGE__ = __M4_ENGINE_LINEAGE
   const appDir = path.join(outDir, 'resources', 'app');
   fs.mkdirSync(appDir, { recursive: true });
 
-  // Copy dist-game into app/dist
-  if (fs.existsSync(path.join(rootDir, 'dist-game'))) {
-    fs.cpSync(path.join(rootDir, 'dist-game'), path.join(appDir, 'dist'), { recursive: true });
-  } else {
-    fs.cpSync(path.join(rootDir, 'dist'), path.join(appDir, 'dist'), { recursive: true });
-  }
+  // Copy dist into app/dist
+  fs.cpSync(path.join(rootDir, 'dist'), path.join(appDir, 'dist'), { recursive: true });
 
   // Copy electron loader
   fs.cpSync(path.join(rootDir, 'electron'), path.join(appDir, 'electron'), { recursive: true });

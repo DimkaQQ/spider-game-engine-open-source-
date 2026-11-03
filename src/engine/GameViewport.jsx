@@ -1611,7 +1611,9 @@ export default function GameViewport({
   const gizmoMode =
     activeGizmo === "rotate" ? "rotate" : activeGizmo === "scale" ? "scale" : "translate";
   const showTransform = activeGizmo !== "select" && selectedObj && selectedObj.parent && !isPlaying;
-  const heroMoving = Boolean((keysPressed && Object.values(keysPressed).some(Boolean)) || (typeof window !== "undefined" && window.__spiderHeroMoving));
+  const movementKeys = ["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "keyw", "keya", "keys", "keyd"];
+  const isAnyMoveKeyPressed = Boolean(keysPressed && Object.entries(keysPressed).some(([k, v]) => v && movementKeys.includes(k.toLowerCase())));
+  const heroMoving = Boolean(isPlaying && (isAnyMoveKeyPressed || (typeof window !== "undefined" && window.__spiderHeroMoving)));
 
   return (
     <div
@@ -1640,7 +1642,7 @@ export default function GameViewport({
             ? { position: [0, 13, 14], fov: 44 / cameraZoom }
             : isBoardGame
             ? { position: [0, 16, 18], fov: 46 / cameraZoom }
-            : { position: [0, 4.5, -8.5], fov: 55 / cameraZoom }
+            : { position: [0, 4.5, -8.5], fov: 55 / cameraZoom, far: 10000 }
         }
         dpr={[1, 2]}
         gl={{ preserveDrawingBuffer: true, antialias: true, logarithmicDepthBuffer: true }}
@@ -1654,7 +1656,7 @@ export default function GameViewport({
           <color attach="background" args={["#0f172a"]} />
         )}
         {night && <Stars radius={200} depth={40} count={2500} factor={4} fade />}
-        {fog && fog.visible !== false && <fog attach="fog" args={["#cbd5e1", 70, 240]} />}
+        {fog && fog.visible !== false && <fog attach="fog" args={["#cbd5e1", 450, 3200]} />}
         <ambientLight intensity={night ? 0.25 : 0.55} />
         {lighting && lighting.visible !== false && (
           <directionalLight
@@ -1696,18 +1698,22 @@ export default function GameViewport({
           </mesh>
         )}
 
-        {/* Terrain + distant peaks (only for outdoor gameplay) */}
+        {/* Terrain + distant peaks (Massive open-world walking ground) */}
         {!isolateCustomGame && terrain && terrain.visible !== false && (
           <group>
             <mesh rotation-x={-Math.PI / 2} receiveShadow>
-              <planeGeometry args={[260, 260]} />
+              <planeGeometry args={[4000, 4000]} />
               <Std color="#4d7c0f" wire={wire} />
             </mesh>
             {[
-              [-70, -60, 26, "#64748b"],
-              [60, -70, 32, "#475569"],
-              [-85, 20, 22, "#94a3b8"],
-              [75, 55, 24, "#64748b"]
+              [-650, -600, 140, "#64748b"],
+              [600, -700, 160, "#475569"],
+              [-850, 400, 150, "#94a3b8"],
+              [750, 650, 140, "#64748b"],
+              [-500, -850, 180, "#475569"],
+              [850, -500, 170, "#64748b"],
+              [-800, 800, 160, "#64748b"],
+              [500, 900, 150, "#94a3b8"]
             ].map(([x, z, h, c], i) => (
               <group key={i} position={[x, 0, z]}>
                 <mesh position={[0, h / 2, 0]} castShadow>
@@ -1844,7 +1850,7 @@ export default function GameViewport({
 
         {showGrid && <Grid position={[0, -0.41, 0]} args={[120, 120]} cellColor="#334155" sectionColor="#475569" fadeDistance={140} />}
         {(cameraMode === "Viewport" || (!hasCustomJsx && (isBoardGame || cameraMode !== "Game View"))) && (
-          <OrbitControls makeDefault target={[0, 0, 0]} maxPolarAngle={Math.PI / 2.05} minDistance={4} maxDistance={160} />
+          <OrbitControls makeDefault target={[0, 0, 0]} maxPolarAngle={Math.PI / 2.05} minDistance={4} maxDistance={1200} />
         )}
         {/* Live axis orientation gizmo — tracks the real camera */}
         {!isPlaying && !hasCustomJsx && (
