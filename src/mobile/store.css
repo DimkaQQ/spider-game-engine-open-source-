@@ -89,3 +89,9 @@
 .st-tick { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: var(--ok); color: #fff; box-shadow: 0 14px 34px rgba(23,128,61,0.35); animation: st-pop 0.5s var(--ease); }
 @keyframes st-pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .st-tick { animation: none; } .st-card:active { transform: none; } }
+
+.st-search { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 14px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text-3); }
+.st-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.sp-app .st-search input { flex: 1; min-width: 0; border: 0; background: transparent; box-shadow: none; min-height: 44px; padding: 0; color: var(--text); }
+.st-pill.is-sample { margin-left: 6px; background: var(--surface-3); color: var(--text-2); }
+.st-page > * { flex-shrink: 0; }

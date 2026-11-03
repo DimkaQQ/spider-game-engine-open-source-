@@ -11,6 +11,7 @@
  * works and can be tested before the server exists.
  */
 import { read, write } from "./store.js";
+import { SAMPLE_GAMES, sampleBySlug } from "./storeSamples.js";
 
 export const STORE_CATEGORIES = ["Action", "Adventure", "Arcade", "Puzzle", "Racing", "Shooter", "Simulation", "Strategy", "Family", "Other"];
 
@@ -188,7 +189,15 @@ async function http(path, init) {
 /** All games, newest activity first. Each game: { slug, name, developer, category, description, images[], versions[] }. */
 export async function listGames() {
   const games = API ? (await http("/games")).map(anchor) : localAll();
-  return [...games].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  const real = [...games].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  // Sample listings come after the real ones, and only for names no real game uses.
+  const taken = new Set(real.map((g) => g.slug));
+  return [...real, ...SAMPLE_GAMES.filter((g) => !taken.has(g.slug))];
+}
+
+/** A game for the detail page: a real one, or one of the sample listings. */
+export async function getGame(slug) {
+  return (await findGame(slug)) || sampleBySlug(slug);
 }
 
 export async function findGame(slug) {

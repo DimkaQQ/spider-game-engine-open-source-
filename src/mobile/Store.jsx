@@ -3,10 +3,10 @@
  * Fingerprint: [M4-SPIDER-GENESIS-FINGERPRINT-0x535049444552]
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Check, ImagePlus, Layers, Package, Rocket, ShieldCheck, Store as StoreIcon, X, AlertTriangle, Clock } from "lucide-react";
+import { ChevronLeft, Check, ImagePlus, Layers, Package, Rocket, Search, ShieldCheck, X, AlertTriangle, Clock } from "lucide-react";
 import {
   LIMITS, RULES, STORE_CATEGORIES, buildPackage, buildProvenance, checkListing, findGame, formatBytes, listGames, processImage,
-  rememberDeveloper, resolveTarget, savedDeveloper, storeMode, submitGame,
+  getGame, rememberDeveloper, resolveTarget, savedDeveloper, storeMode, submitGame,
 } from "./storeApi.js";
 import { cx } from "./ui.jsx";
 import "./store.css";
@@ -33,7 +33,7 @@ const Cover = ({ game, className }) => (
 function GamePage({ slug, onBack }) {
   const [game, setGame] = useState(null);
   const [err, setErr] = useState("");
-  useEffect(() => { findGame(slug).then(setGame).catch((e) => setErr(e.message)); }, [slug]);
+  useEffect(() => { getGame(slug).then(setGame).catch((e) => setErr(e.message)); }, [slug]);
   if (err) return <><Head title="Game" onBack={onBack} /><p className="st-note is-bad">{err}</p></>;
   if (!game) return <><Head title="Game" onBack={onBack} /><p className="st-note">Loading…</p></>;
   const latest = game.versions[0];
@@ -46,7 +46,7 @@ function GamePage({ slug, onBack }) {
           <div className="st-hero-text">
             <h2>{game.name}</h2>
             <p>{game.developer}</p>
-            <span className="st-pill">{game.category}</span>
+            <span className="st-pill">{game.category}</span>{game.sample && <span className="st-pill is-sample">Sample</span>}
           </div>
         </div>
         <div className="st-shots" role="list">
@@ -68,7 +68,7 @@ function GamePage({ slug, onBack }) {
             ))}
           </ul>
         </section>
-        <p className="st-foot"><ShieldCheck size={14} /> Screenshots are metadata-free. Provenance recorded for version {latest.version}.</p>
+        {!game.sample && <p className="st-foot"><ShieldCheck size={14} /> Screenshots are metadata-free. Provenance recorded for version {latest.version}.</p>}
       </div>
     </>
   );
@@ -80,31 +80,33 @@ export function StoreBrowse({ onBack, onPublish }) {
   const [err, setErr] = useState("");
   const [open, setOpen] = useState(null);
   const [cat, setCat] = useState("All");
+  const [q, setQ] = useState("");
   const reload = useCallback(() => { listGames().then(setGames).catch((e) => setErr(e.message)); }, []);
   useEffect(reload, [reload]);
   if (open) return <GamePage slug={open} onBack={() => setOpen(null)} />;
-  const shown = (games || []).filter((g) => cat === "All" || g.category === cat);
+  const needle = q.trim().toLowerCase();
+  const shown = (games || []).filter((g) => (cat === "All" || g.category === cat) && (!needle || `${g.name} ${g.developer} ${g.description}`.toLowerCase().includes(needle)));
   const cats = ["All", ...new Set((games || []).map((g) => g.category))];
   return (
     <>
-      <Head title="Spider Store" onBack={onBack} right={<button type="button" className="sp-btn is-primary" onClick={onPublish}><Rocket size={16} /> Publish</button>} />
+      <Head title="Explore" onBack={onBack} right={onPublish && <button type="button" className="sp-btn is-primary" onClick={onPublish}><Rocket size={16} /> Publish</button>} />
       <div className="sp-scroll st-page">
-        <div className="st-banner">
-          <StoreIcon size={26} />
-          <div><b>Games made with Spider Engine</b><small>{storeMode() === "server" ? "Live from the Spider Store" : "Local preview: submissions stay on this device until the Store server is connected"}</small></div>
-        </div>
+        <label className="st-search">
+          <Search size={17} />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search games and developers" aria-label="Search games" />
+        </label>
         {err && <p className="st-note is-bad">{err}</p>}
         {games && cats.length > 2 && (
-          <div className="sp-chips sp-chips-row">
-            {cats.map((c) => <button key={c} type="button" className={cx("sp-chip", cat === c && "is-on")} onClick={() => setCat(c)}>{c}</button>)}
+          <div className="sp-chips sp-chips-row" role="tablist" aria-label="Category filter">
+            {cats.map((c) => <button key={c} type="button" role="tab" aria-selected={cat === c} className={cx("sp-chip", cat === c && "is-on")} onClick={() => setCat(c)}>{c}</button>)}
           </div>
         )}
         {games && !shown.length && (
           <div className="st-empty">
             <span><Package size={30} /></span>
-            <b>No games yet</b>
-            <small>Be the first. Build a game, then publish it from here.</small>
-            <button type="button" className="sp-btn is-primary" onClick={onPublish}><Rocket size={16} /> Publish a game</button>
+            <b>{games.length ? "No games match" : "No games yet"}</b>
+            <small>{games.length ? "Try another word or category." : "Games published from Spider Engine show up here."}</small>
+            {games.length > 0 && <button type="button" className="sp-btn" onClick={() => { setQ(""); setCat("All"); }}>Clear filters</button>}
           </div>
         )}
         <ul className="st-grid">
@@ -114,7 +116,7 @@ export function StoreBrowse({ onBack, onPublish }) {
                 <Cover game={g} />
                 <b>{g.name}</b>
                 <small>{g.developer}</small>
-                <span className="st-meta">{g.category}{g.versions.length > 1 ? ` · v${g.versions[0].version}` : ""}</span>
+                <span className="st-meta">{g.category}{g.versions.length > 1 ? ` · v${g.versions[0].version}` : ""}{g.sample ? " · Sample" : ""}</span>
               </button>
             </li>
           ))}
@@ -307,14 +309,11 @@ export function StorePublish({ s, notify, onBack, onDone }) {
   );
 }
 
-/** The Store tab in the bottom bar: browse, and publish from the same place. */
-export function StoreTab({ s, notify }) {
-  const [view, setView] = useState("browse");
+/** The Store tab in the bottom bar: Explore. Publishing starts from More, Projects, Export to Store. */
+export function StoreTab() {
   return (
     <section className="sp-page">
-      {view === "publish"
-        ? <StorePublish s={s} notify={notify} onBack={() => setView("browse")} onDone={() => setView("browse")} />
-        : <StoreBrowse onPublish={() => setView("publish")} />}
+      <StoreBrowse />
     </section>
   );
 }
