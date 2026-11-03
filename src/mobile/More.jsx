@@ -477,7 +477,7 @@ export default function More({ s, notify, onTour, onOpened, initialPage = null, 
           </div>
         </>
       )}
-      {page === "store" && <StoreBrowse onBack={() => setPage(null)} onPublish={() => setPage("publish")} />}
+      {page === "store" && <StoreBrowse notify={notify} onBack={() => setPage(null)} onPublish={() => setPage("publish")} />}
       {page === "publish" && <StorePublish s={s} notify={notify} onBack={() => setPage("store")} onDone={() => setPage("store")} />}
       {page === "projects" && <Projects s={s} notify={notify} onStore={() => setPage("publish")} onBack={() => setPage(null)} onOpened={() => { setPage(null); onOpened(); }} />}
       {page === "console" && <Console s={s} onBack={() => setPage(null)} />}
