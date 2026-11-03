@@ -15,7 +15,7 @@
  * ============================================================================
  */
 import React, { Suspense, useCallback, useEffect, useState } from "react";
-import { Boxes, Code2, Layers, MoreHorizontal, Play, MessageSquare, Square } from "lucide-react";
+import { Boxes, Code2, Layers, MoreHorizontal, Play, MessageSquare, Square, Store as StoreIcon } from "lucide-react";
 import { useStudio } from "./useStudio.js";
 import { InspectorSheet, ViewSheet } from "./Sheets.jsx";
 import { cx, useToast } from "./ui.jsx";
@@ -24,6 +24,7 @@ import Scene from "./Scene.jsx";
 import Chat from "./Chat.jsx";
 import Code from "./Code.jsx";
 import More from "./More.jsx";
+import { StoreTab } from "./Store.jsx";
 import TourSheet from "./Tour.jsx";
 import { tourSeen, markTourSeen } from "../onboarding.js";
 
@@ -36,6 +37,7 @@ const TABS = [
   { id: "studio", label: "Studio", icon: Layers },
   { id: "scene", label: "Scene", icon: Boxes },
   { id: "ai", label: "AI", icon: MessageSquare },
+  { id: "store", label: "Store", icon: StoreIcon },
   { id: "code", label: "Code", icon: Code2 },
   { id: "more", label: "More", icon: MoreHorizontal },
 ];
@@ -196,6 +198,11 @@ export default function MobileApp() {
       {eff === "ai" && (
         <div className="sp-pane">
           <Chat s={s} notify={notify} onOpenSettings={() => go("more", "settings")} onShowStudio={() => go("studio")} />
+        </div>
+      )}
+      {eff === "store" && (
+        <div className="sp-pane">
+          <StoreTab s={s} notify={notify} />
         </div>
       )}
       {eff === "code" && (
